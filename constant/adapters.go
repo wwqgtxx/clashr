@@ -34,6 +34,7 @@ const (
 	Tuic
 	Ssh
 	Mieru
+	AnyTLS
 
 	Relay
 	Selector
@@ -208,6 +209,8 @@ func (at AdapterType) String() string {
 		return "Ssh"
 	case Mieru:
 		return "Mieru"
+	case AnyTLS:
+		return "AnyTLS"
 	case Relay:
 		return "Relay"
 	case Selector:
