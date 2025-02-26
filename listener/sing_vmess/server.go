@@ -14,6 +14,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/ntp"
+	"github.com/metacubex/mihomo/transport/gun"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
 	vmess "github.com/metacubex/sing-vmess"
@@ -73,7 +74,7 @@ func New(config LC.VmessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 	sl = &Listener{false, config, nil, service}
 
 	tlsConfig := &tls.Config{}
-	var httpMux *http.ServeMux
+	var httpHandler http.Handler
 
 	if config.Certificate != "" && config.PrivateKey != "" {
 		cert, err := N.ParseCert(config.Certificate, config.PrivateKey, C.Path)
@@ -83,16 +84,27 @@ func New(config LC.VmessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 	if config.WsPath != "" {
-		httpMux = http.NewServeMux()
+		httpMux := http.NewServeMux()
 		httpMux.HandleFunc(config.WsPath, func(w http.ResponseWriter, r *http.Request) {
 			conn, err := mihomoVMess.StreamUpgradedWebsocketConn(w, r)
 			if err != nil {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			sl.HandleConn(conn, tunnel)
+			sl.HandleConn(conn, tunnel, additions...)
 		})
+		httpHandler = httpMux
 		tlsConfig.NextProtos = append(tlsConfig.NextProtos, "http/1.1")
+	}
+	if config.GrpcServiceName != "" {
+		httpHandler = gun.NewServerHandler(gun.ServerOption{
+			ServiceName: config.GrpcServiceName,
+			ConnHandler: func(conn net.Conn) {
+				sl.HandleConn(conn, tunnel, additions...)
+			},
+			HttpHandler: httpHandler,
+		})
+		tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
 	}
 
 	for _, addr := range strings.Split(config.Listen, ",") {
@@ -109,8 +121,8 @@ func New(config LC.VmessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 		sl.listeners = append(sl.listeners, l)
 
 		go func() {
-			if httpMux != nil {
-				_ = http.Serve(l, httpMux)
+			if httpHandler != nil {
+				_ = http.Serve(l, httpHandler)
 				return
 			}
 			for {
