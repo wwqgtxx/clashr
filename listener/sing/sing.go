@@ -130,8 +130,8 @@ func (h *ListenerHandler) NewConnection(ctx context.Context, conn net.Conn, meta
 		Type:    h.Type,
 	}
 	inbound.ApplyAdditions(cMetadata, inbound.WithDstAddr(metadata.Destination), inbound.WithSrcAddr(metadata.Source), inbound.WithInAddr(conn.LocalAddr()))
-	inbound.ApplyAdditions(cMetadata, getAdditions(ctx)...)
 	inbound.ApplyAdditions(cMetadata, h.Additions...)
+	inbound.ApplyAdditions(cMetadata, getAdditions(ctx)...)
 
 	h.Tunnel.HandleTCPConn(conn, cMetadata) // this goroutine must exit after conn unused
 	return nil
@@ -186,8 +186,8 @@ func (h *ListenerHandler) NewPacketConnection(ctx context.Context, conn network.
 			Type:    h.Type,
 		}
 		inbound.ApplyAdditions(cMetadata, inbound.WithDstAddr(dest), inbound.WithSrcAddr(metadata.Source), inbound.WithInAddr(conn.LocalAddr()))
-		inbound.ApplyAdditions(cMetadata, getAdditions(ctx)...)
 		inbound.ApplyAdditions(cMetadata, h.Additions...)
+		inbound.ApplyAdditions(cMetadata, getAdditions(ctx)...)
 
 		h.Tunnel.HandleUDPPacket(cPacket, cMetadata)
 	}
