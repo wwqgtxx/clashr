@@ -87,11 +87,29 @@ jobs:
           cd ..
 
       - name: Update Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.job.id }}
+          path: bin/
+          retention-days: 1
+
+  merge:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bin
+          pattern: bin-*
+          merge-multiple: true
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v4
         with:
           name: bin
-          path: bin/
-
+          pattern: bin-*
+          delete-merged: true
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
