@@ -77,6 +77,7 @@ func (bp *baseProvider) HealthCheckURL() string {
 
 func (bp *baseProvider) setProxies(proxies []C.Proxy) {
 	bp.proxies = proxies
+	bp.version += 1
 	bp.healthCheck.setProxy(proxies)
 	if bp.healthCheck.auto() {
 		go bp.healthCheck.check()
@@ -160,7 +161,7 @@ func NewProxySetProvider(name string, interval time.Duration, parser resource.Pa
 		},
 	}
 
-	fetcher := resource.NewFetcher[[]C.Proxy](name, interval, vehicle, parser, proxiesOnUpdate(pd))
+	fetcher := resource.NewFetcher[[]C.Proxy](name, interval, vehicle, parser, pd.setProxies)
 	pd.Fetcher = fetcher
 
 	wrapper := &ProxySetProvider{pd}
@@ -297,13 +298,6 @@ func NewCompatibleProvider(name string, proxies []C.Proxy, hc *HealthCheck) (*Co
 func (cp *CompatibleProvider) Close() error {
 	runtime.SetFinalizer(cp, nil)
 	return cp.compatibleProvider.Close()
-}
-
-func proxiesOnUpdate(pd *proxySetProvider) func([]C.Proxy) {
-	return func(elm []C.Proxy) {
-		pd.setProxies(elm)
-		pd.version += 1
-	}
 }
 
 func NewProxiesParser(filter string, excludeFilter string, excludeType string, dialerProxy string, override OverrideSchema) (resource.Parser[[]C.Proxy], error) {
