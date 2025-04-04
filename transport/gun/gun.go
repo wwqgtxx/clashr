@@ -22,6 +22,7 @@ import (
 	"github.com/metacubex/mihomo/common/buf"
 	"github.com/metacubex/mihomo/common/pool"
 	tlsC "github.com/metacubex/mihomo/component/tls"
+	C "github.com/metacubex/mihomo/constant"
 
 	"golang.org/x/net/http2"
 )
@@ -224,11 +225,9 @@ func (g *Conn) SetDeadline(t time.Time) error {
 }
 
 func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, Fingerprint string, realityConfig *tlsC.RealityConfig) *TransportWrap {
-	closed := &atomic.Bool{}
 	dialFunc := func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-		if closed.Load() {
-			return nil, errors.New("transport closed")
-		}
+		ctx, cancel := context.WithTimeout(ctx, C.DefaultTLSTimeout)
+		defer cancel()
 		pconn, err := dialFn(ctx, network, addr)
 		if err != nil {
 			return nil, err
@@ -291,9 +290,12 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, Fingerprint string, re
 		DisableCompression: true,
 		PingTimeout:        0,
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 	wrap := &TransportWrap{
 		Transport: transport,
-		closed:    closed,
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 	return wrap
 }
@@ -320,6 +322,7 @@ func StreamGunWithTransport(transport *TransportWrap, cfg *Config) (net.Conn, er
 		ProtoMinor: 0,
 		Header:     defaultHeader,
 	}
+	request = request.WithContext(transport.ctx)
 
 	conn := &Conn{
 		initFn: func() (io.ReadCloser, netAddr, error) {

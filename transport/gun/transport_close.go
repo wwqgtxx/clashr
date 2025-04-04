@@ -45,11 +45,8 @@ func closeClientConn(cc *http2.ClientConn) { // like forceCloseConn() in http2.C
 	_ = cc.Close()
 }
 
-func (tw *TransportWrap) Close() error {
-	if tw.closed.Swap(true) {
-		return nil // already closed
-	}
-	connPool := transportConnPool(tw.Transport)
+func closeTransport(tr *http2.Transport) {
+	connPool := transportConnPool(tr)
 	p := (*clientConnPool)((*efaceWords)(unsafe.Pointer(&connPool)).data)
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -61,7 +58,6 @@ func (tw *TransportWrap) Close() error {
 	// cleanup
 	p.conns = make(map[string][]*http2.ClientConn)
 	p.keys = make(map[*http2.ClientConn][]string)
-	return nil
 }
 
 //go:linkname transportConnPool golang.org/x/net/http2.(*Transport).connPool
