@@ -251,6 +251,14 @@ func (t *Trojan) ProxyInfo() C.ProxyInfo {
 	return info
 }
 
+// Close implements C.ProxyAdapter
+func (t *Trojan) Close() error {
+	if t.transport != nil {
+		return t.transport.Close()
+	}
+	return nil
+}
+
 func NewTrojan(option TrojanOption) (*Trojan, error) {
 	addr := net.JoinHostPort(option.Server, strconv.Itoa(option.Port))
 

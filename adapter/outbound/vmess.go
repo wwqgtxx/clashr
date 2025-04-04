@@ -395,6 +395,14 @@ func (v *Vmess) ProxyInfo() C.ProxyInfo {
 	return info
 }
 
+// Close implements C.ProxyAdapter
+func (v *Vmess) Close() error {
+	if v.transport != nil {
+		return v.transport.Close()
+	}
+	return nil
+}
+
 // ListenPacketOnStreamConn implements C.ProxyAdapter
 func (v *Vmess) ListenPacketOnStreamConn(ctx context.Context, c net.Conn, metadata *C.Metadata) (_ C.PacketConn, err error) {
 	// vmess use stream-oriented udp with a special address, so we need a net.UDPAddr

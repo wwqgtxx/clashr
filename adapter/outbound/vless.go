@@ -385,6 +385,14 @@ func (v *Vless) ProxyInfo() C.ProxyInfo {
 	return info
 }
 
+// Close implements C.ProxyAdapter
+func (v *Vless) Close() error {
+	if v.transport != nil {
+		return v.transport.Close()
+	}
+	return nil
+}
+
 func parseVlessAddr(metadata *C.Metadata, xudp bool) *vless.DstAddr {
 	var addrType byte
 	var addr []byte
