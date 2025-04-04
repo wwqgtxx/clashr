@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/metacubex/mihomo/common/atomic"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -13,7 +14,13 @@ var (
 	DefaultInterface   = atomic.NewTypedValue[string]("")
 	GeneralInterface   = atomic.NewTypedValue[string]("")
 	DefaultRoutingMark = atomic.NewInt32(0)
+
+	DefaultInterfaceFinder = atomic.NewTypedValue[InterfaceFinder](nil)
 )
+
+type InterfaceFinder interface {
+	FindInterfaceName(destination netip.Addr) string
+}
 
 type NetDialer interface {
 	DialContext(ctx context.Context, network, address string) (net.Conn, error)
