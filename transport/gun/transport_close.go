@@ -11,9 +11,13 @@ import (
 )
 
 type clientConnPool struct {
-	t     *http2.Transport
-	mu    sync.Mutex
-	conns map[string][]*http2.ClientConn // key is host:port
+	t *http2.Transport
+
+	mu           sync.Mutex
+	conns        map[string][]*http2.ClientConn // key is host:port
+	dialing      map[string]unsafe.Pointer      // currently in-flight dials
+	keys         map[*http2.ClientConn][]string
+	addConnCalls map[string]unsafe.Pointer // in-flight addConnIfNeeded calls
 }
 
 type clientConn struct {
@@ -42,6 +46,9 @@ func closeClientConn(cc *http2.ClientConn) { // like forceCloseConn() in http2.C
 }
 
 func (tw *TransportWrap) Close() error {
+	if tw.closed.Swap(true) {
+		return nil // already closed
+	}
 	connPool := transportConnPool(tw.Transport)
 	p := (*clientConnPool)((*efaceWords)(unsafe.Pointer(&connPool)).data)
 	p.mu.Lock()
@@ -51,6 +58,9 @@ func (tw *TransportWrap) Close() error {
 			closeClientConn(cc)
 		}
 	}
+	// cleanup
+	p.conns = make(map[string][]*http2.ClientConn)
+	p.keys = make(map[*http2.ClientConn][]string)
 	return nil
 }
 

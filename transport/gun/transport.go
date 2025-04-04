@@ -1,12 +1,16 @@
 package gun
 
 import (
-	"golang.org/x/net/http2"
 	"net"
+
+	"github.com/metacubex/mihomo/common/atomic"
+
+	"golang.org/x/net/http2"
 )
 
 type TransportWrap struct {
 	*http2.Transport
+	closed *atomic.Bool
 }
 
 type netAddr struct {
