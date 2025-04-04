@@ -1,7 +1,10 @@
 package gun
 
 import (
+	"net"
+	"net/http"
 	"sync"
+	"time"
 	"unsafe"
 
 	"golang.org/x/net/http2"
@@ -13,9 +16,29 @@ type clientConnPool struct {
 	conns map[string][]*http2.ClientConn // key is host:port
 }
 
+type clientConn struct {
+	t     *http.Transport
+	tconn net.Conn // usually *tls.Conn, except specialized impls
+}
+
 type efaceWords struct {
 	typ  unsafe.Pointer
 	data unsafe.Pointer
+}
+
+type tlsConn interface {
+	net.Conn
+	NetConn() net.Conn
+}
+
+func closeClientConn(cc *http2.ClientConn) { // like forceCloseConn() in http2.ClientConn but also apply for tls-like conn
+	if conn, ok := (*clientConn)(unsafe.Pointer(cc)).tconn.(tlsConn); ok {
+		t := time.AfterFunc(time.Second, func() {
+			_ = conn.NetConn().Close()
+		})
+		defer t.Stop()
+	}
+	_ = cc.Close()
 }
 
 func (tw *TransportWrap) Close() error {
@@ -25,7 +48,7 @@ func (tw *TransportWrap) Close() error {
 	defer p.mu.Unlock()
 	for _, vv := range p.conns {
 		for _, cc := range vv {
-			cc.Close()
+			closeClientConn(cc)
 		}
 	}
 	return nil
