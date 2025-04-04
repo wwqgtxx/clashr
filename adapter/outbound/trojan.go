@@ -313,7 +313,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 	}
 
 	if option.Network == "grpc" {
-		dialFn := func(network, addr string) (net.Conn, error) {
+		dialFn := func(ctx context.Context, network, addr string) (net.Conn, error) {
 			var err error
 			var cDialer C.Dialer = dialer.NewDialer(t.Base.DialOptions()...)
 			if len(t.option.DialerProxy) > 0 {
@@ -322,7 +322,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 					return nil, err
 				}
 			}
-			c, err := cDialer.DialContext(context.Background(), "tcp", t.addr)
+			c, err := cDialer.DialContext(ctx, "tcp", t.addr)
 			if err != nil {
 				return nil, fmt.Errorf("%s connect error: %s", t.addr, err.Error())
 			}

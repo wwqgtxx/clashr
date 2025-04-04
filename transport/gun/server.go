@@ -56,8 +56,7 @@ func NewServerHandler(options ServerOption) http.Handler {
 					}
 					return request.Body, nAddr, nil
 				},
-				writer:  writer,
-				flusher: writer.(http.Flusher),
+				writer: writer,
 			}
 
 			wrapper := &h2ConnWrapper{

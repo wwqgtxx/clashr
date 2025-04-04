@@ -36,12 +36,12 @@ var defaultHeader = http.Header{
 	"user-agent":   []string{"grpc-go/1.36.0"},
 }
 
-type DialFn = func(network, addr string) (net.Conn, error)
+type DialFn = func(ctx context.Context, network, addr string) (net.Conn, error)
 
 type Conn struct {
-	initFn  func() (io.ReadCloser, netAddr, error)
-	writer  io.Writer
-	flusher http.Flusher
+	initFn func() (io.ReadCloser, netAddr, error)
+	writer io.Writer
+	closer io.Closer
 	netAddr
 
 	reader io.ReadCloser
@@ -149,8 +149,8 @@ func (g *Conn) Write(b []byte) (n int, err error) {
 		err = g.err
 	}
 
-	if g.flusher != nil {
-		g.flusher.Flush()
+	if flusher, ok := g.writer.(http.Flusher); ok {
+		flusher.Flush()
 	}
 
 	return len(b), err
@@ -172,8 +172,8 @@ func (g *Conn) WriteBuffer(buffer *buf.Buffer) error {
 		err = g.err
 	}
 
-	if g.flusher != nil {
-		g.flusher.Flush()
+	if flusher, ok := g.writer.(http.Flusher); ok {
+		flusher.Flush()
 	}
 
 	return err
@@ -185,14 +185,27 @@ func (g *Conn) FrontHeadroom() int {
 
 func (g *Conn) Close() error {
 	g.close.Store(true)
+	var errorArr []error
+
 	if reader := g.reader; reader != nil {
-		reader.Close()
+		if err := reader.Close(); err != nil {
+			errorArr = append(errorArr, err)
+		}
 	}
 
 	if closer, ok := g.writer.(io.Closer); ok {
-		return closer.Close()
+		if err := closer.Close(); err != nil {
+			errorArr = append(errorArr, err)
+		}
 	}
-	return nil
+
+	if closer := g.closer; closer != nil {
+		if err := closer.Close(); err != nil {
+			errorArr = append(errorArr, err)
+		}
+	}
+
+	return errors.Join(errorArr...)
 }
 
 func (g *Conn) SetReadDeadline(t time.Time) error  { return g.SetDeadline(t) }
@@ -212,7 +225,7 @@ func (g *Conn) SetDeadline(t time.Time) error {
 
 func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, Fingerprint string, realityConfig *tlsC.RealityConfig) *TransportWrap {
 	dialFunc := func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-		pconn, err := dialFn(network, addr)
+		pconn, err := dialFn(ctx, network, addr)
 		if err != nil {
 			return nil, err
 		}
@@ -327,10 +340,17 @@ func StreamGunWithTransport(transport *TransportWrap, cfg *Config) (net.Conn, er
 }
 
 func StreamGunWithConn(conn net.Conn, tlsConfig *tls.Config, cfg *Config, realityConfig *tlsC.RealityConfig) (net.Conn, error) {
-	dialFn := func(network, addr string) (net.Conn, error) {
+	dialFn := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return conn, nil
 	}
 
 	transport := NewHTTP2Client(dialFn, tlsConfig, cfg.ClientFingerprint, realityConfig)
-	return StreamGunWithTransport(transport, cfg)
+	c, err := StreamGunWithTransport(transport, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if c, ok := c.(*Conn); ok { // The incoming net.Conn should be closed synchronously with the generated gun.Conn
+		c.closer = conn
+	}
+	return c, nil
 }

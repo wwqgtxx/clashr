@@ -571,7 +571,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 			option.HTTP2Opts.Host = append(option.HTTP2Opts.Host, "www.example.com")
 		}
 	case "grpc":
-		dialFn := func(network, addr string) (net.Conn, error) {
+		dialFn := func(ctx context.Context, network, addr string) (net.Conn, error) {
 			var err error
 			var cDialer C.Dialer = dialer.NewDialer(v.Base.DialOptions()...)
 			if len(v.option.DialerProxy) > 0 {
@@ -580,7 +580,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 					return nil, err
 				}
 			}
-			c, err := cDialer.DialContext(context.Background(), "tcp", v.addr)
+			c, err := cDialer.DialContext(ctx, "tcp", v.addr)
 			if err != nil {
 				return nil, fmt.Errorf("%s connect error: %s", v.addr, err.Error())
 			}
