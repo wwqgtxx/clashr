@@ -307,7 +307,7 @@ func New(options LC.Tun, tunnel C.Tunnel, additions ...inbound.Addition) (l *Lis
 				defaultInterfaceMonitor: defaultInterfaceMonitor,
 			}
 			if !dialer.DefaultInterfaceFinder.CompareAndSwap(nil, l.cDialerInterfaceFinder) {
-				err = E.New("don't allowed two tun listener using auto-detect-interface")
+				err = E.New("not allowed two tun listener using auto-detect-interface")
 				return
 			}
 		}
@@ -450,7 +450,10 @@ func New(options LC.Tun, tunnel C.Tunnel, additions ...inbound.Addition) (l *Lis
 		}
 		if tunOptions.AutoRedirectMarkMode {
 			l.autoRedirectOutputMark = int32(outputMark)
-			dialer.DefaultRoutingMark.Store(l.autoRedirectOutputMark)
+			if !dialer.DefaultRoutingMark.CompareAndSwap(0, l.autoRedirectOutputMark) {
+				err = E.New("not allowed setting global routing-mark when working with autoRedirectMarkMode")
+				return
+			}
 			l.autoRedirect.UpdateRouteAddressSet()
 			l.ruleUpdateCallbackCloser = rpTunnel.RuleUpdateCallback().Register(l.ruleUpdateCallback)
 		}
@@ -514,6 +517,15 @@ func (l *Listener) updateRule(ruleProvider provider.RuleProvider, exclude bool, 
 	}
 	if update && l.autoRedirect != nil {
 		l.autoRedirect.UpdateRouteAddressSet()
+	}
+}
+
+func (l *Listener) OnReload() {
+	if l.autoRedirectOutputMark != 0 {
+		dialer.DefaultRoutingMark.CompareAndSwap(0, l.autoRedirectOutputMark)
+	}
+	if l.cDialerInterfaceFinder != nil {
+		dialer.DefaultInterfaceFinder.CompareAndSwap(nil, l.cDialerInterfaceFinder)
 	}
 }
 
