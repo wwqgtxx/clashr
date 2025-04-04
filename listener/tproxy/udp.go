@@ -80,6 +80,9 @@ func NewUDP(addr string, tunnel C.Tunnel, additions ...inbound.Addition) (*UDPLi
 				continue
 			}
 
+			dscp, _ := getDSCP(oob[:oobn])
+			additions := append(additions, inbound.WithDSCP(dscp)) // don't change outside additions
+
 			if rAddr.Addr().Is4() {
 				// try to unmap 4in6 address
 				lAddr = netip.AddrPortFrom(lAddr.Addr().Unmap(), lAddr.Port())

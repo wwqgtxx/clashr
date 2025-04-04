@@ -15,6 +15,7 @@ const (
 	SrcPort
 	DstPort
 	InPort
+	DSCP
 	InUser
 	InName
 	InType
@@ -73,6 +74,8 @@ func (rt RuleType) String() string {
 		return "InType"
 	case Network:
 		return "Network"
+	case DSCP:
+		return "DSCP"
 	case Type_:
 		return "Type"
 	case ProcessName:

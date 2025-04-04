@@ -170,6 +170,7 @@ type Metadata struct {
 	SpecialRules string     `json:"specialRules"`
 	// Only domain rule
 	SniffHost string `json:"sniffHost"`
+	DSCP      uint8  `json:"dscp"`
 }
 
 func (m *Metadata) RemoteAddress() string {
