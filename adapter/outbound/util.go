@@ -17,20 +17,19 @@ import (
 func serializesSocksAddr(metadata *C.Metadata) []byte {
 	var buf [][]byte
 	addrType := metadata.AddrType()
-	aType := uint8(addrType)
 	p := uint(metadata.DstPort)
 	port := []byte{uint8(p >> 8), uint8(p & 0xff)}
 	switch addrType {
-	case socks5.AtypDomainName:
+	case C.AtypDomainName:
 		lenM := uint8(len(metadata.Host))
 		host := []byte(metadata.Host)
-		buf = [][]byte{{aType, lenM}, host, port}
-	case socks5.AtypIPv4:
+		buf = [][]byte{{socks5.AtypDomainName, lenM}, host, port}
+	case C.AtypIPv4:
 		host := metadata.DstIP.AsSlice()
-		buf = [][]byte{{aType}, host, port}
-	case socks5.AtypIPv6:
+		buf = [][]byte{{socks5.AtypIPv4}, host, port}
+	case C.AtypIPv6:
 		host := metadata.DstIP.AsSlice()
-		buf = [][]byte{{aType}, host, port}
+		buf = [][]byte{{socks5.AtypIPv6}, host, port}
 	}
 	return bytes.Join(buf, nil)
 }
