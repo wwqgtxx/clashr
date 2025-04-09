@@ -133,6 +133,7 @@ func (s *searcher) Search(b []byte, ip netip.Addr, port uint16) (uint32, error) 
 		}
 
 		srcIP, _ := netip.AddrFromSlice(row[s.ip : s.ip+s.ipSize])
+		srcIP = srcIP.Unmap()
 		// windows binds an unbound udp socket to 0.0.0.0/[::] while first sendto
 		if ip != srcIP && (!srcIP.IsUnspecified() || s.tcpState != -1) {
 			continue

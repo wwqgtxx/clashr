@@ -26,6 +26,7 @@ func parseSocksAddr(target socks5.Addr) *C.Metadata {
 		metadata.DstIP, _ = netip.AddrFromSlice(target[1 : 1+net.IPv6len])
 		metadata.DstPort = uint16((int(target[1+net.IPv6len]) << 8) | int(target[1+net.IPv6len+1]))
 	}
+	metadata.DstIP = metadata.DstIP.Unmap()
 
 	return metadata
 }

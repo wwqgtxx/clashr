@@ -141,6 +141,7 @@ func (s *searcher) Search(buf []byte, ip netip.Addr, port uint16, isTCP bool) (u
 		default:
 			continue
 		}
+		srcIP = srcIP.Unmap()
 
 		if ip != srcIP {
 			continue

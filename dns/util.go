@@ -138,23 +138,24 @@ func handleMsgWithEmptyAnswer(r *D.Msg) *D.Msg {
 	return msg
 }
 
-func msgToIP(msg *D.Msg) []netip.Addr {
-	ips := []netip.Addr{}
-
+func msgToIP(msg *D.Msg) (ips []netip.Addr) {
 	for _, answer := range msg.Answer {
+		var ip netip.Addr
 		switch ans := answer.(type) {
 		case *D.AAAA:
-			if ip, ok := netip.AddrFromSlice(ans.AAAA); ok {
-				ips = append(ips, ip)
-			}
+			ip, _ = netip.AddrFromSlice(ans.AAAA)
 		case *D.A:
-			if ip, ok := netip.AddrFromSlice(ans.A); ok {
-				ips = append(ips, ip)
-			}
+			ip, _ = netip.AddrFromSlice(ans.A)
+		default:
+			continue
 		}
+		if !ip.IsValid() {
+			continue
+		}
+		ip = ip.Unmap()
+		ips = append(ips, ip)
 	}
-
-	return ips
+	return
 }
 
 func msgToDomain(msg *D.Msg) string {

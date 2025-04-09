@@ -85,7 +85,7 @@ func receiveOffer(conn net.PacketConn, id dhcpv4.TransactionID, result chan<- []
 		results := make([]netip.Addr, 0, len(dns))
 		for _, ip := range dns {
 			if addr, ok := netip.AddrFromSlice(ip); ok {
-				results = append(results, addr)
+				results = append(results, addr.Unmap())
 			}
 		}
 

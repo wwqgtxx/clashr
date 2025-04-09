@@ -87,22 +87,24 @@ func withMapping(mapping *lru.LruCache[netip.Addr, string]) middleware {
 				case *D.A:
 					ip, _ = netip.AddrFromSlice(a.A)
 					ttl = a.Hdr.Ttl
-					if !ip.IsGlobalUnicast() {
-						continue
-					}
 				case *D.AAAA:
 					ip, _ = netip.AddrFromSlice(a.AAAA)
 					ttl = a.Hdr.Ttl
-					if !ip.IsGlobalUnicast() {
-						continue
-					}
 				default:
 					continue
 				}
+				if !ip.IsValid() {
+					continue
+				}
+				if !ip.IsGlobalUnicast() {
+					continue
+				}
+				ip = ip.Unmap()
 
 				if ttl < 1 {
 					ttl = 1
 				}
+
 				mapping.SetWithExpire(ip, host, time.Now().Add(time.Second*time.Duration(ttl)))
 			}
 
