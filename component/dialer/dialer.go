@@ -135,6 +135,7 @@ func GetTcpConcurrent() bool {
 
 func dialContext(ctx context.Context, network string, destination netip.Addr, port string, opt *option) (net.Conn, error) {
 	var address string
+	destination, port = resolver.LookupIP4P(destination, port)
 	address = net.JoinHostPort(destination.String(), port)
 
 	netDialer := opt.netDialer
