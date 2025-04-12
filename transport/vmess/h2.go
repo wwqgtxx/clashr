@@ -1,12 +1,15 @@
 package vmess
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 
 	"golang.org/x/net/http2"
+
+	N "github.com/metacubex/mihomo/common/net"
 
 	"github.com/metacubex/randv2"
 )
@@ -94,7 +97,12 @@ func (hc *h2Conn) Close() error {
 	return hc.Conn.Close()
 }
 
-func StreamH2Conn(conn net.Conn, cfg *H2Config) (net.Conn, error) {
+func StreamH2Conn(ctx context.Context, conn net.Conn, cfg *H2Config) (_ net.Conn, err error) {
+	if ctx.Done() != nil {
+		done := N.SetupContextForConn(ctx, conn)
+		defer done(&err)
+	}
+
 	transport := &http2.Transport{}
 
 	cconn, err := transport.NewClientConn(conn)

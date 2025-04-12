@@ -7,12 +7,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/proxydialer"
@@ -53,7 +53,7 @@ func (h *Http) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Me
 		}
 	}
 
-	if err := h.shakeHand(metadata, c); err != nil {
+	if err := h.shakeHandContext(ctx, c, metadata); err != nil {
 		return nil, err
 	}
 	return c, nil
@@ -101,7 +101,12 @@ func (h *Http) ProxyInfo() C.ProxyInfo {
 	return info
 }
 
-func (h *Http) shakeHand(metadata *C.Metadata, rw io.ReadWriter) error {
+func (h *Http) shakeHandContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (err error) {
+	if ctx.Done() != nil {
+		done := N.SetupContextForConn(ctx, c)
+		defer done(&err)
+	}
+
 	addr := metadata.RemoteAddress()
 	req := &http.Request{
 		Method: http.MethodConnect,
@@ -119,11 +124,11 @@ func (h *Http) shakeHand(metadata *C.Metadata, rw io.ReadWriter) error {
 		req.Header.Add("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth)))
 	}
 
-	if err := req.Write(rw); err != nil {
+	if err := req.Write(c); err != nil {
 		return err
 	}
 
-	resp, err := http.ReadResponse(bufio.NewReader(rw), req)
+	resp, err := http.ReadResponse(bufio.NewReader(c), req)
 	if err != nil {
 		return err
 	}
