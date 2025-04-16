@@ -56,8 +56,10 @@ func TestInboundVless_Tls(t *testing.T) {
 		Fingerprint: tlsFingerprint,
 	}
 	testInboundVless(t, inboundOptions, outboundOptions)
-	outboundOptions.Flow = "xtls-rprx-vision"
-	testInboundVless(t, inboundOptions, outboundOptions)
+	t.Run("xtls-rprx-vision", func(t *testing.T) {
+		outboundOptions.Flow = "xtls-rprx-vision"
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
 }
 
 func TestInboundVless_Wss1(t *testing.T) {
@@ -73,11 +75,12 @@ func TestInboundVless_Wss1(t *testing.T) {
 		WSOpts: outbound.WSOptions{
 			Path: "/ws",
 		},
-		ClientFingerprint: "chrome",
 	}
 	testInboundVless(t, inboundOptions, outboundOptions)
-	outboundOptions.Flow = "xtls-rprx-vision"
-	testInboundVless(t, inboundOptions, outboundOptions)
+	t.Run("xtls-rprx-vision", func(t *testing.T) {
+		outboundOptions.Flow = "xtls-rprx-vision"
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
 }
 
 func TestInboundVless_Wss2(t *testing.T) {
@@ -96,8 +99,10 @@ func TestInboundVless_Wss2(t *testing.T) {
 		},
 	}
 	testInboundVless(t, inboundOptions, outboundOptions)
-	outboundOptions.Flow = "xtls-rprx-vision"
-	testInboundVless(t, inboundOptions, outboundOptions)
+	t.Run("xtls-rprx-vision", func(t *testing.T) {
+		outboundOptions.Flow = "xtls-rprx-vision"
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
 }
 
 func TestInboundVless_Grpc1(t *testing.T) {
@@ -150,8 +155,10 @@ func TestInboundVless_Reality(t *testing.T) {
 		ClientFingerprint: "chrome",
 	}
 	testInboundVless(t, inboundOptions, outboundOptions)
-	outboundOptions.Flow = "xtls-rprx-vision"
-	testInboundVless(t, inboundOptions, outboundOptions)
+	t.Run("xtls-rprx-vision", func(t *testing.T) {
+		outboundOptions.Flow = "xtls-rprx-vision"
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
 }
 
 func TestInboundVless_Reality_Grpc(t *testing.T) {
