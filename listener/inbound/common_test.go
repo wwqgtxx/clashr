@@ -165,7 +165,7 @@ func NewHttpTestTunnel() *TestTunnel {
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			// for our self-signed cert
-			TLSClientConfig: tlsClientConfig,
+			TLSClientConfig: tlsClientConfig.Clone(),
 			// open http2
 			ForceAttemptHTTP2: true,
 		}
@@ -202,7 +202,7 @@ func NewHttpTestTunnel() *TestTunnel {
 				ch:   make(chan struct{}),
 			}
 			if metadata.DstPort == 443 {
-				tlsConn := tls.Server(c, tlsConfig)
+				tlsConn := tls.Server(c, tlsConfig.Clone())
 				if metadata.Host == realityDest { // ignore the tls handshake error for realityDest
 					ctx, cancel := context.WithTimeout(ctx, C.DefaultTLSTimeout)
 					defer cancel()
