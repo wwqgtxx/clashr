@@ -24,6 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var httpPath = "/inbound_test"
+var httpData = make([]byte, 10240)
+var remoteAddr = netip.MustParseAddr("1.2.3.4")
 var tlsCertificate, tlsPrivateKey, tlsFingerprint, _ = N.NewRandomTLSKeyPair()
 var tlsConfigCert, _ = tls.X509KeyPair([]byte(tlsCertificate), []byte(tlsPrivateKey))
 var tlsConfig = &tls.Config{Certificates: []tls.Certificate{tlsConfigCert}, NextProtos: []string{"h2", "http/1.1"}}
@@ -33,6 +36,7 @@ var realityDest = "itunes.apple.com"
 var realityShortid = "10f897e26c4b9478"
 
 func init() {
+	rand.Read(httpData)
 	privateKey, err := generater.GeneratePrivateKey()
 	if err != nil {
 		panic(err)
@@ -115,30 +119,17 @@ func (c *WaitCloseConn) Close() error {
 var _ C.Tunnel = (*TestTunnel)(nil)
 var _ net.Listener = (*TestTunnelListener)(nil)
 
-type HttpTestConfig struct {
-	RemoteAddr netip.Addr
-	HttpPath   string
-	HttpData   []byte
-}
-
 func NewHttpTestTunnel() *TestTunnel {
-	httpData := make([]byte, 10240)
-	rand.Read(httpData)
-	config := &HttpTestConfig{
-		HttpPath:   "/inbound_test",
-		HttpData:   httpData,
-		RemoteAddr: netip.MustParseAddr("1.2.3.4"),
-	}
 	ctx, cancel := context.WithCancel(context.Background())
-	ln := &TestTunnelListener{ch: make(chan net.Conn), ctx: ctx, cancel: cancel, addr: net.TCPAddrFromAddrPort(netip.AddrPortFrom(config.RemoteAddr, 0))}
+	ln := &TestTunnelListener{ch: make(chan net.Conn), ctx: ctx, cancel: cancel, addr: net.TCPAddrFromAddrPort(netip.AddrPortFrom(remoteAddr, 0))}
 
 	r := chi.NewRouter()
-	r.Get(config.HttpPath, func(w http.ResponseWriter, r *http.Request) {
-		render.Data(w, r, config.HttpData)
+	r.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
+		render.Data(w, r, httpData)
 	})
 	go http.Serve(ln, r)
 	testFn := func(t *testing.T, proxy C.ProxyAdapter, proto string) {
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s%s", proto, config.RemoteAddr, config.HttpPath), nil)
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s%s", proto, remoteAddr, httpPath), nil)
 		assert.NoError(t, err)
 		req = req.WithContext(ctx)
 
@@ -148,7 +139,7 @@ func NewHttpTestTunnel() *TestTunnel {
 		}
 		metadata := &C.Metadata{
 			NetWork: C.TCP,
-			DstIP:   config.RemoteAddr,
+			DstIP:   remoteAddr,
 			DstPort: dstPort,
 		}
 		instance, err := proxy.DialContext(ctx, metadata)
@@ -189,12 +180,12 @@ func NewHttpTestTunnel() *TestTunnel {
 
 		data, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
-		assert.Equal(t, config.HttpData, data)
+		assert.Equal(t, httpData, data)
 	}
 	tunnel := &TestTunnel{
 		HandleTCPConnFn: func(conn net.Conn, metadata *C.Metadata) {
 			defer conn.Close()
-			if metadata.DstIP != config.RemoteAddr && metadata.Host != realityDest {
+			if metadata.DstIP != remoteAddr && metadata.Host != realityDest {
 				return // not match, just return
 			}
 			c := &WaitCloseConn{

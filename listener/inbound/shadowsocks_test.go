@@ -18,16 +18,23 @@ import (
 )
 
 var shadowsocksCipherList = []string{shadowsocks.MethodNone}
+var shadowsocksPassword32 string
+var shadowsocksPassword16 string
 
 func init() {
 	shadowsocksCipherList = append(shadowsocksCipherList, shadowaead.List...)
 	shadowsocksCipherList = append(shadowsocksCipherList, shadowaead_2022.List...)
 	shadowsocksCipherList = append(shadowsocksCipherList, shadowstream.List...)
+	passwordBytes := make([]byte, 32)
+	rand.Read(passwordBytes)
+	shadowsocksPassword32 = base64.StdEncoding.EncodeToString(passwordBytes)
+	shadowsocksPassword16 = base64.StdEncoding.EncodeToString(passwordBytes[:16])
 }
 
 func testInboundShadowSocks(t *testing.T, inboundOptions inbound.ShadowSocksOption, outboundOptions outbound.ShadowSocksOption) {
 	for _, cipher := range shadowsocksCipherList {
 		t.Run(cipher, func(t *testing.T) {
+			t.Parallel()
 			inboundOptions.Cipher = cipher
 			outboundOptions.Cipher = cipher
 			testInboundShadowSocks0(t, inboundOptions, outboundOptions)
@@ -36,13 +43,10 @@ func testInboundShadowSocks(t *testing.T, inboundOptions inbound.ShadowSocksOpti
 }
 
 func testInboundShadowSocks0(t *testing.T, inboundOptions inbound.ShadowSocksOption, outboundOptions outbound.ShadowSocksOption) {
-	passwordLen := 32
+	password := shadowsocksPassword32
 	if strings.Contains(inboundOptions.Cipher, "-128-") {
-		passwordLen = 16
+		password = shadowsocksPassword16
 	}
-	passwordBytes := make([]byte, passwordLen)
-	rand.Read(passwordBytes)
-	password := base64.StdEncoding.EncodeToString(passwordBytes)
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "shadowsocks_inbound",
 		Listen:  "127.0.0.1",
