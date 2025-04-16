@@ -467,7 +467,7 @@ func streamWebsocketConn(ctx context.Context, conn net.Conn, c *WebsocketConfig,
 		}
 	}
 
-	conn = newWebsocketConn(conn, ws.StateClientSide)
+	conn = newWebsocketConn(bufferedConn, ws.StateClientSide)
 	// websocketConn can't correct handle ReadDeadline
 	// so call N.NewDeadlineConn to add a safe wrapper
 	return N.NewDeadlineConn(conn), nil
