@@ -36,6 +36,7 @@ import (
 	"github.com/metacubex/mihomo/listener"
 	authStore "github.com/metacubex/mihomo/listener/auth"
 	LC "github.com/metacubex/mihomo/listener/config"
+	"github.com/metacubex/mihomo/listener/inner"
 	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/tunnel"
@@ -107,8 +108,14 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	loadProvider(cfg.RuleProviders)
 	updateTunnels(cfg.Tunnels)
 
+	initInnerTcp()
+
 	resolver.ResetConnection()
 	runtime.GC()
+}
+
+func initInnerTcp() {
+	inner.New(tunnel.Tunnel)
 }
 
 func GetGeneral() *config.General {

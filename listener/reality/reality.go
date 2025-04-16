@@ -9,7 +9,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/metacubex/mihomo/component/inner_dialer"
+	C "github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/listener/inner"
 	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/ntp"
 
@@ -27,7 +28,7 @@ type Config struct {
 	Proxy             string
 }
 
-func (c Config) Build() (*Builder, error) {
+func (c Config) Build(tunnel C.Tunnel) (*Builder, error) {
 	realityConfig := &utls.RealityConfig{}
 	realityConfig.SessionTicketsDisabled = true
 	realityConfig.Type = "tcp"
@@ -67,7 +68,7 @@ func (c Config) Build() (*Builder, error) {
 	}
 
 	realityConfig.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		return inner_dialer.Inner.DialTCP(address, c.Proxy)
+		return inner.HandleTcp(tunnel, address, c.Proxy)
 	}
 
 	return &Builder{realityConfig}, nil

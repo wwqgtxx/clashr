@@ -14,7 +14,6 @@ import (
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/utils"
-	"github.com/metacubex/mihomo/component/inner_dialer"
 	"github.com/metacubex/mihomo/component/mmdb"
 	"github.com/metacubex/mihomo/component/nat"
 	P "github.com/metacubex/mihomo/component/process"
@@ -157,10 +156,6 @@ func PreResolveProcessName() bool {
 
 func SetPreResolveProcessName(b bool) {
 	preResolveProcessName = b
-}
-
-func init() {
-	inner_dialer.Init(Tunnel)
 }
 
 // TCPIn return fan-in queue
