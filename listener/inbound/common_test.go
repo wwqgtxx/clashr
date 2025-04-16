@@ -1,0 +1,206 @@
+package inbound_test
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/tls"
+	"encoding/base64"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/netip"
+	"sync"
+	"testing"
+	"time"
+
+	N "github.com/metacubex/mihomo/common/net"
+	"github.com/metacubex/mihomo/component/ca"
+	"github.com/metacubex/mihomo/component/generater"
+	C "github.com/metacubex/mihomo/constant"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
+	"github.com/stretchr/testify/assert"
+)
+
+var tlsCertificate, tlsPrivateKey, tlsFingerprint, _ = N.NewRandomTLSKeyPair()
+var tlsConfigCert, _ = tls.X509KeyPair([]byte(tlsCertificate), []byte(tlsPrivateKey))
+var tlsConfig = &tls.Config{Certificates: []tls.Certificate{tlsConfigCert}, NextProtos: []string{"h2", "http/1.1"}}
+var tlsClientConfig, _ = ca.GetTLSConfig(nil, tlsFingerprint, "", "")
+var realityPrivateKey, realityPublickey string
+var realityDest = "itunes.apple.com"
+var realityShortid = "10f897e26c4b9478"
+
+func init() {
+	privateKey, err := generater.GeneratePrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	publicKey := privateKey.PublicKey()
+	realityPrivateKey = base64.RawURLEncoding.EncodeToString(privateKey[:])
+	realityPublickey = base64.RawURLEncoding.EncodeToString(publicKey[:])
+}
+
+type TestTunnel struct {
+	HandleTCPConnFn   func(conn net.Conn, metadata *C.Metadata)
+	HandleUDPPacketFn func(packet C.UDPPacket, metadata *C.Metadata)
+	NatTableFn        func() C.NatTable
+	CloseFn           func() error
+	DoTestFn          func(t *testing.T, proxy C.ProxyAdapter)
+}
+
+func (tt *TestTunnel) HandleTCPConn(conn net.Conn, metadata *C.Metadata) {
+	tt.HandleTCPConnFn(conn, metadata)
+}
+
+func (tt *TestTunnel) HandleUDPPacket(packet C.UDPPacket, metadata *C.Metadata) {
+	tt.HandleUDPPacketFn(packet, metadata)
+}
+
+func (tt *TestTunnel) NatTable() C.NatTable {
+	return tt.NatTableFn()
+}
+
+func (tt *TestTunnel) Close() error {
+	return tt.CloseFn()
+}
+
+func (tt *TestTunnel) DoTest(t *testing.T, proxy C.ProxyAdapter) {
+	tt.DoTestFn(t, proxy)
+}
+
+type TestTunnelListener struct {
+	ch     chan net.Conn
+	ctx    context.Context
+	cancel context.CancelFunc
+	addr   net.Addr
+}
+
+func (t *TestTunnelListener) Accept() (net.Conn, error) {
+	select {
+	case conn, ok := <-t.ch:
+		if !ok {
+			return nil, net.ErrClosed
+		}
+		return conn, nil
+	case <-t.ctx.Done():
+		return nil, t.ctx.Err()
+	}
+}
+
+func (t *TestTunnelListener) Close() error {
+	t.cancel()
+	return nil
+}
+
+func (t *TestTunnelListener) Addr() net.Addr {
+	return t.addr
+}
+
+type WaitCloseConn struct {
+	net.Conn
+	ch   chan struct{}
+	once sync.Once
+}
+
+func (c *WaitCloseConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(func() {
+		close(c.ch)
+	})
+	return err
+}
+
+var _ C.Tunnel = (*TestTunnel)(nil)
+var _ net.Listener = (*TestTunnelListener)(nil)
+
+type HttpTestConfig struct {
+	RemoteAddr netip.AddrPort
+	HttpPath   string
+	HttpData   []byte
+}
+
+func NewHttpTestTunnel() *TestTunnel {
+	httpData := make([]byte, 10240)
+	rand.Read(httpData)
+	config := &HttpTestConfig{
+		HttpPath:   "/inbound_test",
+		HttpData:   httpData,
+		RemoteAddr: netip.MustParseAddrPort("1.2.3.4:443"),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	ln := &TestTunnelListener{ch: make(chan net.Conn), ctx: ctx, cancel: cancel, addr: net.TCPAddrFromAddrPort(config.RemoteAddr)}
+
+	r := chi.NewRouter()
+	r.Get(config.HttpPath, func(w http.ResponseWriter, r *http.Request) {
+		render.Data(w, r, config.HttpData)
+	})
+	go http.Serve(ln, r)
+	tunnel := &TestTunnel{
+		HandleTCPConnFn: func(conn net.Conn, metadata *C.Metadata) {
+			defer conn.Close()
+			if metadata.AddrPort() != config.RemoteAddr && metadata.Host != realityDest {
+				return // not match, just return
+			}
+			c := &WaitCloseConn{
+				Conn: conn,
+				ch:   make(chan struct{}),
+			}
+			ln.ch <- tls.Server(c, tlsConfig)
+			<-c.ch
+		},
+		CloseFn: ln.Close,
+		DoTestFn: func(t *testing.T, proxy C.ProxyAdapter) {
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s%s", config.RemoteAddr, config.HttpPath), nil)
+			assert.Nil(t, err)
+			req = req.WithContext(ctx)
+
+			metadata := &C.Metadata{
+				NetWork: C.TCP,
+				DstIP:   config.RemoteAddr.Addr(),
+				DstPort: config.RemoteAddr.Port(),
+			}
+			instance, err := proxy.DialContext(ctx, metadata)
+			assert.Nil(t, err)
+			defer instance.Close()
+
+			transport := &http.Transport{
+				DialContext: func(context.Context, string, string) (net.Conn, error) {
+					return instance, nil
+				},
+				// from http.DefaultTransport
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				// for our self-signed cert
+				TLSClientConfig: tlsClientConfig,
+				// open http2
+				ForceAttemptHTTP2: true,
+			}
+
+			client := http.Client{
+				Timeout:   30 * time.Second,
+				Transport: transport,
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
+
+			defer client.CloseIdleConnections()
+
+			resp, err := client.Do(req)
+			assert.Nil(t, err)
+
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			data, err := io.ReadAll(resp.Body)
+			assert.Nil(t, err)
+			assert.Equal(t, config.HttpData, data)
+		},
+	}
+	return tunnel
+}
