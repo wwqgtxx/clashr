@@ -22,17 +22,17 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 		{Username: "test", UUID: userUUID, AlterID: 0},
 	}
 	in, err := inbound.NewVmess(&inboundOptions)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	tunnel := NewHttpTestTunnel()
 	defer tunnel.Close()
 
 	err = in.Listen(tunnel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer in.Close()
 
 	addrPort, err := netip.ParseAddrPort(in.Address())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	outboundOptions.Name = "vmess_outbound"
 	outboundOptions.Server = addrPort.Addr().String()
@@ -42,7 +42,7 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 	outboundOptions.Cipher = "auto"
 
 	out, err := outbound.NewVmess(outboundOptions)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer out.Close()
 
 	tunnel.DoTest(t, out)

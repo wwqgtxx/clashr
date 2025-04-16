@@ -116,7 +116,7 @@ var _ C.Tunnel = (*TestTunnel)(nil)
 var _ net.Listener = (*TestTunnelListener)(nil)
 
 type HttpTestConfig struct {
-	RemoteAddr netip.AddrPort
+	RemoteAddr netip.Addr
 	HttpPath   string
 	HttpData   []byte
 }
@@ -127,79 +127,114 @@ func NewHttpTestTunnel() *TestTunnel {
 	config := &HttpTestConfig{
 		HttpPath:   "/inbound_test",
 		HttpData:   httpData,
-		RemoteAddr: netip.MustParseAddrPort("1.2.3.4:443"),
+		RemoteAddr: netip.MustParseAddr("1.2.3.4"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	ln := &TestTunnelListener{ch: make(chan net.Conn), ctx: ctx, cancel: cancel, addr: net.TCPAddrFromAddrPort(config.RemoteAddr)}
+	ln := &TestTunnelListener{ch: make(chan net.Conn), ctx: ctx, cancel: cancel, addr: net.TCPAddrFromAddrPort(netip.AddrPortFrom(config.RemoteAddr, 0))}
 
 	r := chi.NewRouter()
 	r.Get(config.HttpPath, func(w http.ResponseWriter, r *http.Request) {
 		render.Data(w, r, config.HttpData)
 	})
 	go http.Serve(ln, r)
+	testFn := func(t *testing.T, proxy C.ProxyAdapter, proto string) {
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s%s", proto, config.RemoteAddr, config.HttpPath), nil)
+		assert.NoError(t, err)
+		req = req.WithContext(ctx)
+
+		var dstPort uint16 = 80
+		if proto == "https" {
+			dstPort = 443
+		}
+		metadata := &C.Metadata{
+			NetWork: C.TCP,
+			DstIP:   config.RemoteAddr,
+			DstPort: dstPort,
+		}
+		instance, err := proxy.DialContext(ctx, metadata)
+		assert.NoError(t, err)
+		defer instance.Close()
+
+		transport := &http.Transport{
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				return instance, nil
+			},
+			// from http.DefaultTransport
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			// for our self-signed cert
+			TLSClientConfig: tlsClientConfig,
+			// open http2
+			ForceAttemptHTTP2: true,
+		}
+
+		client := http.Client{
+			Timeout:   30 * time.Second,
+			Transport: transport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+
+		defer client.CloseIdleConnections()
+
+		resp, err := client.Do(req)
+		assert.NoError(t, err)
+
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		data, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, config.HttpData, data)
+	}
 	tunnel := &TestTunnel{
 		HandleTCPConnFn: func(conn net.Conn, metadata *C.Metadata) {
 			defer conn.Close()
-			if metadata.AddrPort() != config.RemoteAddr && metadata.Host != realityDest {
+			if metadata.DstIP != config.RemoteAddr && metadata.Host != realityDest {
 				return // not match, just return
 			}
 			c := &WaitCloseConn{
 				Conn: conn,
 				ch:   make(chan struct{}),
 			}
-			ln.ch <- tls.Server(c, tlsConfig)
+			if metadata.DstPort == 443 {
+				tlsConn := tls.Server(c, tlsConfig)
+				if metadata.Host == realityDest { // ignore the tls handshake error for realityDest
+					ctx, cancel := context.WithTimeout(ctx, C.DefaultTLSTimeout)
+					defer cancel()
+					if err := tlsConn.HandshakeContext(ctx); err != nil {
+						return
+					}
+				}
+				ln.ch <- tlsConn
+			} else {
+				ln.ch <- c
+			}
 			<-c.ch
 		},
 		CloseFn: ln.Close,
 		DoTestFn: func(t *testing.T, proxy C.ProxyAdapter) {
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s%s", config.RemoteAddr, config.HttpPath), nil)
-			assert.Nil(t, err)
-			req = req.WithContext(ctx)
-
-			metadata := &C.Metadata{
-				NetWork: C.TCP,
-				DstIP:   config.RemoteAddr.Addr(),
-				DstPort: config.RemoteAddr.Port(),
+			wg := sync.WaitGroup{}
+			num := 50
+			for i := 0; i < num; i++ {
+				wg.Add(1)
+				go func() {
+					testFn(t, proxy, "https")
+					defer wg.Done()
+				}()
 			}
-			instance, err := proxy.DialContext(ctx, metadata)
-			assert.Nil(t, err)
-			defer instance.Close()
-
-			transport := &http.Transport{
-				DialContext: func(context.Context, string, string) (net.Conn, error) {
-					return instance, nil
-				},
-				// from http.DefaultTransport
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-				// for our self-signed cert
-				TLSClientConfig: tlsClientConfig,
-				// open http2
-				ForceAttemptHTTP2: true,
+			for i := 0; i < num; i++ {
+				wg.Add(1)
+				go func() {
+					testFn(t, proxy, "http")
+					defer wg.Done()
+				}()
 			}
-
-			client := http.Client{
-				Timeout:   30 * time.Second,
-				Transport: transport,
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
-				},
-			}
-
-			defer client.CloseIdleConnections()
-
-			resp, err := client.Do(req)
-			assert.Nil(t, err)
-
-			defer resp.Body.Close()
-
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-			data, err := io.ReadAll(resp.Body)
-			assert.Nil(t, err)
-			assert.Equal(t, config.HttpData, data)
+			wg.Wait()
 		},
 	}
 	return tunnel

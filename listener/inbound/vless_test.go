@@ -22,17 +22,17 @@ func testInboundVless(t *testing.T, inboundOptions inbound.VlessOption, outbound
 		{Username: "test", UUID: userUUID, Flow: "xtls-rprx-vision"},
 	}
 	in, err := inbound.NewVless(&inboundOptions)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	tunnel := NewHttpTestTunnel()
 	defer tunnel.Close()
 
 	err = in.Listen(tunnel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer in.Close()
 
 	addrPort, err := netip.ParseAddrPort(in.Address())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	outboundOptions.Name = "vless_outbound"
 	outboundOptions.Server = addrPort.Addr().String()
@@ -40,7 +40,7 @@ func testInboundVless(t *testing.T, inboundOptions inbound.VlessOption, outbound
 	outboundOptions.UUID = userUUID
 
 	out, err := outbound.NewVless(outboundOptions)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer out.Close()
 
 	tunnel.DoTest(t, out)
