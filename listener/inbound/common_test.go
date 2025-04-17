@@ -211,6 +211,11 @@ func NewHttpTestTunnel() *TestTunnel {
 		},
 		CloseFn: ln.Close,
 		DoTestFn: func(t *testing.T, proxy C.ProxyAdapter) {
+			// Sequential testing for debugging
+			testFn(t, proxy, "http")
+			testFn(t, proxy, "https")
+
+			// Concurrent testing to detect stress
 			wg := sync.WaitGroup{}
 			num := 50
 			for i := 0; i < num; i++ {

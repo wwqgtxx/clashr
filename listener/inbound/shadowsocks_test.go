@@ -35,6 +35,7 @@ func testInboundShadowSocks(t *testing.T, inboundOptions inbound.ShadowSocksOpti
 	for _, cipher := range shadowsocksCipherList {
 		t.Run(cipher, func(t *testing.T) {
 			t.Parallel()
+			inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
 			inboundOptions.Cipher = cipher
 			outboundOptions.Cipher = cipher
 			testInboundShadowSocks0(t, inboundOptions, outboundOptions)
