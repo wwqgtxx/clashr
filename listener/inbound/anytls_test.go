@@ -11,6 +11,7 @@ import (
 )
 
 func testInboundAnyTLS(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
+	t.Parallel()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "anytls_inbound",
 		Listen:  "127.0.0.1",

@@ -13,31 +13,35 @@ import (
 var tuicCCs = []string{"cubic", "new_reno", "bbr"}
 
 func testInboundTuic(t *testing.T, inboundOptions inbound.TuicOption, outboundOptions outbound.TuicOption) {
+	t.Parallel()
 	inboundOptions.Users = map[string]string{userUUID: userUUID}
 	inboundOptions.Token = []string{userUUID}
 
 	for _, tuicCC := range tuicCCs {
-		t.Run("v4", func(t *testing.T) {
+		tuicCC := tuicCC
+		t.Run(tuicCC, func(t *testing.T) {
 			t.Parallel()
-			inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-			outboundOptions.Token = userUUID
-			outboundOptions.CongestionController = tuicCC
-			inboundOptions.CongestionController = tuicCC
-			testInboundTuic0(t, inboundOptions, outboundOptions)
-		})
-		t.Run("v5", func(t *testing.T) {
-			t.Parallel()
-			inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-			outboundOptions.UUID = userUUID
-			outboundOptions.Password = userUUID
-			outboundOptions.CongestionController = tuicCC
-			inboundOptions.CongestionController = tuicCC
-			testInboundTuic0(t, inboundOptions, outboundOptions)
+			t.Run("v4", func(t *testing.T) {
+				inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+				outboundOptions.Token = userUUID
+				outboundOptions.CongestionController = tuicCC
+				inboundOptions.CongestionController = tuicCC
+				testInboundTuic0(t, inboundOptions, outboundOptions)
+			})
+			t.Run("v5", func(t *testing.T) {
+				inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+				outboundOptions.UUID = userUUID
+				outboundOptions.Password = userUUID
+				outboundOptions.CongestionController = tuicCC
+				inboundOptions.CongestionController = tuicCC
+				testInboundTuic0(t, inboundOptions, outboundOptions)
+			})
 		})
 	}
 }
 
 func testInboundTuic0(t *testing.T, inboundOptions inbound.TuicOption, outboundOptions outbound.TuicOption) {
+	t.Parallel()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "tuic_inbound",
 		Listen:  "127.0.0.1",
@@ -69,8 +73,9 @@ func testInboundTuic0(t *testing.T, inboundOptions inbound.TuicOption, outboundO
 
 func TestInboundTuic_TLS(t *testing.T) {
 	inboundOptions := inbound.TuicOption{
-		Certificate: tlsCertificate,
-		PrivateKey:  tlsPrivateKey,
+		Certificate:           tlsCertificate,
+		PrivateKey:            tlsPrivateKey,
+		AuthenticationTimeout: 5000,
 	}
 	outboundOptions := outbound.TuicOption{
 		Fingerprint: tlsFingerprint,

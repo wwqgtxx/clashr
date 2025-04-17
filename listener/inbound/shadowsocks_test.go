@@ -32,9 +32,10 @@ func init() {
 }
 
 func testInboundShadowSocks(t *testing.T, inboundOptions inbound.ShadowSocksOption, outboundOptions outbound.ShadowSocksOption) {
+	t.Parallel()
 	for _, cipher := range shadowsocksCipherList {
+		cipher := cipher
 		t.Run(cipher, func(t *testing.T) {
-			t.Parallel()
 			inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
 			inboundOptions.Cipher = cipher
 			outboundOptions.Cipher = cipher
@@ -44,6 +45,7 @@ func testInboundShadowSocks(t *testing.T, inboundOptions inbound.ShadowSocksOpti
 }
 
 func testInboundShadowSocks0(t *testing.T, inboundOptions inbound.ShadowSocksOption, outboundOptions outbound.ShadowSocksOption) {
+	t.Parallel()
 	password := shadowsocksPassword32
 	if strings.Contains(inboundOptions.Cipher, "-128-") {
 		password = shadowsocksPassword16

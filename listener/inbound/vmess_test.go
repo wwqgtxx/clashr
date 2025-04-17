@@ -11,6 +11,7 @@ import (
 )
 
 func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
+	t.Parallel()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "vmess_inbound",
 		Listen:  "127.0.0.1",

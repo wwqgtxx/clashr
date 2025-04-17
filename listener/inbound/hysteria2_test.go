@@ -11,6 +11,7 @@ import (
 )
 
 func testInboundHysteria2(t *testing.T, inboundOptions inbound.Hysteria2Option, outboundOptions outbound.Hysteria2Option) {
+	t.Parallel()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "hysteria2_inbound",
 		Listen:  "127.0.0.1",

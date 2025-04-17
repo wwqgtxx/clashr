@@ -11,6 +11,7 @@ import (
 )
 
 func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
+	t.Parallel()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "trojan_inbound",
 		Listen:  "127.0.0.1",
