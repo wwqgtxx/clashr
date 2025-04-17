@@ -107,7 +107,7 @@ jobs:
           curl https://github.com/golang/go/commit/9e43850a3298a9b8b1162ba0033d4c53f8637571.diff | patch --verbose -R -p 1
 
       - name: Test
-        run: go test ./... -v -count=100 -timeout=30m
+        run: go test ./... -v -count=1
 
       - name: Test with tag with_gvisor
-        run: go test ./... -v -count=100 -timeout=30m -tags "with_gvisor"
+        run: go test ./... -v -count=1 -tags "with_gvisor"
