@@ -42,6 +42,8 @@ func testInboundVless(t *testing.T, inboundOptions inbound.VlessOption, outbound
 	defer out.Close()
 
 	tunnel.DoTest(t, out)
+
+	testSingMux(t, tunnel, out)
 }
 
 func TestInboundVless_TLS(t *testing.T) {

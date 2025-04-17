@@ -77,6 +77,8 @@ func testInboundShadowSocks0(t *testing.T, inboundOptions inbound.ShadowSocksOpt
 	defer out.Close()
 
 	tunnel.DoTest(t, out)
+
+	testSingMux(t, tunnel, out)
 }
 
 func TestInboundShadowSocks_Basic(t *testing.T) {

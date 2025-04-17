@@ -44,6 +44,8 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 	defer out.Close()
 
 	tunnel.DoTest(t, out)
+
+	testSingMux(t, tunnel, out)
 }
 
 func TestInboundVMess_Basic(t *testing.T) {

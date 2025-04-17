@@ -42,6 +42,8 @@ func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outbou
 	defer out.Close()
 
 	tunnel.DoTest(t, out)
+
+	testSingMux(t, tunnel, out)
 }
 
 func TestInboundTrojan_TLS(t *testing.T) {
