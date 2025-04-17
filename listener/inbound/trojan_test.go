@@ -6,13 +6,11 @@ import (
 	"testing"
 
 	"github.com/metacubex/mihomo/adapter/outbound"
-	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/listener/inbound"
 	"github.com/stretchr/testify/assert"
 )
 
 func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
-	userUUID := utils.NewUUIDV4().String()
 	inboundOptions.BaseOption = inbound.BaseOption{
 		NameStr: "trojan_inbound",
 		Listen:  "127.0.0.1",
@@ -46,7 +44,7 @@ func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outbou
 	tunnel.DoTest(t, out)
 }
 
-func TestInboundTrojan_Tls(t *testing.T) {
+func TestInboundTrojan_TLS(t *testing.T) {
 	inboundOptions := inbound.TrojanOption{
 		Certificate: tlsCertificate,
 		PrivateKey:  tlsPrivateKey,
@@ -162,7 +160,7 @@ func TestInboundTrojan_Reality_Grpc(t *testing.T) {
 	testInboundTrojan(t, inboundOptions, outboundOptions)
 }
 
-func TestInboundTrojan_Tls_TrojanSS(t *testing.T) {
+func TestInboundTrojan_TLS_TrojanSS(t *testing.T) {
 	inboundOptions := inbound.TrojanOption{
 		Certificate: tlsCertificate,
 		PrivateKey:  tlsPrivateKey,
