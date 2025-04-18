@@ -62,10 +62,16 @@ type TrojanSSOption struct {
 	Password string `proxy:"password,omitempty"`
 }
 
-func (t *Trojan) plainStream(ctx context.Context, c net.Conn) (net.Conn, error) {
+// StreamConnContext implements C.ProxyAdapter
+func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (net.Conn, error) {
 	var err error
 
-	if t.option.Network == "ws" {
+	if tlsC.HaveGlobalFingerprint() && len(t.option.ClientFingerprint) == 0 {
+		t.option.ClientFingerprint = tlsC.GetGlobalFingerprint()
+	}
+
+	switch t.option.Network {
+	case "ws":
 		host, port, _ := net.SplitHostPort(t.addr)
 
 		wsOpts := &vmess.WebsocketConfig{
@@ -108,46 +114,46 @@ func (t *Trojan) plainStream(ctx context.Context, c net.Conn) (net.Conn, error) 
 			return nil, err
 		}
 
-		return vmess.StreamWebsocketConn(ctx, c, wsOpts)
-	}
-
-	alpn := trojan.DefaultALPN
-	if len(t.option.ALPN) != 0 {
-		alpn = t.option.ALPN
-	}
-	return vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
-		Host:              t.option.SNI,
-		SkipCertVerify:    t.option.SkipCertVerify,
-		FingerPrint:       t.option.Fingerprint,
-		ClientFingerprint: t.option.ClientFingerprint,
-		NextProtos:        alpn,
-		Reality:           t.realityConfig,
-	})
-}
-
-// StreamConnContext implements C.ProxyAdapter
-func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (net.Conn, error) {
-	var err error
-
-	if tlsC.HaveGlobalFingerprint() && len(t.option.ClientFingerprint) == 0 {
-		t.option.ClientFingerprint = tlsC.GetGlobalFingerprint()
-	}
-
-	if t.transport != nil {
+		c, err = vmess.StreamWebsocketConn(ctx, c, wsOpts)
+	case "grpc":
 		c, err = gun.StreamGunWithConn(c, t.gunTLSConfig, t.gunConfig, t.realityConfig)
-	} else {
-		c, err = t.plainStream(ctx, c)
+	default:
+		// default tcp network
+		// handle TLS
+		alpn := trojan.DefaultALPN
+		if len(t.option.ALPN) != 0 {
+			alpn = t.option.ALPN
+		}
+		c, err = vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
+			Host:              t.option.SNI,
+			SkipCertVerify:    t.option.SkipCertVerify,
+			FingerPrint:       t.option.Fingerprint,
+			ClientFingerprint: t.option.ClientFingerprint,
+			NextProtos:        alpn,
+			Reality:           t.realityConfig,
+		})
 	}
-
 	if err != nil {
 		return nil, fmt.Errorf("%s connect error: %w", t.addr, err)
 	}
 
+	return t.streamConnContext(ctx, c, metadata)
+}
+
+func (t *Trojan) streamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (_ net.Conn, err error) {
 	if t.ssCipher != nil {
 		c = t.ssCipher.StreamConn(c)
 	}
 
-	err = t.writeHeaderContext(ctx, c, metadata)
+	if ctx.Done() != nil {
+		done := N.SetupContextForConn(ctx, c)
+		defer done(&err)
+	}
+	command := trojan.CommandTCP
+	if metadata.NetWork == C.UDP {
+		command = trojan.CommandUDP
+	}
+	err = trojan.WriteHeader(c, t.hexPassword, command, serializesSocksAddr(metadata))
 	return c, err
 }
 
@@ -166,19 +172,19 @@ func (t *Trojan) writeHeaderContext(ctx context.Context, c net.Conn, metadata *C
 
 // DialContext implements C.ProxyAdapter
 func (t *Trojan) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
+	var c net.Conn
 	// gun transport
 	if t.transport != nil && dialer.IsZeroOptions(opts) {
-		c, err := gun.StreamGunWithTransport(t.transport, t.gunConfig)
+		c, err = gun.StreamGunWithTransport(t.transport, t.gunConfig)
 		if err != nil {
 			return nil, err
 		}
+		defer func(c net.Conn) {
+			safeConnClose(c, err)
+		}(c)
 
-		if t.ssCipher != nil {
-			c = t.ssCipher.StreamConn(c)
-		}
-
-		if err = t.writeHeaderContext(ctx, c, metadata); err != nil {
-			c.Close()
+		c, err = t.streamConnContext(ctx, c, metadata)
+		if err != nil {
 			return nil, err
 		}
 
@@ -226,11 +232,7 @@ func (t *Trojan) ListenPacketContext(ctx context.Context, metadata *C.Metadata, 
 			safeConnClose(c, err)
 		}(c)
 
-		if t.ssCipher != nil {
-			c = t.ssCipher.StreamConn(c)
-		}
-
-		err = t.writeHeaderContext(ctx, c, metadata)
+		c, err = t.streamConnContext(ctx, c, metadata)
 		if err != nil {
 			return nil, err
 		}
@@ -256,16 +258,7 @@ func (t *Trojan) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, me
 	defer func(c net.Conn) {
 		safeConnClose(c, err)
 	}(c)
-	c, err = t.plainStream(ctx, c)
-	if err != nil {
-		return nil, fmt.Errorf("%s connect error: %w", t.addr, err)
-	}
-
-	if t.ssCipher != nil {
-		c = t.ssCipher.StreamConn(c)
-	}
-
-	err = t.writeHeaderContext(ctx, c, metadata)
+	c, err = t.StreamConnContext(ctx, c, metadata)
 	if err != nil {
 		return nil, err
 	}

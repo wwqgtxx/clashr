@@ -232,9 +232,10 @@ func (v *Vless) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 
 // DialContext implements C.ProxyAdapter
 func (v *Vless) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
+	var c net.Conn
 	// gun transport
 	if v.transport != nil && dialer.IsZeroOptions(opts) {
-		c, err := gun.StreamGunWithTransport(v.transport, v.gunConfig)
+		c, err = gun.StreamGunWithTransport(v.transport, v.gunConfig)
 		if err != nil {
 			return nil, err
 		}
