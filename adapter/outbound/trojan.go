@@ -63,13 +63,7 @@ type TrojanSSOption struct {
 }
 
 // StreamConnContext implements C.ProxyAdapter
-func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (net.Conn, error) {
-	var err error
-
-	if tlsC.HaveGlobalFingerprint() && len(t.option.ClientFingerprint) == 0 {
-		t.option.ClientFingerprint = tlsC.GetGlobalFingerprint()
-	}
-
+func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (_ net.Conn, err error) {
 	switch t.option.Network {
 	case "ws":
 		host, port, _ := net.SplitHostPort(t.addr)
