@@ -22,14 +22,13 @@ import (
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
 	"github.com/metacubex/sing-vmess/vless"
-	utls "github.com/metacubex/utls"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/metadata"
 )
 
 func init() {
 	vless.RegisterTLS(func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer unsafe.Pointer) {
-		tlsConn, loaded := common.Cast[*reality.Conn](conn)
+		tlsConn, loaded := common.Cast[*reality.Conn](conn) // *utls.Conn
 		if !loaded {
 			return
 		}
@@ -37,15 +36,7 @@ func init() {
 	})
 
 	vless.RegisterTLS(func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer unsafe.Pointer) {
-		tlsConn, loaded := common.Cast[*utls.UConn](conn)
-		if !loaded {
-			return
-		}
-		return true, tlsConn.NetConn(), reflect.TypeOf(tlsConn.Conn).Elem(), unsafe.Pointer(tlsConn.Conn)
-	})
-
-	vless.RegisterTLS(func(conn net.Conn) (loaded bool, netConn net.Conn, reflectType reflect.Type, reflectPointer unsafe.Pointer) {
-		tlsConn, loaded := common.Cast[*tlsC.UConn](conn)
+		tlsConn, loaded := common.Cast[*tlsC.UConn](conn) // *utls.UConn
 		if !loaded {
 			return
 		}

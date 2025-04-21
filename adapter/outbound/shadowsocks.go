@@ -19,7 +19,6 @@ import (
 	shadowtls "github.com/metacubex/mihomo/transport/sing-shadowtls"
 	v2rayObfs "github.com/metacubex/mihomo/transport/v2ray-plugin"
 
-	restlsC "github.com/3andne/restls-client-go"
 	shadowsocks "github.com/metacubex/sing-shadowsocks2"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
@@ -37,7 +36,7 @@ type ShadowSocks struct {
 	v2rayOption     *v2rayObfs.Option
 	gostOption      *gost.Option
 	shadowTLSOption *shadowtls.ShadowTLSOption
-	restlsConfig    *restlsC.Config
+	restlsConfig    *restls.Config
 }
 
 type ShadowSocksOption struct {
@@ -265,7 +264,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 	var gostOption *gost.Option
 	var obfsOption *simpleObfsOption
 	var shadowTLSOpt *shadowtls.ShadowTLSOption
-	var restlsConfig *restlsC.Config
+	var restlsConfig *restls.Config
 	obfsMode := ""
 
 	decoder := structure.NewDecoder(structure.Option{TagName: "obfs", WeaklyTypedInput: true})
@@ -350,7 +349,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 			return nil, fmt.Errorf("ss %s initialize restls-plugin error: %w", addr, err)
 		}
 
-		restlsConfig, err = restlsC.NewRestlsConfig(restlsOpt.Host, restlsOpt.Password, restlsOpt.VersionHint, restlsOpt.RestlsScript, option.ClientFingerprint)
+		restlsConfig, err = restls.NewRestlsConfig(restlsOpt.Host, restlsOpt.Password, restlsOpt.VersionHint, restlsOpt.RestlsScript, option.ClientFingerprint)
 		if err != nil {
 			return nil, fmt.Errorf("ss %s initialize restls-plugin error: %w", addr, err)
 		}

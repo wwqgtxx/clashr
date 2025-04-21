@@ -11,7 +11,6 @@ import (
 
 	"github.com/metacubex/sing-shadowtls"
 	utls "github.com/metacubex/utls"
-	sing_common "github.com/sagernet/sing/common"
 )
 
 const (
@@ -60,32 +59,15 @@ func NewShadowTLS(ctx context.Context, conn net.Conn, option *ShadowTLSOption) (
 
 func uTLSHandshakeFunc(config *tls.Config, clientFingerprint string) shadowtls.TLSHandshakeFunc {
 	return func(ctx context.Context, conn net.Conn, sessionIDGenerator shadowtls.TLSSessionIDGeneratorFunc) error {
-		tlsConfig := &utls.Config{
-			Rand:                  config.Rand,
-			Time:                  config.Time,
-			VerifyPeerCertificate: config.VerifyPeerCertificate,
-			RootCAs:               config.RootCAs,
-			NextProtos:            config.NextProtos,
-			ServerName:            config.ServerName,
-			InsecureSkipVerify:    config.InsecureSkipVerify,
-			CipherSuites:          config.CipherSuites,
-			MinVersion:            config.MinVersion,
-			MaxVersion:            config.MaxVersion,
-			CurvePreferences: sing_common.Map(config.CurvePreferences, func(it tls.CurveID) utls.CurveID {
-				return utls.CurveID(it)
-			}),
-			SessionTicketsDisabled: config.SessionTicketsDisabled,
-			Renegotiation:          utls.RenegotiationSupport(config.Renegotiation),
-			SessionIDGenerator:     sessionIDGenerator,
-		}
+		tlsConfig := tlsC.UConfig(config)
+		tlsConfig.SessionIDGenerator = sessionIDGenerator
 		clientFingerprint := clientFingerprint
 		if tlsC.HaveGlobalFingerprint() && len(clientFingerprint) == 0 {
 			clientFingerprint = tlsC.GetGlobalFingerprint()
 		}
 		if len(clientFingerprint) != 0 {
 			if fingerprint, exists := tlsC.GetFingerprint(clientFingerprint); exists {
-				clientHelloID := *fingerprint.ClientHelloID
-				tlsConn := utls.UClient(conn, tlsConfig, clientHelloID)
+				tlsConn := tlsC.UClient(conn, tlsConfig, fingerprint)
 				return tlsConn.HandshakeContext(ctx)
 			}
 		}
