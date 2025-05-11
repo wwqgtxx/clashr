@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/utils"
+	"github.com/metacubex/mihomo/component/slowdown"
 	types "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/log"
 
@@ -29,6 +30,7 @@ type Fetcher[V any] struct {
 	onUpdate     func(V)
 	watcher      *fswatch.Watcher
 	loadBufMutex sync.Mutex
+	backoff      slowdown.Backoff
 }
 
 func (f *Fetcher[V]) Name() string {
@@ -83,6 +85,7 @@ func (f *Fetcher[V]) Initial() (V, error) {
 func (f *Fetcher[V]) Update() (V, bool, error) {
 	buf, hash, err := f.vehicle.Read(f.ctx, f.hash)
 	if err != nil {
+		f.backoff.AddAttempt() // add a failed attempt to backoff
 		return lo.Empty[V](), false, err
 	}
 	return f.loadBuf(buf, hash, f.vehicle.Type() != types.File)
@@ -111,8 +114,10 @@ func (f *Fetcher[V]) loadBuf(buf []byte, hash utils.HashType, updateFile bool) (
 
 	contents, err := f.parser(buf)
 	if err != nil {
+		f.backoff.AddAttempt() // add a failed attempt to backoff
 		return lo.Empty[V](), false, err
 	}
+	f.backoff.Reset() // no error, reset backoff
 
 	if updateFile {
 		if err = f.vehicle.Write(buf); err != nil {
@@ -147,14 +152,25 @@ func (f *Fetcher[V]) pullLoop(forceUpdate bool) {
 		log.Warnln("[Provider] %s not updated for a long time, force refresh", f.Name())
 		f.updateWithLog()
 	}
+	if attempt := f.backoff.Attempt(); attempt > 0 { // f.Update() was failed, decrease the interval from backoff to achieve fast retry
+		if duration := f.backoff.ForAttempt(attempt); duration < initialInterval {
+			initialInterval = duration
+		}
+	}
 
 	timer := time.NewTimer(initialInterval)
 	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:
-			timer.Reset(f.interval)
 			f.updateWithLog()
+			interval := f.interval
+			if attempt := f.backoff.Attempt(); attempt > 0 { // f.Update() was failed, decrease the interval from backoff to achieve fast retry
+				if duration := f.backoff.ForAttempt(attempt); duration < interval {
+					interval = duration
+				}
+			}
+			timer.Reset(interval)
 		case <-f.ctx.Done():
 			return
 		}
@@ -212,5 +228,11 @@ func NewFetcher[V any](name string, interval time.Duration, vehicle types.Vehicl
 		parser:    parser,
 		onUpdate:  onUpdate,
 		interval:  interval,
+		backoff: slowdown.Backoff{
+			Factor: 2,
+			Jitter: false,
+			Min:    time.Second,
+			Max:    interval,
+		},
 	}
 }
