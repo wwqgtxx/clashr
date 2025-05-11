@@ -20,7 +20,7 @@ require (
 	github.com/metacubex/chacha v0.1.2
 	github.com/metacubex/quic-go v0.51.1-0.20250423035655-e3948b36ce14
 	github.com/metacubex/randv2 v0.2.0
-	github.com/metacubex/sing-quic v0.0.0-20250421142834-9de457d11557
+	github.com/metacubex/sing-quic v0.0.0-20250423042228-20af53d3de7e
 	github.com/metacubex/sing-shadowsocks v0.2.8
 	github.com/metacubex/sing-shadowsocks2 v0.2.2
 	github.com/metacubex/sing-shadowtls v0.0.0-20250412122235-0e9005731a63
