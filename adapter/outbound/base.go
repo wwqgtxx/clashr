@@ -17,7 +17,7 @@ import (
 
 type ProxyAdapter interface {
 	C.ProxyAdapter
-	DialOptions(opts ...dialer.Option) []dialer.Option
+	DialOptions() []dialer.Option
 }
 
 type Base struct {
@@ -54,7 +54,7 @@ func (b *Base) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metad
 }
 
 // ListenPacketContext implements C.ProxyAdapter
-func (b *Base) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.PacketConn, error) {
+func (b *Base) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
 	return nil, C.ErrNotSupport
 }
 
@@ -112,7 +112,7 @@ func (b *Base) Unwrap(metadata *C.Metadata, touch bool) C.Proxy {
 }
 
 // DialOptions return []dialer.Option from struct
-func (b *Base) DialOptions(opts ...dialer.Option) []dialer.Option {
+func (b *Base) DialOptions() (opts []dialer.Option) {
 	if b.iface != "" {
 		opts = append(opts, dialer.WithInterface(b.iface))
 	}
@@ -151,8 +151,8 @@ func (b *Base) Close() error {
 type BasicOption struct {
 	TFO         bool   `proxy:"tfo,omitempty" group:"tfo,omitempty"`
 	MPTCP       bool   `proxy:"mptcp,omitempty" group:"mptcp,omitempty"`
-	Interface   string `proxy:"interface-name,omitempty" group:"interface-name,omitempty"`
-	RoutingMark int    `proxy:"routing-mark,omitempty" group:"routing-mark,omitempty"`
+	Interface   string `proxy:"interface-name,omitempty"`
+	RoutingMark int    `proxy:"routing-mark,omitempty"`
 	IPVersion   string `proxy:"ip-version,omitempty" group:"ip-version,omitempty"`
 	DialerProxy string `proxy:"dialer-proxy,omitempty"` // don't apply this option into groups, but can set a group name in a proxy
 }
@@ -276,8 +276,8 @@ type autoCloseProxyAdapter struct {
 	closeErr  error
 }
 
-func (p *autoCloseProxyAdapter) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
-	c, err := p.ProxyAdapter.DialContext(ctx, metadata, opts...)
+func (p *autoCloseProxyAdapter) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
+	c, err := p.ProxyAdapter.DialContext(ctx, metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -298,8 +298,8 @@ func (p *autoCloseProxyAdapter) DialContextWithDialer(ctx context.Context, diale
 	return c, nil
 }
 
-func (p *autoCloseProxyAdapter) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.PacketConn, err error) {
-	pc, err := p.ProxyAdapter.ListenPacketContext(ctx, metadata, opts...)
+func (p *autoCloseProxyAdapter) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
+	pc, err := p.ProxyAdapter.ListenPacketContext(ctx, metadata)
 	if err != nil {
 		return nil, err
 	}

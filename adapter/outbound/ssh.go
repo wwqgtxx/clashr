@@ -43,8 +43,8 @@ type SshOption struct {
 	HostKeyAlgorithms    []string `proxy:"host-key-algorithms,omitempty"`
 }
 
-func (s *Ssh) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
-	var cDialer C.Dialer = dialer.NewDialer(s.Base.DialOptions(opts...)...)
+func (s *Ssh) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
+	var cDialer C.Dialer = dialer.NewDialer(s.DialOptions()...)
 	if len(s.option.DialerProxy) > 0 {
 		cDialer, err = proxydialer.NewByName(s.option.DialerProxy, cDialer)
 		if err != nil {

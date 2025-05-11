@@ -11,7 +11,6 @@ import (
 	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/common/singledo"
 	"github.com/metacubex/mihomo/common/utils"
-	"github.com/metacubex/mihomo/component/dialer"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/constant/provider"
 
@@ -75,7 +74,7 @@ func jumpHash(key uint64, buckets int32) int32 {
 }
 
 // DialContext implements C.ProxyAdapter
-func (lb *LoadBalance) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (c C.Conn, err error) {
+func (lb *LoadBalance) DialContext(ctx context.Context, metadata *C.Metadata) (c C.Conn, err error) {
 	defer func() {
 		if err == nil {
 			c.AppendToChains(lb)
@@ -84,12 +83,12 @@ func (lb *LoadBalance) DialContext(ctx context.Context, metadata *C.Metadata, op
 
 	proxy := lb.Unwrap(metadata, true)
 
-	c, err = proxy.DialContext(ctx, metadata, lb.Base.DialOptions(opts...)...)
+	c, err = proxy.DialContext(ctx, metadata)
 	return
 }
 
 // ListenPacketContext implements C.ProxyAdapter
-func (lb *LoadBalance) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (pc C.PacketConn, err error) {
+func (lb *LoadBalance) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (pc C.PacketConn, err error) {
 	defer func() {
 		if err == nil {
 			pc.AppendToChains(lb)
@@ -97,7 +96,7 @@ func (lb *LoadBalance) ListenPacketContext(ctx context.Context, metadata *C.Meta
 	}()
 
 	proxy := lb.Unwrap(metadata, true)
-	return proxy.ListenPacketContext(ctx, metadata, lb.Base.DialOptions(opts...)...)
+	return proxy.ListenPacketContext(ctx, metadata)
 }
 
 // SupportUDP implements C.ProxyAdapter
@@ -226,8 +225,6 @@ func NewLoadBalance(option *GroupCommonOption, providers []provider.ProxyProvide
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name:        option.Name,
 			Type:        C.LoadBalance,
-			Interface:   option.Interface,
-			RoutingMark: option.RoutingMark,
 		}),
 		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		providers:  providers,

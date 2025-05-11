@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/metacubex/mihomo/adapter"
 
-	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/structure"
 	C "github.com/metacubex/mihomo/constant"
 	types "github.com/metacubex/mihomo/constant/provider"
+	"github.com/metacubex/mihomo/log"
 )
 
 var (
@@ -21,7 +21,6 @@ var (
 )
 
 type GroupCommonOption struct {
-	outbound.BasicOption
 	Name       string   `group:"name"`
 	Type       string   `group:"type"`
 	Proxies    []string `group:"proxies,omitempty"`
@@ -31,6 +30,10 @@ type GroupCommonOption struct {
 	Lazy       bool     `group:"lazy,omitempty"`
 	DisableUDP bool     `group:"disable-udp,omitempty"`
 	Filter     string   `group:"filter,omitempty"`
+
+	// removed configs, only for error logging
+	Interface   string `group:"interface-name,omitempty"`
+	RoutingMark int    `group:"routing-mark,omitempty"`
 }
 
 func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, providersMap map[string]types.ProxyProvider, healthCheckLazyDefault bool) (C.ProxyAdapter, error) {
@@ -45,6 +48,13 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 
 	if groupOption.Type == "" || groupOption.Name == "" {
 		return nil, errFormat
+	}
+
+	if groupOption.RoutingMark != 0 {
+		log.Errorln("The group [%s] with routing-mark configuration was removed, please set it directly on the proxy instead", groupOption.Name)
+	}
+	if groupOption.Interface != "" {
+		log.Errorln("The group [%s] with interface-name configuration was removed, please set it directly on the proxy instead", groupOption.Name)
 	}
 
 	groupName := groupOption.Name

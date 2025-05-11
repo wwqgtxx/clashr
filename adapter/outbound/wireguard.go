@@ -167,6 +167,8 @@ func NewWireGuard(option WireGuardOption) (*WireGuard, error) {
 		},
 		dialer: proxydialer.NewSlowDownSingDialer(proxydialer.NewByNameSingDialer(option.DialerProxy, dialer.NewDialer()), slowdown.New()),
 	}
+	singDialer := proxydialer.NewSlowDownSingDialer(proxydialer.NewByNameSingDialer(option.DialerProxy, dialer.NewDialer(outbound.DialOptions()...)), slowdown.New())
+	outbound.dialer = singDialer
 
 	var reserved [3]uint8
 	if len(option.Reserved) > 0 {
@@ -487,9 +489,7 @@ func (w *WireGuard) Close() error {
 	return nil
 }
 
-func (w *WireGuard) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
-	options := w.Base.DialOptions(opts...)
-	w.dialer.SetDialer(dialer.NewDialer(options...))
+func (w *WireGuard) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
 	var conn net.Conn
 	if err = w.init(ctx); err != nil {
 		return nil, err
@@ -499,6 +499,7 @@ func (w *WireGuard) DialContext(ctx context.Context, metadata *C.Metadata, opts 
 		if w.resolver != nil {
 			r = w.resolver
 		}
+		options := w.DialOptions()
 		options = append(options, dialer.WithResolver(r))
 		options = append(options, dialer.WithNetDialer(wgNetDialer{tunDevice: w.tunDevice}))
 		conn, err = dialer.NewDialer(options...).DialContext(ctx, "tcp", metadata.RemoteAddress())
@@ -514,9 +515,7 @@ func (w *WireGuard) DialContext(ctx context.Context, metadata *C.Metadata, opts 
 	return NewConn(conn, w), nil
 }
 
-func (w *WireGuard) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.PacketConn, err error) {
-	options := w.Base.DialOptions(opts...)
-	w.dialer.SetDialer(dialer.NewDialer(options...))
+func (w *WireGuard) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
 	var pc net.PacketConn
 	if err = w.init(ctx); err != nil {
 		return nil, err

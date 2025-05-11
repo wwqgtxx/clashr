@@ -86,7 +86,7 @@ func (d *dhcpClient) resolve(ctx context.Context) ([]dnsClient, error) {
 				for _, item := range dns {
 					nameserver = append(nameserver, NameServer{
 						Addr:      net.JoinHostPort(item.String(), "53"),
-						Interface: d.ifaceName,
+						ProxyName: d.ifaceName,
 					})
 				}
 

@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/metacubex/mihomo/component/dialer"
 	C "github.com/metacubex/mihomo/constant"
 )
 
@@ -19,12 +18,12 @@ type RejectOption struct {
 }
 
 // DialContext implements C.ProxyAdapter
-func (r *Reject) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.Conn, error) {
+func (r *Reject) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn, error) {
 	return NewConn(nopConn{}, r), nil
 }
 
 // ListenPacketContext implements C.ProxyAdapter
-func (r *Reject) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.PacketConn, error) {
+func (r *Reject) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
 	return newPacketConn(nopPacketConn{}, r), nil
 }
 

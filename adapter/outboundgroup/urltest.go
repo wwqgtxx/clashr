@@ -9,7 +9,6 @@ import (
 	"github.com/metacubex/mihomo/common/callback"
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/singledo"
-	"github.com/metacubex/mihomo/component/dialer"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/constant/provider"
 )
@@ -38,9 +37,9 @@ func (u *URLTest) Now() string {
 }
 
 // DialContext implements C.ProxyAdapter
-func (u *URLTest) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (c C.Conn, err error) {
+func (u *URLTest) DialContext(ctx context.Context, metadata *C.Metadata) (c C.Conn, err error) {
 	proxy := u.fast(true)
-	c, err = proxy.DialContext(ctx, metadata, u.Base.DialOptions(opts...)...)
+	c, err = proxy.DialContext(ctx, metadata)
 	if err == nil {
 		c.AppendToChains(u)
 	} else {
@@ -57,9 +56,9 @@ func (u *URLTest) DialContext(ctx context.Context, metadata *C.Metadata, opts ..
 }
 
 // ListenPacketContext implements C.ProxyAdapter
-func (u *URLTest) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.PacketConn, error) {
+func (u *URLTest) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
 	proxy := u.fast(true)
-	pc, err := proxy.ListenPacketContext(ctx, metadata, u.Base.DialOptions(opts...)...)
+	pc, err := proxy.ListenPacketContext(ctx, metadata)
 	if err == nil {
 		pc.AppendToChains(u)
 	} else {
@@ -161,8 +160,6 @@ func NewURLTest(option *GroupCommonOption, providers []provider.ProxyProvider, o
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name:        option.Name,
 			Type:        C.URLTest,
-			Interface:   option.Interface,
-			RoutingMark: option.RoutingMark,
 		}),
 		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		fastSingle: singledo.NewSingle[C.Proxy](time.Second * 10),

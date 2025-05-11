@@ -19,17 +19,17 @@ type Relay struct {
 }
 
 // DialContext implements C.ProxyAdapter
-func (r *Relay) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.Conn, error) {
+func (r *Relay) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn, error) {
 	proxies, chainProxies := r.proxies(metadata, true)
 
 	switch len(proxies) {
 	case 0:
-		return outbound.NewDirect().DialContext(ctx, metadata, r.Base.DialOptions(opts...)...)
+		return outbound.NewDirect().DialContext(ctx, metadata)
 	case 1:
-		return proxies[0].DialContext(ctx, metadata, r.Base.DialOptions(opts...)...)
+		return proxies[0].DialContext(ctx, metadata)
 	}
 	var d C.Dialer
-	d = dialer.NewDialer(r.Base.DialOptions(opts...)...)
+	d = dialer.NewDialer()
 	for _, proxy := range proxies[:len(proxies)-1] {
 		d = proxydialer.New(proxy, d, false)
 	}
@@ -49,18 +49,18 @@ func (r *Relay) DialContext(ctx context.Context, metadata *C.Metadata, opts ...d
 }
 
 // ListenPacketContext implements C.ProxyAdapter
-func (r *Relay) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.PacketConn, err error) {
+func (r *Relay) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
 	proxies, chainProxies := r.proxies(metadata, true)
 
 	switch len(proxies) {
 	case 0:
-		return outbound.NewDirect().ListenPacketContext(ctx, metadata, r.Base.DialOptions(opts...)...)
+		return outbound.NewDirect().ListenPacketContext(ctx, metadata)
 	case 1:
-		return proxies[0].ListenPacketContext(ctx, metadata, r.Base.DialOptions(opts...)...)
+		return proxies[0].ListenPacketContext(ctx, metadata)
 	}
 
 	var d C.Dialer
-	d = dialer.NewDialer(r.Base.DialOptions(opts...)...)
+	d = dialer.NewDialer()
 	for _, proxy := range proxies[:len(proxies)-1] {
 		d = proxydialer.New(proxy, d, false)
 	}
@@ -155,8 +155,6 @@ func NewRelay(option *GroupCommonOption, providers []provider.ProxyProvider) *Re
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name:        option.Name,
 			Type:        C.Relay,
-			Interface:   option.Interface,
-			RoutingMark: option.RoutingMark,
 		}),
 		single:    singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		providers: providers,
