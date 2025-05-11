@@ -5,7 +5,6 @@ import (
 	P "path"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/metacubex/mihomo/common/utils"
 )
@@ -82,7 +81,7 @@ func (p *path) IsSafePath(path string) bool {
 		return false
 	}
 
-	return !strings.Contains(rel, "..")
+	return filepath.IsLocal(rel)
 }
 
 func (p *path) GetPathByHash(prefix, name string) string {

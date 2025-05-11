@@ -136,7 +136,11 @@ func NewSsh(option SshOption) (*Ssh, error) {
 		if strings.Contains(option.PrivateKey, "PRIVATE KEY") {
 			b = []byte(option.PrivateKey)
 		} else {
-			b, err = os.ReadFile(C.Path.Resolve(option.PrivateKey))
+			path := C.Path.Resolve(option.PrivateKey)
+			if !C.Path.IsSafePath(path) {
+				return nil, fmt.Errorf("path is not subpath of home directory: %s", path)
+			}
+			b, err = os.ReadFile(path)
 			if err != nil {
 				return nil, err
 			}
