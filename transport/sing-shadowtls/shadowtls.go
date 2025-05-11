@@ -28,11 +28,12 @@ type ShadowTLSOption struct {
 	ClientFingerprint string
 	SkipCertVerify    bool
 	Version           int
+	ALPN              []string
 }
 
 func NewShadowTLS(ctx context.Context, conn net.Conn, option *ShadowTLSOption) (net.Conn, error) {
 	tlsConfig := &tls.Config{
-		NextProtos:         DefaultALPN,
+		NextProtos:         option.ALPN,
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: option.SkipCertVerify,
 		ServerName:         option.Host,

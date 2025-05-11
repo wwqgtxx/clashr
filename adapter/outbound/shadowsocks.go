@@ -84,11 +84,12 @@ type gostObfsOption struct {
 }
 
 type shadowTLSOption struct {
-	Password       string `obfs:"password,omitempty"`
-	Host           string `obfs:"host"`
-	Fingerprint    string `obfs:"fingerprint,omitempty"`
-	SkipCertVerify bool   `obfs:"skip-cert-verify,omitempty"`
-	Version        int    `obfs:"version,omitempty"`
+	Password       string   `obfs:"password,omitempty"`
+	Host           string   `obfs:"host"`
+	Fingerprint    string   `obfs:"fingerprint,omitempty"`
+	SkipCertVerify bool     `obfs:"skip-cert-verify,omitempty"`
+	Version        int      `obfs:"version,omitempty"`
+	ALPN           []string `obfs:"alpn,omitempty"`
 }
 
 type restlsOption struct {
@@ -341,6 +342,12 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 			ClientFingerprint: option.ClientFingerprint,
 			SkipCertVerify:    opt.SkipCertVerify,
 			Version:           opt.Version,
+		}
+
+		if opt.ALPN != nil { // structure's Decode will ensure value not nil when input has value even it was set an empty array
+			shadowTLSOpt.ALPN = opt.ALPN
+		} else {
+			shadowTLSOpt.ALPN = shadowtls.DefaultALPN
 		}
 	} else if option.Plugin == restls.Mode {
 		obfsMode = restls.Mode
