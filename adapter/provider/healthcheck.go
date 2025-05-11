@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/atomic"
-	"github.com/metacubex/mihomo/common/batch"
 	"github.com/metacubex/mihomo/common/utils"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 
 	"github.com/metacubex/randv2"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -112,19 +112,20 @@ func (hc *HealthCheck) check() {
 }
 
 func (hc *HealthCheck) normalCheck(id string) {
-	b, _ := batch.New(hc.ctx, batch.WithConcurrencyNum(10))
+	b := new(errgroup.Group)
+	b.SetLimit(10)
 	for _, proxy := range hc.proxies {
 		p := proxy
-		b.Go(p.Name(), func() (any, error) {
+		b.Go(func() error {
 			ctx, cancel := context.WithTimeout(context.Background(), defaultURLTestTimeout)
 			defer cancel()
 			log.Infoln("Health Checking (%s) %s {%s}", hc.gName, p.Name(), id)
 			p.URLTest(ctx, hc.url)
 			log.Infoln("Health Checked (%s) %s : %t %d ms %d ms {%s}", hc.gName, p.Name(), p.Alive(), p.LastDelay(), p.LastMeanDelay(), id)
-			return nil, nil
+			return nil
 		})
 	}
-	b.Wait()
+	_ = b.Wait()
 }
 
 func (hc *HealthCheck) fallbackCheck(id string) {
@@ -147,19 +148,20 @@ func (hc *HealthCheck) fallbackCheck(id string) {
 			hc.cleanerRun.Store(false)
 		}()
 		log.Infoln("Start New Health Check Cleaner (%s) {%s}", hc.gName, id)
-		b, _ := batch.New(hc.ctx, batch.WithConcurrencyNum(10))
+		b := new(errgroup.Group)
+		b.SetLimit(10)
 		for _, proxy := range hc.proxies {
 			if proxy.Alive() {
 				continue
 			}
 			wait()
 			p := proxy
-			b.Go(p.Name(), func() (any, error) {
+			b.Go(func() error {
 				check(p)
-				return nil, nil
+				return nil
 			})
 		}
-		b.Wait()
+		_ = b.Wait()
 		log.Infoln("Finish A Health Check Cleaner (%s) {%s}", hc.gName, id)
 	}
 	reds := make([]C.Proxy, 0, len(hc.proxies))

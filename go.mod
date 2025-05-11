@@ -52,6 +52,7 @@ require (
 	golang.org/x/crypto v0.33.0 // lastest version compatible with golang1.20
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // lastest version compatible with golang1.20
 	golang.org/x/net v0.35.0 // lastest version compatible with golang1.20
+	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0 // lastest version compatible with golang1.20
 	google.golang.org/protobuf v1.34.2 // lastest version compatible with golang1.20
 	gopkg.in/yaml.v3 v3.0.1
@@ -100,7 +101,6 @@ require (
 	gitlab.com/yawning/bsaes.git v0.0.0-20190805113838-0a714cd429ec // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	golang.org/x/mod v0.20.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
