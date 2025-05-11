@@ -15,6 +15,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/outbound"
 	CN "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/sockopt"
+	tlsC "github.com/metacubex/mihomo/component/tls"
 	C "github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/sing"
@@ -124,7 +125,7 @@ func New(config LC.Hysteria2Server, tunnel C.Tunnel, additions ...inbound.Additi
 		SendBPS:               outbound.StringToBps(config.Up),
 		ReceiveBPS:            outbound.StringToBps(config.Down),
 		SalamanderPassword:    salamanderPassword,
-		TLSConfig:             tlsConfig,
+		TLSConfig:             tlsC.UConfig(tlsConfig),
 		QUICConfig:            quicConfig,
 		IgnoreClientBandwidth: config.IgnoreClientBandwidth,
 		Handler:               h,

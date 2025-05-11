@@ -104,6 +104,8 @@ func UCertificates(it tls.Certificate) utls.Certificate {
 	}
 }
 
+type Config = utls.Config
+
 func UConfig(config *tls.Config) *utls.Config {
 	return &utls.Config{
 		Rand:                  config.Rand,

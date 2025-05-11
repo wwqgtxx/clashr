@@ -18,9 +18,9 @@ require (
 	github.com/metacubex/bart v0.19.0
 	github.com/metacubex/bbolt v0.0.0-20240822011022-aed6d4850399
 	github.com/metacubex/chacha v0.1.2
-	github.com/metacubex/quic-go v0.49.1-0.20250212162123-c135a4412996
+	github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06
 	github.com/metacubex/randv2 v0.2.0
-	github.com/metacubex/sing-quic v0.0.0-20250119013740-2a19cce83925
+	github.com/metacubex/sing-quic v0.0.0-20250421142834-9de457d11557
 	github.com/metacubex/sing-shadowsocks v0.2.8
 	github.com/metacubex/sing-shadowsocks2 v0.2.2
 	github.com/metacubex/sing-shadowtls v0.0.0-20250412122235-0e9005731a63
@@ -90,7 +90,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
 	github.com/sina-ghaderi/poly1305 v0.0.0-20220724002748-c5926b03988b // indirect
 	github.com/sina-ghaderi/rabaead v0.0.0-20220730151906-ab6e06b96e8c // indirect

@@ -95,14 +95,14 @@ github.com/metacubex/chacha v0.1.2 h1:QulCq3eVm3TO6+4nVIWJtmSe7BT2GMrgVHuAoqRQnl
 github.com/metacubex/chacha v0.1.2/go.mod h1:Djn9bPZxLTXbJFSeyo0/qzEzQI+gUSSzttuzZM75GH8=
 github.com/metacubex/gvisor v0.0.0-20250324165734-5857f47bd43b h1:RUh4OdVPz/jDrM9MQ2ySuqu2aeBqcA8rtfWUYLZ8RtI=
 github.com/metacubex/gvisor v0.0.0-20250324165734-5857f47bd43b/go.mod h1:8LpS0IJW1VmWzUm3ylb0e2SK5QDm5lO/2qwWLZgRpBU=
-github.com/metacubex/quic-go v0.49.1-0.20250212162123-c135a4412996 h1:B+AP/Pj2/jBDS/kCYjz/x+0BCOKfd2VODYevyeIt+Ds=
-github.com/metacubex/quic-go v0.49.1-0.20250212162123-c135a4412996/go.mod h1:ExVjGyEwTUjCFqx+5uxgV7MOoA3fZI+th4D40H35xmY=
+github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06 h1:nE/3zXp8plwp4UYJpEoGnFfDORWRtNs8GNfNlO6vb6U=
+github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06/go.mod h1:9R1NOzCgTcWsdWvOMlmtMuF0uKzuOpsfvEf7U3I8zM0=
 github.com/metacubex/randv2 v0.2.0 h1:uP38uBvV2SxYfLj53kuvAjbND4RUDfFJjwr4UigMiLs=
 github.com/metacubex/randv2 v0.2.0/go.mod h1:kFi2SzrQ5WuneuoLLCMkABtiBu6VRrMrWFqSPyj2cxY=
 github.com/metacubex/sing v0.0.0-20250228041610-d94509dc612a h1:xjPXdDTlIKq4U/KnKpoCtkxD03T8GimtQrvHy/3dN00=
 github.com/metacubex/sing v0.0.0-20250228041610-d94509dc612a/go.mod h1:ARkL0gM13/Iv5VCZmci/NuoOlePoIsW0m7BWfln/Hak=
-github.com/metacubex/sing-quic v0.0.0-20250119013740-2a19cce83925 h1:UkPoRAnoBQMn7IK5qpoIV3OejU15q+rqel3NrbSCFKA=
-github.com/metacubex/sing-quic v0.0.0-20250119013740-2a19cce83925/go.mod h1:g7Mxj7b7zm7YVqD975mk/hSmrb0A0G4bVvIMr2MMzn8=
+github.com/metacubex/sing-quic v0.0.0-20250421142834-9de457d11557 h1:wm37PzL7BrtLW1sQWoVBw18w3bfleBUWwFb9Up19HAY=
+github.com/metacubex/sing-quic v0.0.0-20250421142834-9de457d11557/go.mod h1:GUYUT+3v6Re4XZeSzwu7UcSf8S9jOQaw8YEsY5ehNTI=
 github.com/metacubex/sing-shadowsocks v0.2.8 h1:wIhlaigswzjPw4hej75sEvWte3QR0+AJRafgwBHO5B4=
 github.com/metacubex/sing-shadowsocks v0.2.8/go.mod h1:X3x88XtJpBxG0W0/ECOJL6Ib0SJ3xdniAkU/6/RMWU0=
 github.com/metacubex/sing-shadowsocks2 v0.2.2 h1:eaf42uVx4Lr21S6MDYs0ZdTvGA0GEhDpb9no4+gdXPo=
@@ -148,8 +148,6 @@ github.com/puzpuzpuz/xsync/v3 v3.5.1 h1:GJYJZwO6IdxN/IKbneznS6yPkVC+c3zyY/j19c++
 github.com/puzpuzpuz/xsync/v3 v3.5.1/go.mod h1:VjzYrABPabuM4KyBh1Ftq6u8nhwY5tBPKP9jpmh0nnA=
 github.com/quic-go/qpack v0.4.0 h1:Cr9BXA1sQS2SmDUWjSofMPNKmvF6IiIfDRmgU0w1ZCo=
 github.com/quic-go/qpack v0.4.0/go.mod h1:UZVnYIfi5GRk+zI9UMaCPsmZ2xKJP7XBUvVyT1Knj9A=
-github.com/quic-go/qtls-go1-20 v0.4.1 h1:D33340mCNDAIKBqXuAvexTNMUByrYmFYVfKfDN5nfFs=
-github.com/quic-go/qtls-go1-20 v0.4.1/go.mod h1:X9Nh97ZL80Z+bX/gUXMbipO6OxdiDi58b/fMC9mAL+k=
 github.com/sagernet/cors v1.2.1 h1:Cv5Z8y9YSD6Gm+qSpNrL3LO4lD3eQVvbFYJSG7JCMHQ=
 github.com/sagernet/cors v1.2.1/go.mod h1:O64VyOjjhrkLmQIjF4KGRrJO/5dVXFdpEmCW/eISRAI=
 github.com/sagernet/fswatch v0.1.1 h1:YqID+93B7VRfqIH3PArW/XpJv5H4OLEVWDfProGoRQs=

@@ -9,6 +9,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/inbound"
 	CN "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/sockopt"
+	tlsC "github.com/metacubex/mihomo/component/tls"
 	C "github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/sing"
@@ -123,7 +124,7 @@ func New(config LC.TuicServer, tunnel C.Tunnel, additions ...inbound.Addition) (
 	option := &tuic.ServerOption{
 		HandleTcpFn:           handleTcpFn,
 		HandleUdpFn:           handleUdpFn,
-		TlsConfig:             tlsConfig,
+		TlsConfig:             tlsC.UConfig(tlsConfig),
 		QuicConfig:            quicConfig,
 		CongestionController:  config.CongestionController,
 		AuthenticationTimeout: time.Duration(config.AuthenticationTimeout) * time.Millisecond,
