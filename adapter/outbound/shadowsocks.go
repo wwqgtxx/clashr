@@ -84,7 +84,7 @@ type gostObfsOption struct {
 }
 
 type shadowTLSOption struct {
-	Password       string `obfs:"password"`
+	Password       string `obfs:"password,omitempty"`
 	Host           string `obfs:"host"`
 	Fingerprint    string `obfs:"fingerprint,omitempty"`
 	SkipCertVerify bool   `obfs:"skip-cert-verify,omitempty"`
