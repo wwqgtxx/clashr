@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/render v1.0.3
 	github.com/gobwas/ws v1.4.0
-	github.com/gofrs/uuid/v5 v5.3.1
+	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/insomniacslk/dhcp v0.0.0-20250109001534-8abf58130905
 	github.com/klauspost/compress v1.17.9 // lastest version compatible with golang1.20
 	github.com/mdlayher/netlink v1.7.2
@@ -30,7 +30,7 @@ require (
 	github.com/metacubex/tfo-go v0.0.0-20241231083714-66613d49c422
 	github.com/metacubex/utls v1.7.0-alpha.1
 	github.com/metacubex/wireguard-go v0.0.0-20240922131502-c182e7471181
-	github.com/miekg/dns v1.1.63
+	github.com/miekg/dns v1.1.63 // lastest version compatible with golang1.20
 	github.com/mroth/weightedrand/v2 v2.1.0
 	github.com/openacid/low v0.1.21
 	github.com/oschwald/maxminddb-golang v1.12.0 // lastest version compatible with golang1.20
@@ -41,7 +41,7 @@ require (
 	github.com/sagernet/sing v0.5.2
 	github.com/sagernet/sing-mux v0.2.1
 	github.com/sagernet/smux v0.0.0-20231208180855-7041f6ea79e7
-	github.com/samber/lo v1.49.1
+	github.com/samber/lo v1.50.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
