@@ -18,7 +18,7 @@ require (
 	github.com/metacubex/bart v0.19.0
 	github.com/metacubex/bbolt v0.0.0-20240822011022-aed6d4850399
 	github.com/metacubex/chacha v0.1.2
-	github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06
+	github.com/metacubex/quic-go v0.51.1-0.20250423035655-e3948b36ce14
 	github.com/metacubex/randv2 v0.2.0
 	github.com/metacubex/sing-quic v0.0.0-20250421142834-9de457d11557
 	github.com/metacubex/sing-shadowsocks v0.2.8

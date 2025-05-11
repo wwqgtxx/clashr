@@ -95,8 +95,8 @@ github.com/metacubex/chacha v0.1.2 h1:QulCq3eVm3TO6+4nVIWJtmSe7BT2GMrgVHuAoqRQnl
 github.com/metacubex/chacha v0.1.2/go.mod h1:Djn9bPZxLTXbJFSeyo0/qzEzQI+gUSSzttuzZM75GH8=
 github.com/metacubex/gvisor v0.0.0-20250324165734-5857f47bd43b h1:RUh4OdVPz/jDrM9MQ2ySuqu2aeBqcA8rtfWUYLZ8RtI=
 github.com/metacubex/gvisor v0.0.0-20250324165734-5857f47bd43b/go.mod h1:8LpS0IJW1VmWzUm3ylb0e2SK5QDm5lO/2qwWLZgRpBU=
-github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06 h1:nE/3zXp8plwp4UYJpEoGnFfDORWRtNs8GNfNlO6vb6U=
-github.com/metacubex/quic-go v0.51.1-0.20250421134811-7b4054ad1c06/go.mod h1:9R1NOzCgTcWsdWvOMlmtMuF0uKzuOpsfvEf7U3I8zM0=
+github.com/metacubex/quic-go v0.51.1-0.20250423035655-e3948b36ce14 h1:vhB4KEgiN89xXtLlyYWczu3AxgN2T1lp0kIDYT4Faag=
+github.com/metacubex/quic-go v0.51.1-0.20250423035655-e3948b36ce14/go.mod h1:9R1NOzCgTcWsdWvOMlmtMuF0uKzuOpsfvEf7U3I8zM0=
 github.com/metacubex/randv2 v0.2.0 h1:uP38uBvV2SxYfLj53kuvAjbND4RUDfFJjwr4UigMiLs=
 github.com/metacubex/randv2 v0.2.0/go.mod h1:kFi2SzrQ5WuneuoLLCMkABtiBu6VRrMrWFqSPyj2cxY=
 github.com/metacubex/sing v0.0.0-20250228041610-d94509dc612a h1:xjPXdDTlIKq4U/KnKpoCtkxD03T8GimtQrvHy/3dN00=
