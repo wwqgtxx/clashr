@@ -21,7 +21,7 @@ import (
 
 var noneList = []string{shadowsocks.MethodNone}
 var shadowsocksCipherLists = [][]string{noneList, shadowaead.List, shadowaead_2022.List, shadowstream.List}
-var shadowsocksCipherShortLists = [][]string{noneList, shadowaead.List[:1], shadowaead_2022.List[:1]}
+var shadowsocksCipherShortLists = [][]string{noneList, shadowaead.List[:5]} // for test shadowTLS
 var shadowsocksPassword32 string
 var shadowsocksPassword16 string
 
