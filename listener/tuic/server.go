@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/adapter/inbound"
-	CN "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/sockopt"
+	"github.com/metacubex/mihomo/component/ca"
 	tlsC "github.com/metacubex/mihomo/component/tls"
 	C "github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
@@ -48,7 +48,7 @@ func New(config LC.TuicServer, tunnel C.Tunnel, additions ...inbound.Addition) (
 		return nil, err
 	}
 
-	cert, err := CN.ParseCert(config.Certificate, config.PrivateKey, C.Path)
+	cert, err := ca.LoadTLSKeyPair(config.Certificate, config.PrivateKey, C.Path)
 	if err != nil {
 		return nil, err
 	}

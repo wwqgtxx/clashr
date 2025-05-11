@@ -1,17 +1,13 @@
 package ca
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 
 	C "github.com/metacubex/mihomo/constant"
@@ -78,36 +74,6 @@ func getCertPool() *x509.CertPool {
 	return globalCertPool
 }
 
-func verifyFingerprint(fingerprint *[32]byte) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// ssl pining
-		for i := range rawCerts {
-			rawCert := rawCerts[i]
-			cert, err := x509.ParseCertificate(rawCert)
-			if err == nil {
-				hash := sha256.Sum256(cert.Raw)
-				if bytes.Equal(fingerprint[:], hash[:]) {
-					return nil
-				}
-			}
-		}
-		return errNotMatch
-	}
-}
-
-func convertFingerprint(fingerprint string) (*[32]byte, error) {
-	fingerprint = strings.TrimSpace(strings.Replace(fingerprint, ":", "", -1))
-	fpByte, err := hex.DecodeString(fingerprint)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(fpByte) != 32 {
-		return nil, fmt.Errorf("fingerprint string length error,need sha256 fingerprint")
-	}
-	return (*[32]byte)(fpByte), nil
-}
-
 func GetCertPool(customCA string, customCAString string) (*x509.CertPool, error) {
 	var certificate []byte
 	var err error
@@ -128,14 +94,6 @@ func GetCertPool(customCA string, customCAString string) (*x509.CertPool, error)
 	} else {
 		return getCertPool(), nil
 	}
-}
-
-func NewFingerprintVerifier(fingerprint string) (func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error, error) {
-	fingerprintBytes, err := convertFingerprint(fingerprint)
-	if err != nil {
-		return nil, err
-	}
-	return verifyFingerprint(fingerprintBytes), nil
 }
 
 // GetTLSConfig specified fingerprint, customCA and customCAString
