@@ -125,5 +125,5 @@ func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefa
 
 	interval := time.Duration(uint(schema.Interval)) * time.Second
 
-	return NewProxySetProvider(name, interval, parser, vehicle, hc)
+	return NewProxySetProvider(name, interval, schema.Payload, parser, vehicle, hc)
 }
