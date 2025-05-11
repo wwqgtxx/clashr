@@ -11,6 +11,7 @@ import (
 
 	"github.com/metacubex/sing-shadowtls"
 	utls "github.com/metacubex/utls"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 
 var (
 	DefaultALPN = []string{"h2", "http/1.1"}
+	WsALPN      = []string{"http/1.1"}
 )
 
 type ShadowTLSOption struct {
@@ -69,9 +71,18 @@ func uTLSHandshakeFunc(config *tls.Config, clientFingerprint string) shadowtls.T
 		if tlsC.HaveGlobalFingerprint() && len(clientFingerprint) == 0 {
 			clientFingerprint = tlsC.GetGlobalFingerprint()
 		}
+		if config.MaxVersion == tls.VersionTLS12 { // for ShadowTLS v1
+			clientFingerprint = ""
+		}
 		if len(clientFingerprint) != 0 {
 			if fingerprint, exists := tlsC.GetFingerprint(clientFingerprint); exists {
 				tlsConn := tlsC.UClient(conn, tlsConfig, fingerprint)
+				if slices.Equal(tlsConfig.NextProtos, WsALPN) {
+					err := tlsC.BuildWebsocketHandshakeState(tlsConn)
+					if err != nil {
+						return err
+					}
+				}
 				return tlsConn.HandshakeContext(ctx)
 			}
 		}
