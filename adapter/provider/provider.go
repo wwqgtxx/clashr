@@ -123,6 +123,9 @@ func (pp *proxySetProvider) Update() error {
 }
 
 func (pp *proxySetProvider) Initial() error {
+	if pp.healthCheck.auto() {
+		go pp.healthCheck.process()
+	}
 	_, err := pp.Fetcher.Initial()
 	if err != nil {
 		return err
@@ -149,10 +152,6 @@ func (pp *proxySetProvider) Close() error {
 }
 
 func NewProxySetProvider(name string, interval time.Duration, payload []map[string]any, parser resource.Parser[[]C.Proxy], vehicle types.Vehicle, hc *HealthCheck) (*ProxySetProvider, error) {
-	if hc.auto() {
-		go hc.process()
-	}
-
 	pd := &proxySetProvider{
 		baseProvider: baseProvider{
 			name:        name,
@@ -213,6 +212,9 @@ func (ip *inlineProvider) VehicleType() types.VehicleType {
 }
 
 func (ip *inlineProvider) Initial() error {
+	if ip.healthCheck.auto() {
+		go ip.healthCheck.process()
+	}
 	return nil
 }
 
@@ -223,10 +225,6 @@ func (ip *inlineProvider) Update() error {
 }
 
 func NewInlineProvider(name string, payload []map[string]any, parser resource.Parser[[]C.Proxy], hc *HealthCheck) (*InlineProvider, error) {
-	if hc.auto() {
-		go hc.process()
-	}
-
 	ps := ProxySchema{Proxies: payload}
 	buf, err := yaml.Marshal(ps)
 	if err != nil {
@@ -279,6 +277,9 @@ func (cp *compatibleProvider) Update() error {
 }
 
 func (cp *compatibleProvider) Initial() error {
+	if cp.healthCheck.auto() {
+		go cp.healthCheck.process()
+	}
 	return nil
 }
 
@@ -289,10 +290,6 @@ func (cp *compatibleProvider) VehicleType() types.VehicleType {
 func NewCompatibleProvider(name string, proxies []C.Proxy, hc *HealthCheck) (*CompatibleProvider, error) {
 	if len(proxies) == 0 {
 		return nil, errors.New("provider need one proxy at least")
-	}
-
-	if hc.auto() {
-		go hc.process()
 	}
 
 	pd := &compatibleProvider{
