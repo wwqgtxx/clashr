@@ -80,7 +80,7 @@ func (hc *HealthCheck) lazyCheck() bool {
 	}
 }
 
-func (hc *HealthCheck) setProxy(proxies []C.Proxy) {
+func (hc *HealthCheck) setProxies(proxies []C.Proxy) {
 	hc.proxies = proxies
 }
 
