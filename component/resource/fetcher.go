@@ -221,6 +221,10 @@ func (f *Fetcher[V]) updateWithLog() {
 
 func NewFetcher[V any](name string, interval time.Duration, vehicle types.Vehicle, parser Parser[V], onUpdate func(V)) *Fetcher[V] {
 	ctx, cancel := context.WithCancel(context.Background())
+	minBackoff := 10 * time.Second
+	if interval < minBackoff {
+		minBackoff = interval
+	}
 	return &Fetcher[V]{
 		ctx:       ctx,
 		ctxCancel: cancel,
@@ -232,7 +236,7 @@ func NewFetcher[V any](name string, interval time.Duration, vehicle types.Vehicl
 		backoff: slowdown.Backoff{
 			Factor: 2,
 			Jitter: false,
-			Min:    time.Second,
+			Min:    minBackoff,
 			Max:    interval,
 		},
 	}
