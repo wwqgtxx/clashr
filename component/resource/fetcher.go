@@ -105,6 +105,7 @@ func (f *Fetcher[V]) loadBuf(buf []byte, hash utils.HashType, updateFile bool) (
 			_ = os.Chtimes(f.vehicle.Path(), now, now)
 		}
 		f.updatedAt = now
+		f.backoff.Reset() // no error, reset backoff
 		return lo.Empty[V](), true, nil
 	}
 
