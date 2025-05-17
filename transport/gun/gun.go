@@ -214,6 +214,13 @@ func (g *Conn) SetReadDeadline(t time.Time) error  { return g.SetDeadline(t) }
 func (g *Conn) SetWriteDeadline(t time.Time) error { return g.SetDeadline(t) }
 
 func (g *Conn) SetDeadline(t time.Time) error {
+	if t.IsZero() {
+		if g.deadline != nil {
+			g.deadline.Stop()
+			g.deadline = nil
+		}
+		return nil
+	}
 	d := time.Until(t)
 	if g.deadline != nil {
 		g.deadline.Reset(d)
