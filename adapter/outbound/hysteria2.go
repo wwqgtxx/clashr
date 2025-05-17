@@ -41,24 +41,25 @@ type Hysteria2 struct {
 
 type Hysteria2Option struct {
 	BasicOption
-	Name           string   `proxy:"name"`
-	Server         string   `proxy:"server"`
-	Port           int      `proxy:"port,omitempty"`
-	Ports          string   `proxy:"ports,omitempty"`
-	HopInterval    int      `proxy:"hop-interval,omitempty"`
-	Up             string   `proxy:"up,omitempty"`
-	Down           string   `proxy:"down,omitempty"`
-	Password       string   `proxy:"password,omitempty"`
-	Obfs           string   `proxy:"obfs,omitempty"`
-	ObfsPassword   string   `proxy:"obfs-password,omitempty"`
-	SNI            string   `proxy:"sni,omitempty"`
-	SkipCertVerify bool     `proxy:"skip-cert-verify,omitempty"`
-	Fingerprint    string   `proxy:"fingerprint,omitempty"`
-	ALPN           []string `proxy:"alpn,omitempty"`
-	CustomCA       string   `proxy:"ca,omitempty"`
-	CustomCAString string   `proxy:"ca-str,omitempty"`
-	CWND           int      `proxy:"cwnd,omitempty"`
-	UdpMTU         int      `proxy:"udp-mtu,omitempty"`
+	Name           string     `proxy:"name"`
+	Server         string     `proxy:"server"`
+	Port           int        `proxy:"port,omitempty"`
+	Ports          string     `proxy:"ports,omitempty"`
+	HopInterval    int        `proxy:"hop-interval,omitempty"`
+	Up             string     `proxy:"up,omitempty"`
+	Down           string     `proxy:"down,omitempty"`
+	Password       string     `proxy:"password,omitempty"`
+	Obfs           string     `proxy:"obfs,omitempty"`
+	ObfsPassword   string     `proxy:"obfs-password,omitempty"`
+	SNI            string     `proxy:"sni,omitempty"`
+	ECHOpts        ECHOptions `proxy:"ech-opts,omitempty"`
+	SkipCertVerify bool       `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint    string     `proxy:"fingerprint,omitempty"`
+	ALPN           []string   `proxy:"alpn,omitempty"`
+	CustomCA       string     `proxy:"ca,omitempty"`
+	CustomCAString string     `proxy:"ca-str,omitempty"`
+	CWND           int        `proxy:"cwnd,omitempty"`
+	UdpMTU         int        `proxy:"udp-mtu,omitempty"`
 
 	// quic-go special config
 	InitialStreamReceiveWindow     uint64 `proxy:"initial-stream-receive-window,omitempty"`
@@ -153,6 +154,12 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 		tlsConfig.NextProtos = option.ALPN
 	}
 
+	tlsClientConfig := tlsC.UConfig(tlsConfig)
+	echConfig, err := option.ECHOpts.Parse()
+	if err != nil {
+		return nil, err
+	}
+
 	if option.UdpMTU == 0 {
 		// "1200" from quic-go's MaxDatagramSize
 		// "-3" from quic-go's DatagramFrame.MaxDataLen
@@ -174,13 +181,21 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 		ReceiveBPS:         StringToBps(option.Down),
 		SalamanderPassword: salamanderPassword,
 		Password:           option.Password,
-		TLSConfig:          tlsC.UConfig(tlsConfig),
+		TLSConfig:          tlsClientConfig,
 		QUICConfig:         quicConfig,
 		UDPDisabled:        false,
 		CWND:               option.CWND,
 		UdpMTU:             option.UdpMTU,
 		ServerAddress: func(ctx context.Context) (*net.UDPAddr, error) {
-			return resolveUDPAddr(ctx, "udp", addr, C.NewDNSPrefer(option.IPVersion))
+			udpAddr, err := resolveUDPAddr(ctx, "udp", addr, C.NewDNSPrefer(option.IPVersion))
+			if err != nil {
+				return nil, err
+			}
+			err = echConfig.ClientHandle(ctx, tlsClientConfig)
+			if err != nil {
+				return nil, err
+			}
+			return udpAddr, nil
 		},
 	}
 
