@@ -239,7 +239,7 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, clientFingerprint stri
 		}
 
 		if clientFingerprint, ok := tlsC.GetFingerprint(clientFingerprint); ok {
-			tlsConfig := tlsC.UConfig(tlsConfig)
+			tlsConfig := tlsC.UConfig(cfg)
 			err := echConfig.ClientHandle(ctx, tlsConfig)
 			if err != nil {
 				pconn.Close()
@@ -277,7 +277,7 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, clientFingerprint stri
 		}
 
 		if echConfig != nil {
-			tlsConfig := tlsC.UConfig(tlsConfig)
+			tlsConfig := tlsC.UConfig(cfg)
 			err := echConfig.ClientHandle(ctx, tlsConfig)
 			if err != nil {
 				pconn.Close()

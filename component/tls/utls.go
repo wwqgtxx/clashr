@@ -26,6 +26,10 @@ func UClient(c net.Conn, config *utls.Config, fingerprint UClientHelloID) *UConn
 	return utls.UClient(c, config, fingerprint)
 }
 
+func NewListener(inner net.Listener, config *Config) net.Listener {
+	return utls.NewListener(inner, config)
+}
+
 func GetFingerprint(clientFingerprint string) (UClientHelloID, bool) {
 	if len(clientFingerprint) == 0 {
 		clientFingerprint = globalFingerprint
@@ -93,7 +97,9 @@ func init() {
 	fingerprints["randomized"] = randomized
 }
 
-func UCertificates(it tls.Certificate) utls.Certificate {
+type Certificate = utls.Certificate
+
+func UCertificate(it tls.Certificate) utls.Certificate {
 	return utls.Certificate{
 		Certificate: it.Certificate,
 		PrivateKey:  it.PrivateKey,
@@ -106,13 +112,15 @@ func UCertificates(it tls.Certificate) utls.Certificate {
 	}
 }
 
+type EncryptedClientHelloKey = utls.EncryptedClientHelloKey
+
 type Config = utls.Config
 
 func UConfig(config *tls.Config) *utls.Config {
 	return &utls.Config{
 		Rand:                  config.Rand,
 		Time:                  config.Time,
-		Certificates:          utils.Map(config.Certificates, UCertificates),
+		Certificates:          utils.Map(config.Certificates, UCertificate),
 		VerifyPeerCertificate: config.VerifyPeerCertificate,
 		RootCAs:               config.RootCAs,
 		NextProtos:            config.NextProtos,
