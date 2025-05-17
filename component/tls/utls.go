@@ -16,6 +16,7 @@ type Conn = utls.Conn
 type UConn = utls.UConn
 type UClientHelloID = utls.ClientHelloID
 
+const VersionTLS12 = utls.VersionTLS12
 const VersionTLS13 = utls.VersionTLS13
 
 func Client(c net.Conn, config *utls.Config) *Conn {
@@ -24,6 +25,10 @@ func Client(c net.Conn, config *utls.Config) *Conn {
 
 func UClient(c net.Conn, config *utls.Config, fingerprint UClientHelloID) *UConn {
 	return utls.UClient(c, config, fingerprint)
+}
+
+func Server(c net.Conn, config *utls.Config) *Conn {
+	return utls.Server(c, config)
 }
 
 func NewListener(inner net.Listener, config *Config) net.Listener {
@@ -69,21 +74,26 @@ var randomFingerprint = once.OnceValue(func() UClientHelloID {
 	return fingerprint
 })
 
+var HelloChrome_Auto = utls.HelloChrome_Auto
+var HelloChrome_120 = utls.HelloChrome_120 // special fingerprint for some old protocols doesn't work with HelloChrome_Auto
+
 var fingerprints = map[string]UClientHelloID{
-	"chrome":                     utls.HelloChrome_Auto,
+	"chrome":  utls.HelloChrome_Auto,
+	"firefox": utls.HelloFirefox_Auto,
+	"safari":  utls.HelloSafari_Auto,
+	"ios":     utls.HelloIOS_Auto,
+	"android": utls.HelloAndroid_11_OkHttp,
+	"edge":    utls.HelloEdge_Auto,
+	"360":     utls.Hello360_Auto,
+	"qq":      utls.HelloQQ_Auto,
+	"random":  {},
+
+	// deprecated fingerprints should not be used
 	"chrome_psk":                 utls.HelloChrome_100_PSK,
 	"chrome_psk_shuffle":         utls.HelloChrome_106_Shuffle,
 	"chrome_padding_psk_shuffle": utls.HelloChrome_114_Padding_PSK_Shuf,
 	"chrome_pq":                  utls.HelloChrome_115_PQ,
 	"chrome_pq_psk":              utls.HelloChrome_115_PQ_PSK,
-	"firefox":                    utls.HelloFirefox_Auto,
-	"safari":                     utls.HelloSafari_Auto,
-	"ios":                        utls.HelloIOS_Auto,
-	"android":                    utls.HelloAndroid_11_OkHttp,
-	"edge":                       utls.HelloEdge_Auto,
-	"360":                        utls.Hello360_Auto,
-	"qq":                         utls.HelloQQ_Auto,
-	"random":                     {},
 	"randomized":                 utls.HelloRandomized,
 }
 
