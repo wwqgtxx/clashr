@@ -20,7 +20,6 @@ import (
 	tuicCommon "github.com/metacubex/mihomo/transport/tuic/common"
 
 	"github.com/metacubex/quic-go"
-	"github.com/metacubex/randv2"
 	"github.com/metacubex/sing-quic/hysteria2"
 	M "github.com/metacubex/sing/common/metadata"
 )
@@ -186,30 +185,27 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 	}
 
 	var ranges utils.IntRanges[uint16]
-	var serverAddress []string
+	var serverPorts []uint16
 	if option.Ports != "" {
 		ranges, err = utils.NewUnsignedRanges[uint16](option.Ports)
 		if err != nil {
 			return nil, err
 		}
 		ranges.Range(func(port uint16) bool {
-			serverAddress = append(serverAddress, net.JoinHostPort(option.Server, strconv.Itoa(int(port))))
+			serverPorts = append(serverPorts, port)
 			return true
 		})
-		if len(serverAddress) > 0 {
-			clientOptions.ServerAddress = func(ctx context.Context) (*net.UDPAddr, error) {
-				return resolveUDPAddr(ctx, "udp", serverAddress[randv2.IntN(len(serverAddress))], C.NewDNSPrefer(option.IPVersion))
-			}
-
+		if len(serverPorts) > 0 {
 			if option.HopInterval == 0 {
 				option.HopInterval = defaultHopInterval
 			} else if option.HopInterval < minHopInterval {
 				option.HopInterval = minHopInterval
 			}
 			clientOptions.HopInterval = time.Duration(option.HopInterval) * time.Second
+			clientOptions.ServerPorts = serverPorts
 		}
 	}
-	if option.Port == 0 && len(serverAddress) == 0 {
+	if option.Port == 0 && len(serverPorts) == 0 {
 		return nil, errors.New("invalid port")
 	}
 
