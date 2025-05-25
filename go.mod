@@ -19,7 +19,7 @@ require (
 	github.com/metacubex/bbolt v0.0.0-20240822011022-aed6d4850399
 	github.com/metacubex/chacha v0.1.2
 	github.com/metacubex/fswatch v0.1.1
-	github.com/metacubex/quic-go v0.51.1-0.20250511032541-4e34341cf18b
+	github.com/metacubex/quic-go v0.52.1-0.20250522021943-aef454b9e639
 	github.com/metacubex/randv2 v0.2.0
 	github.com/metacubex/sing v0.5.3-0.20250504031621-1f99e54c15b7
 	github.com/metacubex/sing-mux v0.3.2
