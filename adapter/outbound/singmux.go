@@ -2,8 +2,6 @@ package outbound
 
 import (
 	"context"
-	"errors"
-
 	CN "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/proxydialer"
@@ -52,7 +50,11 @@ func (s *SingMux) ListenPacketContext(ctx context.Context, metadata *C.Metadata)
 	if s.onlyTcp {
 		return s.ProxyAdapter.ListenPacketContext(ctx, metadata)
 	}
-	pc, err := s.client.ListenPacket(ctx, M.ParseSocksaddr(metadata.RemoteAddress()))
+	if err = s.ProxyAdapter.ResolveUDP(ctx, metadata); err != nil {
+		return nil, err
+	}
+
+	pc, err := s.client.ListenPacket(ctx, M.SocksaddrFromNet(metadata.UDPAddr()))
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +93,9 @@ func (s *SingMux) Close() error {
 }
 
 func NewSingMux(option SingMuxOption, proxy ProxyAdapter) (ProxyAdapter, error) {
-	if !mux.BrutalAvailable && option.BrutalOpts.Enabled {
-		return nil, errors.New("TCP Brutal is only supported on Linux-based systems")
-	}
+	// TODO
+	// "TCP Brutal is only supported on Linux-based systems"
+
 	singDialer := proxydialer.NewSingDialer(proxy, dialer.NewDialer(proxy.DialOptions()...), option.Statistic)
 	client, err := mux.NewClient(mux.Options{
 		Dialer:         singDialer,

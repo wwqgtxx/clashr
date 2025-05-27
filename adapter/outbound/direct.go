@@ -2,7 +2,8 @@ package outbound
 
 import (
 	"context"
-	"errors"
+	"fmt"
+
 
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -31,13 +32,8 @@ func (d *Direct) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn,
 
 // ListenPacketContext implements C.ProxyAdapter
 func (d *Direct) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
-	// net.UDPConn.WriteTo only working with *net.UDPAddr, so we need a net.UDPAddr
-	if !metadata.Resolved() {
-		ip, err := resolver.ResolveIPWithResolver(ctx, metadata.Host, resolver.DirectHostResolver)
-		if err != nil {
-			return nil, errors.New("can't resolve ip")
-		}
-		metadata.DstIP = ip
+	if err := d.ResolveUDP(ctx, metadata); err != nil {
+		return nil, err
 	}
 	pc, err := dialer.NewDialer(d.DialOptions()...).ListenPacket(ctx, "udp", "", metadata.AddrPort())
 	if err != nil {
@@ -54,6 +50,17 @@ func NewDirect() *Direct {
 			udp:  true,
 		},
 	}
+}
+
+func (d *Direct) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
+	if (!metadata.Resolved() || resolver.DirectHostResolver != resolver.DefaultResolver) && metadata.Host != "" {
+		ip, err := resolver.ResolveIPWithResolver(ctx, metadata.Host, resolver.DirectHostResolver)
+		if err != nil {
+			return fmt.Errorf("can't resolve ip: %w", err)
+		}
+		metadata.DstIP = ip
+	}
+	return nil
 }
 
 func (d *Direct) IsL3Protocol(metadata *C.Metadata) bool {
