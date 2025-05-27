@@ -307,7 +307,7 @@ func handleUDPConn(packet C.PacketAdapter) {
 	}
 
 	if err := preHandleMetadata(metadata.Clone()); err != nil { // precheck without modify metadata
-		log.Warnln("[Metadata PreHandle] error: %s", err)
+		log.Debugln("[Metadata PreHandle] error: %s", err)
 		return
 	}
 
