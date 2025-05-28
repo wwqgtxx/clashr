@@ -88,7 +88,7 @@ type quicPacketSender struct {
 	lock     sync.RWMutex
 	ranges   utils.IntRanges[uint64]
 	buffer   []byte
-	result   string
+	result   *string
 	override bool
 
 	constant.PacketSender
@@ -121,7 +121,10 @@ func (q *quicPacketSender) DoSniff(metadata *constant.Metadata) error {
 	select {
 	case <-q.chClose:
 		q.lock.RLock()
-		replaceDomain(metadata, q.result, q.override)
+		if q.result != nil {
+			host := *q.result
+			replaceDomain(metadata, host, q.override)
+		}
 		q.lock.RUnlock()
 		break
 	case <-time.After(quicWaitConn):
@@ -428,7 +431,7 @@ func (q *quicPacketSender) tryAssemble() error {
 	}
 
 	q.lock.Lock()
-	q.result = *domain
+	q.result = domain
 	q.closeLocked()
 	q.lock.Unlock()
 
