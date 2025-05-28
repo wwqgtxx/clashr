@@ -78,7 +78,9 @@ func testQuicSniffer(data []string, async bool) (string, string, error) {
 	resultCh := make(chan *constant.Metadata, 1)
 	emptySender := &fakeSender{}
 
-	sender := q.WrapperSender(emptySender, true)
+	sender := q.WrapperSender(emptySender, func(metadata *constant.Metadata, host string) {
+		replaceDomain(metadata, host, true)
+	})
 
 	go func() {
 		meta := constant.Metadata{Host: fakeHost}
