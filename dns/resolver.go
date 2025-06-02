@@ -355,7 +355,8 @@ func (r *Resolver) ipExchange(ctx context.Context, m *D.Msg) (msg *D.Msg, err er
 func (r *Resolver) lookupIP(ctx context.Context, host string, dnsType uint16) ([]netip.Addr, error) {
 
 	if ip, err := netip.ParseAddr(host); err == nil {
-		isIPv4 := ip.Is4() || ip.Is4In6()
+		ip = ip.Unmap()
+		isIPv4 := ip.Is4()
 		if dnsType == D.TypeAAAA && !isIPv4 {
 			return []netip.Addr{ip}, nil
 		} else if dnsType == D.TypeA && isIPv4 {
