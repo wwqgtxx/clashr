@@ -2,10 +2,8 @@ package dns
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"strings"
 	"time"
@@ -88,37 +86,50 @@ func isIPRequest(q D.Question) bool {
 func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 	ret := []dnsClient{}
 	for _, s := range servers {
+		var c dnsClient
 		switch s.Net {
 		case "https":
-			ret = append(ret, newDoHClient(s.Addr, resolver, s.ProxyAdapter, s.ProxyName, s.Params))
-			continue
+			c = newDoHClient(s.Addr, resolver, s.ProxyAdapter, s.ProxyName, s.Params)
 		case "dhcp":
-			ret = append(ret, newDHCPClient(s.Addr))
-			continue
+			c = newDHCPClient(s.Addr)
 		case "system":
-			ret = append(ret, newSystemClient())
-			continue
+			c = newSystemClient()
 		case "rcode":
-			ret = append(ret, newRCodeClient(s.Addr))
-			continue
+			c = newRCodeClient(s.Addr)
+		default:
+			c = newClient(s.Addr, resolver, s.Net, s.ProxyAdapter, s.ProxyName)
 		}
 
-		host, port, _ := net.SplitHostPort(s.Addr)
-		ret = append(ret, &client{
-			Client: &D.Client{
-				Net: s.Net,
-				TLSConfig: &tls.Config{
-					ServerName: host,
-				},
-				UDPSize: 4096,
-				Timeout: 5 * time.Second,
-			},
-			port:   port,
-			host:   host,
-			dialer: newDNSDialer(resolver, s.ProxyAdapter, s.ProxyName),
-		})
+		if s.Params["disable-ipv4"] == "true" {
+			c = newDisableTypeClient(c, D.TypeA)
+		}
+
+		if s.Params["disable-ipv6"] == "true" {
+			c = newDisableTypeClient(c, D.TypeAAAA)
+		}
+
+		ret = append(ret, c)
 	}
 	return ret
+}
+
+type disableTypeClient struct {
+	dnsClient
+	qType uint16
+}
+
+func (c disableTypeClient) ExchangeContext(ctx context.Context, m *D.Msg) (msg *D.Msg, err error) {
+	if len(m.Question) > 0 {
+		q := m.Question[0]
+		if q.Qtype == c.qType {
+			return handleMsgWithEmptyAnswer(m), nil
+		}
+	}
+	return c.dnsClient.ExchangeContext(ctx, m)
+}
+
+func newDisableTypeClient(c dnsClient, qType uint16) dnsClient {
+	return disableTypeClient{c, qType}
 }
 
 func handleMsgWithEmptyAnswer(r *D.Msg) *D.Msg {

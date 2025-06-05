@@ -982,10 +982,21 @@ func parseNameServer(servers []string, respectRules bool) ([]dns.NameServer, err
 			return nil, fmt.Errorf("DNS NameServer[%d] format error: %s", idx, err.Error())
 		}
 
-		proxyName := u.Fragment
+		var proxyName string
+		params := map[string]string{}
+		for _, s := range strings.Split(u.Fragment, "&") {
+			arr := strings.SplitN(s, "=", 2)
+			switch len(arr) {
+			case 0:
+				continue
+			case 1:
+				proxyName = arr[0]
+			case 2:
+				params[arr[0]] = arr[1]
+			}
+		}
 
 		var addr, dnsNetType string
-		params := map[string]string{}
 		switch u.Scheme {
 		case "udp":
 			addr, err = hostWithDefaultPort(u.Host, "53")
@@ -1003,24 +1014,8 @@ func parseNameServer(servers []string, respectRules bool) ([]dns.NameServer, err
 				addr, err = hostWithDefaultPort(u.Host, "80")
 			}
 			if err == nil {
-				proxyName = ""
 				clearURL := url.URL{Scheme: u.Scheme, Host: addr, Path: u.Path, User: u.User}
 				addr = clearURL.String()
-				dnsNetType = "https" // DNS over HTTPS
-				if len(u.Fragment) != 0 {
-					for _, s := range strings.Split(u.Fragment, "&") {
-						arr := strings.Split(s, "=")
-						if len(arr) == 0 {
-							continue
-						} else if len(arr) == 1 {
-							proxyName = arr[0]
-						} else if len(arr) == 2 {
-							params[arr[0]] = arr[1]
-						} else {
-							params[arr[0]] = strings.Join(arr[1:], "=")
-						}
-					}
-				}
 			}
 		case "system":
 			dnsNetType = "system" // System DNS
