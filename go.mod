@@ -21,7 +21,7 @@ require (
 	github.com/metacubex/fswatch v0.1.1
 	github.com/metacubex/quic-go v0.52.1-0.20250522021943-aef454b9e639
 	github.com/metacubex/randv2 v0.2.0
-	github.com/metacubex/sing v0.5.3
+	github.com/metacubex/sing v0.5.4-0.20250605054047-54dc6097da29
 	github.com/metacubex/sing-mux v0.3.2
 	github.com/metacubex/sing-quic v0.0.0-20250523120938-f1a248e5ec7f
 	github.com/metacubex/sing-shadowsocks v0.2.10
