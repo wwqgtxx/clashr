@@ -100,12 +100,14 @@ func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 			c = newClient(s.Addr, resolver, s.Net, s.ProxyAdapter, s.ProxyName)
 		}
 
+		c = warpClientWithEdns0Subnet(c, s.Params)
+
 		if s.Params["disable-ipv4"] == "true" {
-			c = newDisableTypeClient(c, D.TypeA)
+			c = warpClientWithDisableType(c, D.TypeA)
 		}
 
 		if s.Params["disable-ipv6"] == "true" {
-			c = newDisableTypeClient(c, D.TypeAAAA)
+			c = warpClientWithDisableType(c, D.TypeAAAA)
 		}
 
 		ret = append(ret, c)
@@ -113,12 +115,12 @@ func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 	return ret
 }
 
-type disableTypeClient struct {
+type clientWithDisableType struct {
 	dnsClient
 	qType uint16
 }
 
-func (c disableTypeClient) ExchangeContext(ctx context.Context, m *D.Msg) (msg *D.Msg, err error) {
+func (c clientWithDisableType) ExchangeContext(ctx context.Context, m *D.Msg) (msg *D.Msg, err error) {
 	if len(m.Question) > 0 {
 		q := m.Question[0]
 		if q.Qtype == c.qType {
@@ -128,8 +130,47 @@ func (c disableTypeClient) ExchangeContext(ctx context.Context, m *D.Msg) (msg *
 	return c.dnsClient.ExchangeContext(ctx, m)
 }
 
-func newDisableTypeClient(c dnsClient, qType uint16) dnsClient {
-	return disableTypeClient{c, qType}
+func warpClientWithDisableType(c dnsClient, qType uint16) dnsClient {
+	return clientWithDisableType{c, qType}
+}
+
+type clientWithEdns0Subnet struct {
+	dnsClient
+	ecsPrefix   netip.Prefix
+	ecsOverride bool
+}
+
+func (c clientWithEdns0Subnet) ExchangeContext(ctx context.Context, m *D.Msg) (*D.Msg, error) {
+	m = m.Copy()
+	setEdns0Subnet(m, c.ecsPrefix, c.ecsOverride)
+	return c.dnsClient.ExchangeContext(ctx, m)
+}
+
+func warpClientWithEdns0Subnet(c dnsClient, params map[string]string) dnsClient {
+	var ecsPrefix netip.Prefix
+	var ecsOverride bool
+	if ecs := params["ecs"]; ecs != "" {
+		prefix, err := netip.ParsePrefix(ecs)
+		if err != nil {
+			addr, err := netip.ParseAddr(ecs)
+			if err != nil {
+				log.Warnln("DNS [%s] config with invalid ecs: %s", c.Address(), ecs)
+			} else {
+				ecsPrefix = netip.PrefixFrom(addr, addr.BitLen())
+			}
+		} else {
+			ecsPrefix = prefix
+		}
+	}
+
+	if ecsPrefix.IsValid() {
+		log.Debugln("DNS [%s] config with ecs: %s", c.Address(), ecsPrefix)
+		if params["ecs-override"] == "true" {
+			ecsOverride = true
+		}
+		return clientWithEdns0Subnet{c, ecsPrefix, ecsOverride}
+	}
+	return c
 }
 
 func handleMsgWithEmptyAnswer(r *D.Msg) *D.Msg {
