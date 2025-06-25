@@ -56,7 +56,7 @@ var (
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 
-	findProcessMode = atomic.NewTypedValue(P.FindProcessStrict)
+	findProcessMode = atomic.NewInt32Enum(P.FindProcessStrict)
 
 	fakeIPRange netip.Prefix
 
