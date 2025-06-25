@@ -9,6 +9,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/component/dialer"
+	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
@@ -32,31 +33,31 @@ func configRouter() http.Handler {
 }
 
 type configSchema struct {
-	Port                   *int               `json:"port"`
-	SocksPort              *int               `json:"socks-port"`
-	RedirPort              *int               `json:"redir-port"`
-	TProxyPort             *int               `json:"tproxy-port"`
-	MixedPort              *int               `json:"mixed-port"`
-	Tun                    *tunSchema         `json:"tun"`
-	TuicServer             *tuicServerSchema  `json:"tuic-server"`
-	MixECConfig            *string            `json:"mixec-config"`
-	ShadowSocksConfig      *string            `json:"ss-config"`
-	VmessConfig            *string            `json:"vmess-config"`
-	AllowLan               *bool              `json:"allow-lan"`
-	SkipAuthPrefixes       *[]netip.Prefix    `json:"skip-auth-prefixes"`
-	LanAllowedIPs          *[]netip.Prefix    `json:"lan-allowed-ips"`
-	LanDisAllowedIPs       *[]netip.Prefix    `json:"lan-disallowed-ips"`
-	BindAddress            *string            `json:"bind-address"`
-	Mode                   *tunnel.TunnelMode `json:"mode"`
-	LogLevel               *log.LogLevel      `json:"log-level"`
-	IPv6                   *bool              `json:"ipv6"`
-	Sniffing               *bool              `json:"sniffing"`
-	TcpConcurrent          *bool              `json:"tcp-concurrent"`
-	UseRemoteDnsDefault    *bool              `json:"use-remote-dns-default"`
-	HealthCheckURL         *string            `json:"health-check-url"`
-	HealthCheckLazyDefault *bool              `json:"health-check-lazy-default"`
-	TouchAfterLazyPassNum  *int               `json:"touch-after-lazy-pass-num"`
-	PreResolveProcessName  *bool              `json:"pre-resolve-process-name"`
+	Port                   *int                     `json:"port"`
+	SocksPort              *int                     `json:"socks-port"`
+	RedirPort              *int                     `json:"redir-port"`
+	TProxyPort             *int                     `json:"tproxy-port"`
+	MixedPort              *int                     `json:"mixed-port"`
+	Tun                    *tunSchema               `json:"tun"`
+	TuicServer             *tuicServerSchema        `json:"tuic-server"`
+	MixECConfig            *string                  `json:"mixec-config"`
+	ShadowSocksConfig      *string                  `json:"ss-config"`
+	VmessConfig            *string                  `json:"vmess-config"`
+	AllowLan               *bool                    `json:"allow-lan"`
+	SkipAuthPrefixes       *[]netip.Prefix          `json:"skip-auth-prefixes"`
+	LanAllowedIPs          *[]netip.Prefix          `json:"lan-allowed-ips"`
+	LanDisAllowedIPs       *[]netip.Prefix          `json:"lan-disallowed-ips"`
+	BindAddress            *string                  `json:"bind-address"`
+	Mode                   *tunnel.TunnelMode       `json:"mode"`
+	LogLevel               *log.LogLevel            `json:"log-level"`
+	IPv6                   *bool                    `json:"ipv6"`
+	Sniffing               *bool                    `json:"sniffing"`
+	TcpConcurrent          *bool                    `json:"tcp-concurrent"`
+	FindProcessMode        *process.FindProcessMode `json:"find-process-mode"`
+	UseRemoteDnsDefault    *bool                    `json:"use-remote-dns-default"`
+	HealthCheckURL         *string                  `json:"health-check-url"`
+	HealthCheckLazyDefault *bool                    `json:"health-check-lazy-default"`
+	TouchAfterLazyPassNum  *int                     `json:"touch-after-lazy-pass-num"`
 }
 
 type tunSchema struct {
@@ -345,6 +346,10 @@ func patchConfigs(w http.ResponseWriter, r *http.Request) {
 		tunnel.SetMode(*general.Mode)
 	}
 
+	if general.FindProcessMode != nil {
+		tunnel.SetFindProcessMode(*general.FindProcessMode)
+	}
+
 	if general.LogLevel != nil {
 		log.SetLevel(*general.LogLevel)
 	}
@@ -359,10 +364,6 @@ func patchConfigs(w http.ResponseWriter, r *http.Request) {
 
 	if general.TouchAfterLazyPassNum != nil {
 		provider.SetTouchAfterLazyPassNum(*general.TouchAfterLazyPassNum)
-	}
-
-	if general.PreResolveProcessName != nil {
-		tunnel.SetPreResolveProcessName(*general.PreResolveProcessName)
 	}
 
 	if general.IPv6 != nil {

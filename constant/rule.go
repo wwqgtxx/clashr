@@ -111,10 +111,14 @@ func (rt RuleType) String() string {
 
 type Rule interface {
 	RuleType() RuleType
-	Match(metadata *Metadata) (bool, string)
+	Match(metadata *Metadata, helper RuleMatchHelper) (bool, string)
 	Adapter() string
 	Payload() string
-	ShouldResolveIP() bool
-	ShouldFindProcess() bool
 	ProviderNames() []string
 }
+
+type RuleMatchHelper struct {
+	ResolveIP   func()
+	FindProcess func()
+}
+

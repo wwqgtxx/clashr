@@ -155,8 +155,8 @@ func GetGeneral() *config.General {
 		HealthCheckURL:          adapter.HealthCheckURL(),
 		HealthCheckLazyDefault:  provider.HealthCheckLazyDefault(),
 		TouchAfterLazyPassNum:   provider.TouchAfterLazyPassNum(),
-		PreResolveProcessName:   tunnel.PreResolveProcessName(),
 		TCPConcurrent:           dialer.GetTcpConcurrent(),
+		FindProcessMode:         tunnel.FindProcessMode(),
 		GlobalUA:                mihomoHttp.UA(),
 		GlobalClientFingerprint: tlsC.GetGlobalFingerprint(),
 		ETagSupport:             resource.ETag(),
@@ -360,11 +360,11 @@ func temporaryUpdateGeneral(general *config.General) func() {
 
 func updateGeneral(general *config.General, logging bool) {
 	tunnel.SetMode(general.Mode)
+	tunnel.SetFindProcessMode(general.FindProcessMode)
 	resolver.DisableIPv6 = !general.IPv6
 	adapter.SetHealthCheckURL(general.HealthCheckURL)
 	provider.SetHealthCheckLazyDefault(general.HealthCheckLazyDefault)
 	provider.SetTouchAfterLazyPassNum(general.TouchAfterLazyPassNum)
-	tunnel.SetPreResolveProcessName(general.PreResolveProcessName)
 	dialer.SetTcpConcurrent(general.TCPConcurrent)
 	if logging && general.TCPConcurrent {
 		log.Infoln("Use tcp concurrent")

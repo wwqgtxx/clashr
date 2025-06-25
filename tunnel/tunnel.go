@@ -56,7 +56,7 @@ var (
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 
-	preResolveProcessName = false
+	findProcessMode P.FindProcessMode
 
 	fakeIPRange netip.Prefix
 
@@ -150,14 +150,6 @@ func UpdateSniffer(dispatcher *sniffer.Dispatcher) {
 	configMux.Unlock()
 }
 
-func PreResolveProcessName() bool {
-	return preResolveProcessName
-}
-
-func SetPreResolveProcessName(b bool) {
-	preResolveProcessName = b
-}
-
 // TCPIn return fan-in queue
 // Deprecated: using Tunnel instead
 func TCPIn() chan<- C.ConnContext {
@@ -236,6 +228,16 @@ func Mode() TunnelMode {
 // SetMode change the mode of tunnel
 func SetMode(m TunnelMode) {
 	mode = m
+}
+
+func FindProcessMode() P.FindProcessMode {
+	return findProcessMode
+}
+
+// SetFindProcessMode replace SetAlwaysFindProcess
+// always find process info if legacyAlways = true or mode.Always() = true, may be increase many memory
+func SetFindProcessMode(mode P.FindProcessMode) {
+	findProcessMode = mode
 }
 
 func fixMetadata(metadata *C.Metadata) {
@@ -520,25 +522,23 @@ func logMetadata(metadata *C.Metadata, rule C.Rule, remoteConn C.Connection) {
 	}
 }
 
-func shouldResolveIP(rule C.Rule, metadata *C.Metadata) bool {
-	return rule.ShouldResolveIP() && metadata.Host != "" && !metadata.DstIP.IsValid()
-}
-
 func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	configMux.RLock()
 	defer configMux.RUnlock()
 
-	var resolved bool
-	var processFound bool
+	var (
+		resolved             bool
+		attemptProcessLookup = metadata.Type != C.INNER
+	)
 
 	if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
 		metadata.DstIP = node.Data()
 		resolved = true
 	}
 
-	for _, rule := range getRules(metadata) {
-		if !resolved && shouldResolveIP(rule, metadata) {
-			func() {
+	helper := C.RuleMatchHelper{
+		ResolveIP: func() {
+			if !resolved && metadata.Host != "" && !metadata.Resolved() {
 				ctx, cancel := context.WithTimeout(context.Background(), resolver.DefaultDNSTimeout)
 				defer cancel()
 				ip, err := resolver.ResolveIP(ctx, metadata.Host)
@@ -554,23 +554,30 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 					metadata.DstIP = ip
 				}
 				resolved = true
-			}()
-		}
-
-		if !processFound && (rule.ShouldFindProcess() || preResolveProcessName) {
-			processFound = true
-
-			path, err := P.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
-			if err != nil {
-				log.Debugln("[Process] find process %s: %v", metadata.String(), err)
-			} else {
-				log.Debugln("[Process] %s from process %s", metadata.String(), path)
-				metadata.ProcessPath = path
-				metadata.Process = filepath.Base(path)
 			}
-		}
+		},
+		FindProcess: func() {
+			if attemptProcessLookup && !findProcessMode.Off() {
+				attemptProcessLookup = false
 
-		if matched, ada := rule.Match(metadata); matched {
+				path, err := P.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
+				if err != nil {
+					log.Debugln("[Process] find process %s: %v", metadata.String(), err)
+				} else {
+					log.Debugln("[Process] %s from process %s", metadata.String(), path)
+					metadata.ProcessPath = path
+					metadata.Process = filepath.Base(path)
+				}
+			}
+		},
+	}
+
+	if findProcessMode.Always() {
+		helper.FindProcess()
+	}
+
+	for _, rule := range getRules(metadata) {
+		if matched, ada := rule.Match(metadata, helper); matched {
 			adapter, ok := proxies[ada]
 			if !ok {
 				continue
