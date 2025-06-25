@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metacubex/mihomo/common/atomic"
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/utils"
-	"github.com/metacubex/mihomo/component/mmdb"
 	"github.com/metacubex/mihomo/component/nat"
 	P "github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -56,7 +56,7 @@ var (
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 
-	findProcessMode P.FindProcessMode
+	findProcessMode = atomic.NewTypedValue(P.FindProcessStrict)
 
 	fakeIPRange netip.Prefix
 
@@ -231,13 +231,13 @@ func SetMode(m TunnelMode) {
 }
 
 func FindProcessMode() P.FindProcessMode {
-	return findProcessMode
+	return findProcessMode.Load()
 }
 
 // SetFindProcessMode replace SetAlwaysFindProcess
 // always find process info if legacyAlways = true or mode.Always() = true, may be increase many memory
 func SetFindProcessMode(mode P.FindProcessMode) {
-	findProcessMode = mode
+	findProcessMode.Store(mode)
 }
 
 func fixMetadata(metadata *C.Metadata) {
@@ -285,6 +285,53 @@ func resolveMetadata(metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err erro
 		}
 		return
 	}
+	var (
+		resolved             bool
+		attemptProcessLookup = metadata.Type != C.INNER
+	)
+
+	if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
+		metadata.DstIP = node.Data()
+		resolved = true
+	}
+
+	helper := C.RuleMatchHelper{
+		ResolveIP: func() {
+			if !resolved && metadata.Host != "" && !metadata.Resolved() {
+				ctx, cancel := context.WithTimeout(context.Background(), resolver.DefaultDNSTimeout)
+				defer cancel()
+				ip, err := resolver.ResolveIP(ctx, metadata.Host)
+				if err != nil {
+					log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+				} else {
+					log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
+					metadata.DstIP = ip
+				}
+				resolved = true
+			}
+		},
+		FindProcess: func() {
+			if attemptProcessLookup {
+				attemptProcessLookup = false
+				path, err := P.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
+				if err != nil {
+					log.Debugln("[Process] find process %s: %v", metadata.String(), err)
+				} else {
+					log.Debugln("[Process] %s from process %s", metadata.String(), path)
+					metadata.ProcessPath = path
+					metadata.Process = filepath.Base(path)
+				}
+			}
+		},
+	}
+
+	switch FindProcessMode() {
+	case P.FindProcessAlways:
+		helper.FindProcess()
+		helper.FindProcess = nil
+	case P.FindProcessOff:
+		helper.FindProcess = nil
+	}
 
 	switch mode {
 	case Direct:
@@ -293,7 +340,7 @@ func resolveMetadata(metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err erro
 		proxy = proxies["GLOBAL"]
 	// Rule
 	default:
-		proxy, rule, err = match(metadata)
+		proxy, rule, err = match(metadata, helper)
 	}
 	return
 }
@@ -522,59 +569,9 @@ func logMetadata(metadata *C.Metadata, rule C.Rule, remoteConn C.Connection) {
 	}
 }
 
-func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
+func match(metadata *C.Metadata, helper C.RuleMatchHelper) (C.Proxy, C.Rule, error) {
 	configMux.RLock()
 	defer configMux.RUnlock()
-
-	var (
-		resolved             bool
-		attemptProcessLookup = metadata.Type != C.INNER
-	)
-
-	if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
-		metadata.DstIP = node.Data()
-		resolved = true
-	}
-
-	helper := C.RuleMatchHelper{
-		ResolveIP: func() {
-			if !resolved && metadata.Host != "" && !metadata.Resolved() {
-				ctx, cancel := context.WithTimeout(context.Background(), resolver.DefaultDNSTimeout)
-				defer cancel()
-				ip, err := resolver.ResolveIP(ctx, metadata.Host)
-				if err != nil {
-					log.Infoln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
-				} else {
-					if record := mmdb.IPInstance().LookupCode(ip.AsSlice()); len(record) > 0 {
-						log.Infoln("[DNS] %s --> %s [GEO=%s]", metadata.Host, ip.String(), record)
-					} else {
-						log.Infoln("[DNS] %s --> %s", metadata.Host, ip.String())
-					}
-
-					metadata.DstIP = ip
-				}
-				resolved = true
-			}
-		},
-		FindProcess: func() {
-			if attemptProcessLookup && !findProcessMode.Off() {
-				attemptProcessLookup = false
-
-				path, err := P.FindProcessName(metadata.NetWork.String(), metadata.SrcIP, int(metadata.SrcPort))
-				if err != nil {
-					log.Debugln("[Process] find process %s: %v", metadata.String(), err)
-				} else {
-					log.Debugln("[Process] %s from process %s", metadata.String(), path)
-					metadata.ProcessPath = path
-					metadata.Process = filepath.Base(path)
-				}
-			}
-		},
-	}
-
-	if findProcessMode.Always() {
-		helper.FindProcess()
-	}
 
 	for _, rule := range getRules(metadata) {
 		if matched, ada := rule.Match(metadata, helper); matched {
