@@ -4,14 +4,14 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/atomic"
-	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/metacubex/mihomo/common/xsync"
 )
 
 var DefaultManager *Manager
 
 func init() {
 	DefaultManager = &Manager{
-		connections:   xsync.NewMapOf[string, Tracker](),
+		connections:   xsync.NewMap[string, Tracker](),
 		uploadTemp:    atomic.NewInt64(0),
 		downloadTemp:  atomic.NewInt64(0),
 		uploadBlip:    atomic.NewInt64(0),
@@ -24,7 +24,7 @@ func init() {
 }
 
 type Manager struct {
-	connections   *xsync.MapOf[string, Tracker]
+	connections   *xsync.Map[string, Tracker]
 	uploadTemp    atomic.Int64
 	downloadTemp  atomic.Int64
 	uploadBlip    atomic.Int64

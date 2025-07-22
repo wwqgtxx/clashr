@@ -4,27 +4,26 @@ import (
 	"net"
 	"sync"
 
+	"github.com/metacubex/mihomo/common/xsync"
 	C "github.com/metacubex/mihomo/constant"
-
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
 type Table struct {
-	mapping *xsync.MapOf[string, *entry]
+	mapping *xsync.Map[string, *entry]
 }
 
 type entry struct {
 	PacketSender    C.PacketSender
-	LocalUDPConnMap *xsync.MapOf[string, *net.UDPConn]
-	LocalLockMap    *xsync.MapOf[string, *sync.Cond]
+	LocalUDPConnMap *xsync.Map[string, *net.UDPConn]
+	LocalLockMap    *xsync.Map[string, *sync.Cond]
 }
 
 func (t *Table) GetOrCreate(key string, maker func() C.PacketSender) (C.PacketSender, bool) {
-	item, loaded := t.mapping.LoadOrCompute(key, func() *entry {
+	item, loaded := t.mapping.LoadOrStoreFn(key, func() *entry {
 		return &entry{
 			PacketSender:    maker(),
-			LocalUDPConnMap: xsync.NewMapOf[string, *net.UDPConn](),
-			LocalLockMap:    xsync.NewMapOf[string, *sync.Cond](),
+			LocalUDPConnMap: xsync.NewMap[string, *net.UDPConn](),
+			LocalLockMap:    xsync.NewMap[string, *sync.Cond](),
 		}
 	})
 	return item.PacketSender, loaded
@@ -68,7 +67,7 @@ func (t *Table) GetOrCreateLockForLocalConn(lAddr, key string) (*sync.Cond, bool
 	if !loaded {
 		return nil, false
 	}
-	item, loaded := entry.LocalLockMap.LoadOrCompute(key, makeLock)
+	item, loaded := entry.LocalLockMap.LoadOrStoreFn(key, makeLock)
 	return item, loaded
 }
 
@@ -99,6 +98,6 @@ func makeLock() *sync.Cond {
 // New return *Cache
 func New() *Table {
 	return &Table{
-		mapping: xsync.NewMapOf[string, *entry](),
+		mapping: xsync.NewMap[string, *entry](),
 	}
 }
