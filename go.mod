@@ -16,7 +16,7 @@ require (
 	github.com/mdlayher/netlink v1.7.2
 	github.com/metacubex/amneziawg-go v0.0.0-20240922133038-fdf3a4d5a4ab
 	github.com/metacubex/bart v0.20.5
-	github.com/metacubex/bbolt v0.0.0-20240822011022-aed6d4850399
+	github.com/metacubex/bbolt v0.0.0-20250715134201-d343f11712df
 	github.com/metacubex/chacha v0.1.5
 	github.com/metacubex/fswatch v0.1.1
 	github.com/metacubex/quic-go v0.53.1-0.20250628094454-fda5262d1d9c
