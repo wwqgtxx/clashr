@@ -9,21 +9,19 @@ import (
 )
 
 type Table struct {
-	mapping *xsync.Map[string, *entry]
+	mapping xsync.Map[string, *entry]
 }
 
 type entry struct {
 	PacketSender    C.PacketSender
-	LocalUDPConnMap *xsync.Map[string, *net.UDPConn]
-	LocalLockMap    *xsync.Map[string, *sync.Cond]
+	LocalUDPConnMap xsync.Map[string, *net.UDPConn]
+	LocalLockMap    xsync.Map[string, *sync.Cond]
 }
 
 func (t *Table) GetOrCreate(key string, maker func() C.PacketSender) (C.PacketSender, bool) {
 	item, loaded := t.mapping.LoadOrStoreFn(key, func() *entry {
 		return &entry{
-			PacketSender:    maker(),
-			LocalUDPConnMap: xsync.NewMap[string, *net.UDPConn](),
-			LocalLockMap:    xsync.NewMap[string, *sync.Cond](),
+			PacketSender: maker(),
 		}
 	})
 	return item.PacketSender, loaded
@@ -97,7 +95,5 @@ func makeLock() *sync.Cond {
 
 // New return *Cache
 func New() *Table {
-	return &Table{
-		mapping: xsync.NewMap[string, *entry](),
-	}
+	return &Table{}
 }

@@ -34,7 +34,6 @@ func NewServerHandler(option *ServerOption, quicConn *quic.Conn, uuid uuid.UUID)
 		quicConn:     quicConn,
 		uuid:         uuid,
 		authCh:       make(chan struct{}),
-		udpInputMap:  xsync.NewMap[uint32, *atomic.Bool](),
 	}
 }
 
@@ -47,7 +46,7 @@ type serverHandler struct {
 	authOk   atomic.Bool
 	authOnce sync.Once
 
-	udpInputMap *xsync.Map[uint32, *atomic.Bool]
+	udpInputMap xsync.Map[uint32, *atomic.Bool]
 }
 
 func (s *serverHandler) AuthOk() bool {

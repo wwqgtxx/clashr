@@ -48,7 +48,7 @@ type clientImpl struct {
 	openStreams atomic.Int64
 	closed      atomic.Bool
 
-	udpInputMap *xsync.Map[uint32, net.Conn]
+	udpInputMap xsync.Map[uint32, net.Conn]
 
 	// only ready for PoolClient
 	dialerRef   C.Dialer
@@ -422,7 +422,6 @@ func NewClient(clientOption *ClientOption, udp bool, dialerRef C.Dialer) *Client
 		ClientOption: clientOption,
 		udp:          udp,
 		dialerRef:    dialerRef,
-		udpInputMap:  xsync.NewMap[uint32, net.Conn](),
 	}
 	c := &Client{ci}
 	runtime.SetFinalizer(c, closeClient)

@@ -3,7 +3,9 @@ package xsync
 // copy and modified from https://github.com/puzpuzpuz/xsync/blob/v4.1.0/map.go
 // which is licensed under Apache v2.
 //
-// parallel Map resize has been removed to decrease the memory using
+// mihomo modified:
+// 1. parallel Map resize has been removed to decrease the memory using.
+// 2. the zero Map is ready for use.
 
 import (
 	"fmt"
@@ -95,6 +97,7 @@ const (
 // and C++'s absl::flat_hash_map (meta memory and SWAR-based
 // lookups).
 type Map[K comparable, V any] struct {
+	initOnce     sync.Once
 	totalGrowths atomic.Int64
 	totalShrinks atomic.Int64
 	resizing     atomic.Bool // resize in progress flag
@@ -172,26 +175,28 @@ func WithGrowOnly() func(*MapConfig) {
 // NewMap creates a new Map instance configured with the given
 // options.
 func NewMap[K comparable, V any](options ...func(*MapConfig)) *Map[K, V] {
-	c := &MapConfig{
-		sizeHint: defaultMinMapTableLen * entriesPerMapBucket,
-	}
+	c := &MapConfig{}
 	for _, o := range options {
 		o(c)
 	}
 
 	m := &Map[K, V]{}
-	m.resizeCond = *sync.NewCond(&m.resizeMu)
-	var table *mapTable[K, V]
-	if c.sizeHint <= defaultMinMapTableLen*entriesPerMapBucket {
-		table = newMapTable[K, V](defaultMinMapTableLen)
-	} else {
+	if c.sizeHint > defaultMinMapTableLen*entriesPerMapBucket {
 		tableLen := nextPowOf2(uint32((float64(c.sizeHint) / entriesPerMapBucket) / mapLoadFactor))
-		table = newMapTable[K, V](int(tableLen))
+		m.minTableLen = int(tableLen)
 	}
-	m.minTableLen = len(table.buckets)
 	m.growOnly = c.growOnly
-	m.table.Store(table)
 	return m
+}
+
+func (m *Map[K, V]) init() {
+	if m.minTableLen == 0 {
+		m.minTableLen = defaultMinMapTableLen
+	}
+	m.resizeCond = *sync.NewCond(&m.resizeMu)
+	table := newMapTable[K, V](m.minTableLen)
+	m.minTableLen = len(table.buckets)
+	m.table.Store(table)
 }
 
 func newMapTable[K comparable, V any](minTableLen int) *mapTable[K, V] {
@@ -233,6 +238,7 @@ func ToPlainMap[K comparable, V any](m *Map[K, V]) map[K]V {
 // of type V if no value is present.
 // The ok result indicates whether value was found in the map.
 func (m *Map[K, V]) Load(key K) (value V, ok bool) {
+	m.initOnce.Do(m.init)
 	table := m.table.Load()
 	hash := maphash.Comparable(table.seed, key)
 	h1 := h1(hash)
@@ -389,6 +395,7 @@ func (m *Map[K, V]) doCompute(
 	loadOp loadOp,
 	computeOnly bool,
 ) (V, bool) {
+	m.initOnce.Do(m.init)
 	for {
 	compute_attempt:
 		var (
@@ -672,6 +679,7 @@ func copyBucket[K comparable, V any](
 // modification rule apply, i.e. the changes may be not reflected
 // in the subsequently iterated entries.
 func (m *Map[K, V]) Range(f func(key K, value V) bool) {
+	m.initOnce.Do(m.init)
 	// Pre-allocate array big enough to fit entries for most hash tables.
 	bentries := make([]*entry[K, V], 0, 16*entriesPerMapBucket)
 	table := m.table.Load()
@@ -709,11 +717,13 @@ func (m *Map[K, V]) Range(f func(key K, value V) bool) {
 
 // Clear deletes all keys and values currently stored in the map.
 func (m *Map[K, V]) Clear() {
+	m.initOnce.Do(m.init)
 	m.resize(m.table.Load(), mapClearHint)
 }
 
 // Size returns current size of the map.
 func (m *Map[K, V]) Size() int {
+	m.initOnce.Do(m.init)
 	return int(m.table.Load().sumSize())
 }
 
@@ -828,6 +838,7 @@ func (s *MapStats) ToString() string {
 // methods, this one is thread-safe. Yet it's an O(N) operation,
 // so it should be used only for diagnostics or debugging purposes.
 func (m *Map[K, V]) Stats() MapStats {
+	m.initOnce.Do(m.init)
 	stats := MapStats{
 		TotalGrowths: m.totalGrowths.Load(),
 		TotalShrinks: m.totalShrinks.Load(),
