@@ -282,6 +282,7 @@ func updateDNS(c *config.DNS) {
 		DirectFollowPolicy:   c.DirectFollowPolicy,
 		SearchDomains:        c.SearchDomains,
 		CacheAlgorithm:       c.CacheAlgorithm,
+		CacheMaxSize:         c.CacheMaxSize,
 	}
 
 	r := dns.NewResolver(cfg)
