@@ -74,6 +74,13 @@ func (h *ResolverEnhancer) FindHostByIP(ip netip.Addr) (string, bool) {
 	return "", false
 }
 
+func (h *ResolverEnhancer) FlushFakeIP() error {
+	if pool := h.fakePool; pool != nil {
+		return pool.FlushFakeIP()
+	}
+	return nil
+}
+
 func (h *ResolverEnhancer) PatchFrom(o *ResolverEnhancer) {
 	if h.mapping != nil && o.mapping != nil {
 		o.mapping.CloneTo(h.mapping)
