@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,13 +38,12 @@ func init() {
 
 type ClientInstance struct {
 	sync.RWMutex
-	nfsEKey       *mlkem.EncapsulationKey768
-	nfsEKeySha256 [32]byte
-	xor           uint32
-	minutes       time.Duration
-	expire        time.Time
-	baseKey       []byte
-	ticket        []byte
+	nfsEKey *mlkem.EncapsulationKey768
+	xorKey  []byte
+	minutes time.Duration
+	expire  time.Time
+	baseKey []byte
+	ticket  []byte
 }
 
 type ClientConn struct {
@@ -60,10 +60,17 @@ type ClientConn struct {
 }
 
 func (i *ClientInstance) Init(nfsEKeyBytes []byte, xor uint32, minutes time.Duration) (err error) {
+	if i.nfsEKey != nil {
+		err = errors.New("already initialized")
+		return
+	}
 	i.nfsEKey, err = mlkem.NewEncapsulationKey768(nfsEKeyBytes)
+	if err != nil {
+		return
+	}
 	if xor > 0 {
-		i.nfsEKeySha256 = sha256.Sum256(nfsEKeyBytes)
-		i.xor = xor
+		xorKey := sha256.Sum256(nfsEKeyBytes)
+		i.xorKey = xorKey[:]
 	}
 	i.minutes = minutes
 	return
@@ -73,8 +80,8 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 	if i.nfsEKey == nil {
 		return nil, errors.New("uninitialized")
 	}
-	if i.xor > 0 {
-		conn = NewXorConn(conn, i.nfsEKeySha256[:])
+	if i.xorKey != nil {
+		conn = NewXorConn(conn, i.xorKey)
 	}
 	c := &ClientConn{Conn: conn}
 
@@ -110,14 +117,14 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 	}
 	// client can send more padding / NFS AEAD messages if needed
 
-	_, t, l, err := ReadAndDecodeHeader(c.Conn)
+	_, t, l, err := ReadAndDiscardPaddings(c.Conn)
 	if err != nil {
 		return nil, err
 	}
+
 	if t != 1 {
 		return nil, fmt.Errorf("unexpected type %v, expect random hello", t)
 	}
-
 	peerRandomHello := make([]byte, 1088+21)
 	if l != len(peerRandomHello) {
 		return nil, fmt.Errorf("unexpected length %v for random hello", l)
@@ -194,27 +201,9 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 	if c.peerAead == nil {
-		var t byte
-		var l int
-		var err error
-		if c.instance == nil { // from 1-RTT
-			for {
-				if _, t, l, err = ReadAndDecodeHeader(c.Conn); err != nil {
-					return 0, err
-				}
-				if t != 23 {
-					break
-				}
-				if _, err := io.ReadFull(c.Conn, make([]byte, l)); err != nil {
-					return 0, err
-				}
-			}
-		} else {
-			h := make([]byte, 5)
-			if _, err := io.ReadFull(c.Conn, h); err != nil {
-				return 0, err
-			}
-			if t, l, err = DecodeHeader(h); err != nil {
+		_, t, l, err := ReadAndDiscardPaddings(c.Conn)
+		if err != nil {
+			if c.instance != nil && strings.HasPrefix(err.Error(), "invalid header: ") { // from 0-RTT
 				c.instance.Lock()
 				if bytes.Equal(c.ticket, c.instance.ticket) {
 					c.instance.expire = time.Now() // expired
@@ -222,6 +211,7 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 				c.instance.Unlock()
 				return 0, errors.New("new handshake needed")
 			}
+			return 0, err
 		}
 		if t != 0 {
 			return 0, fmt.Errorf("unexpected type %v, expect server random", t)
