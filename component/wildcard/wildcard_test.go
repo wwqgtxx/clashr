@@ -87,19 +87,106 @@ func TestMatch(t *testing.T) {
 	}
 }
 
+func match(pattern, name string) bool { // https://research.swtch.com/glob
+	px := 0
+	nx := 0
+	nextPx := 0
+	nextNx := 0
+	for px < len(pattern) || nx < len(name) {
+		if px < len(pattern) {
+			c := pattern[px]
+			switch c {
+			default: // ordinary character
+				if nx < len(name) && name[nx] == c {
+					px++
+					nx++
+					continue
+				}
+			case '?': // single-character wildcard
+				if nx < len(name) {
+					px++
+					nx++
+					continue
+				}
+			case '*': // zero-or-more-character wildcard
+				// Try to match at nx.
+				// If that doesn't work out,
+				// restart at nx+1 next.
+				nextPx = px
+				nextNx = nx + 1
+				px++
+				continue
+			}
+		}
+		// Mismatch. Maybe restart.
+		if 0 < nextNx && nextNx <= len(name) {
+			px = nextPx
+			nx = nextNx
+			continue
+		}
+		return false
+	}
+	// Matched all of pattern to all of name. Success.
+	return true
+}
+
 func FuzzMatch(f *testing.F) {
-	f.Fuzz(func(t *testing.T, s string) {
-		if !Match(string(s), string(s)) {
-			t.Fatalf("%s does not match %s", s, s)
+	f.Fuzz(func(t *testing.T, pattern, name string) {
+		result1 := Match(pattern, name)
+		result2 := match(pattern, name)
+		if result1 != result2 {
+			t.Fatalf("Match failed for pattern `%s` and name `%s`", pattern, name)
 		}
 	})
 }
 
 func BenchmarkMatch(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Match(
-			"r4.cdn-aa-wow-this-is-long-a1.video-yajusenpai1145141919810-oh-hell-yeah-this-is-also-very-long-and-sukka-the-fox-has-a-very-big-fluffy-fox-tail-ao-wu-ao-wu-regex-and-wildcard-both-might-have-deadly-back-tracing-issue-be-careful-or-use-linear-matching.com",
-			"*.cdn-*-*.video**.com",
-		)
+	cases := []struct {
+		s       string
+		pattern string
+		result  bool
+	}{
+		{"abc.edf.hjg", "abc.edf.hjg", true},
+		{"abc.edf.hjg", "ab.cedf.hjg", false},
+		{"abc.edf.hjg", "abc.edfh.jg", false},
+		{"abc.edf.hjg", "abc.edf.hjq", false},
+
+		{"abc.edf.hjg", "abc.*.hjg", true},
+		{"abc.edf.hjg", "abc.*.hjq", false},
+		{"abc.edf.hjg", "abc*hjg", true},
+		{"abc.edf.hjg", "abc*hjq", false},
+		{"abc.edf.hjg", "a*g", true},
+		{"abc.edf.hjg", "a*q", false},
+
+		{"abc.edf.hjg", "ab?.edf.hjg", true},
+		{"abc.edf.hjg", "?b?.edf.hjg", true},
+		{"abc.edf.hjg", "??c.edf.hjg", true},
+		{"abc.edf.hjg", "a??.edf.hjg", true},
+		{"abc.edf.hjg", "ab??.edf.hjg", false},
+		{"abc.edf.hjg", "??.edf.hjg", false},
+
+		{"r4.cdn-aa-wow-this-is-long-a1.video-yajusenpai1145141919810-oh-hell-yeah-this-is-also-very-long-and-sukka-the-fox-has-a-very-big-fluffy-fox-tail-ao-wu-ao-wu-regex-and-wildcard-both-might-have-deadly-back-tracing-issue-be-careful-or-use-linear-matching.com", "*.cdn-*-*.video**.com", true},
 	}
+
+	b.Run("Match", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, c := range cases {
+				result := Match(c.pattern, c.s)
+				if c.result != result {
+					b.Errorf("Test %d: Expected `%v`, found `%v`; With Pattern: `%s` and String: `%s`", i+1, c.result, result, c.pattern, c.s)
+				}
+			}
+		}
+	})
+
+	b.Run("match", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, c := range cases {
+				result := match(c.pattern, c.s)
+				if c.result != result {
+					b.Errorf("Test %d: Expected `%v`, found `%v`; With Pattern: `%s` and String: `%s`", i+1, c.result, result, c.pattern, c.s)
+				}
+			}
+		}
+	})
 }
