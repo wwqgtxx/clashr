@@ -61,10 +61,12 @@ func NewConn(conn connWithUpstream, userUUID *uuid.UUID) (*Conn, error) {
 	default:
 		return nil, fmt.Errorf(`failed to use vision, maybe "security" is not "tls" or "utls"`)
 	}
-	i, _ := t.FieldByName("input")
-	r, _ := t.FieldByName("rawInput")
-	c.input = (*bytes.Reader)(unsafe.Add(p, i.Offset))
-	c.rawInput = (*bytes.Buffer)(unsafe.Add(p, r.Offset))
+	if i, ok := t.FieldByName("input"); ok {
+		c.input = (*bytes.Reader)(unsafe.Add(p, i.Offset))
+	}
+	if r, ok := t.FieldByName("rawInput"); ok {
+		c.rawInput = (*bytes.Buffer)(unsafe.Add(p, r.Offset))
+	}
 	return c, nil
 }
 
