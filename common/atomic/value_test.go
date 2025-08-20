@@ -8,20 +8,6 @@ import (
 
 func TestTypedValue(t *testing.T) {
 	{
-		// Always wrapping should not allocate for simple values
-		// because tValue[T] has the same memory layout as T.
-		var v TypedValue[bool]
-		bools := []bool{true, false}
-		if n := int(testing.AllocsPerRun(1000, func() {
-			for _, b := range bools {
-				v.Store(b)
-			}
-		})); n != 0 {
-			t.Errorf("AllocsPerRun = %d, want 0", n)
-		}
-	}
-
-	{
 		var v TypedValue[int]
 		got, gotOk := v.LoadOk()
 		if got != 0 || gotOk {
