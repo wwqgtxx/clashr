@@ -123,17 +123,17 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 	}
 
 	if t != 1 {
-		return nil, fmt.Errorf("unexpected type %v, expect random hello", t)
+		return nil, fmt.Errorf("unexpected type %v, expect server hello", t)
 	}
-	peerRandomHello := make([]byte, 1088+21)
-	if l != len(peerRandomHello) {
-		return nil, fmt.Errorf("unexpected length %v for random hello", l)
+	peerServerHello := make([]byte, 1088+21)
+	if l != len(peerServerHello) {
+		return nil, fmt.Errorf("unexpected length %v for server hello", l)
 	}
-	if _, err := io.ReadFull(c.Conn, peerRandomHello); err != nil {
+	if _, err := io.ReadFull(c.Conn, peerServerHello); err != nil {
 		return nil, err
 	}
-	encapsulatedPfsKey := peerRandomHello[:1088]
-	c.ticket = peerRandomHello[1088:]
+	encapsulatedPfsKey := peerServerHello[:1088]
+	c.ticket = peerServerHello[1088:]
 
 	pfsKey, err := pfsDKey.Decapsulate(encapsulatedPfsKey)
 	if err != nil {
@@ -216,17 +216,17 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 		if t != 0 {
 			return 0, fmt.Errorf("unexpected type %v, expect server random", t)
 		}
-		peerRandom := make([]byte, 32)
-		if l != len(peerRandom) {
+		peerRandomHello := make([]byte, 32)
+		if l != len(peerRandomHello) {
 			return 0, fmt.Errorf("unexpected length %v for server random", l)
 		}
-		if _, err := io.ReadFull(c.Conn, peerRandom); err != nil {
+		if _, err := io.ReadFull(c.Conn, peerRandomHello); err != nil {
 			return 0, err
 		}
 		if c.random == nil {
 			return 0, errors.New("empty c.random")
 		}
-		c.peerAead = NewAead(ClientCipher, c.baseKey, peerRandom, c.random)
+		c.peerAead = NewAead(ClientCipher, c.baseKey, peerRandomHello, c.random)
 		c.peerNonce = make([]byte, 12)
 	}
 	if len(c.peerCache) != 0 {
