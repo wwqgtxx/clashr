@@ -475,7 +475,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invaild vless encryption value: %s", option.Encryption)
 		}
-		if len(b) == 1184 {
+		if len(b) == encryption.MLKEM768ClientLength {
 			v.encryption = &encryption.ClientInstance{}
 			if err = v.encryption.Init(b, time.Duration(minutes)*time.Minute); err != nil {
 				return nil, fmt.Errorf("failed to use mlkem768seed: %w", err)

@@ -51,11 +51,11 @@ func Main(args []string) {
 		if len(args) > 1 {
 			seed = args[1]
 		}
-		seedBase64, pubBase64, err := encryption.GenMLKEM768(seed)
+		seedBase64, clientBase64, err := encryption.GenMLKEM768(seed)
 		if err != nil {
 			panic(err)
 		}
 		fmt.Println("Seed: " + seedBase64)
-		fmt.Println("Client: " + pubBase64)
+		fmt.Println("Client: " + clientBase64)
 	}
 }

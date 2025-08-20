@@ -107,7 +107,7 @@ func New(config LC.VlessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 		if err != nil {
 			return nil, fmt.Errorf("invaild vless decryption value: %s", config.Decryption)
 		}
-		if len(b) == 64 {
+		if len(b) == encryption.MLKEM768SeedLength {
 			sl.decryption = &encryption.ServerInstance{}
 			if err = sl.decryption.Init(b, time.Duration(minutes)*time.Minute); err != nil {
 				return nil, fmt.Errorf("failed to use mlkem768seed: %w", err)
