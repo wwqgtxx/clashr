@@ -25,31 +25,17 @@ func TestMatch(t *testing.T) {
 		{"", "", true},
 		{"", "*", true},
 		{"", "**", true},
-		{"", "?", true},
-		{"", "??", true},
-		{"", "?*", true},
-		{"", "*?", true},
-		{"", ".", false},
-		{"", ".?", false},
-		{"", "?.", false},
-		{"", ".*", false},
-		{"", "*.", false},
-		{"", "*.?", false},
-		{"", "?.*", false},
+		{"", "?", false},
+		{"", "?*", false},
+		{"", "*?", false},
 
 		{"a", "", false},
 		{"a", "a", true},
 		{"a", "*", true},
 		{"a", "**", true},
 		{"a", "?", true},
-		{"a", "??", true},
-		{"a", ".", false},
-		{"a", ".?", false},
-		{"a", "?.", false},
-		{"a", ".*", false},
-		{"a", "*.", false},
-		{"a", "*.?", false},
-		{"a", "?.*", false},
+		{"a", "?*", true},
+		{"a", "*?", true},
 
 		{"match the exact string", "match the exact string", true},
 		{"do not match a different string", "this is a different string", false},
@@ -68,22 +54,27 @@ func TestMatch(t *testing.T) {
 
 		{"match a string with a ?", "match ? string with a ?", true},
 		{"match a string with a ? at the beginning", "?atch a string with a ? at the beginning", true},
-		{"match a string with two ?", "match a string with two ??", true},
-		{"match a optional char with a ?", "match a optional? char with a ?", true},
-		{"match a optional   char with a ?", "match a optional?   char with a ?", true},
-		{"do not match a string with extra and a ?", "do not match ? string with extra and a ? like this", false},
+		{"match a string with two ?", "match a ??ring with two ?", true},
+		{"do not match a string with extra ?", "do not match a string with extra ??", false},
 
-		{"do not match a string with a .", "do not match . string with a .", false},
-		{"do not match a string with a . at the beginning", "do not .atch a string with a . at the beginning", false},
-		{"do not match a string with two .", "do not match a ..ring with two .", false},
-		{"do not match a string with extra .", "do not match a string with extra ..", false},
+		{"abc.edf.hjg", "abc.edf.hjg", true},
+		{"abc.edf.hjg", "ab.cedf.hjg", false},
+		{"abc.edf.hjg", "abc.edfh.jg", false},
+		{"abc.edf.hjg", "abc.edf.hjq", false},
 
-		{"A big brown fox jumps over the lazy dog, with all there wildcards friends", ". big?brown fox jumps over * wildcard. friend??", false},
-		{"A big brown fox fails to jump over the lazy dog, with all there wildcards friends", ". big?brown fox jumps over * wildcard. friend??", false},
+		{"abc.edf.hjg", "abc.*.hjg", true},
+		{"abc.edf.hjg", "abc.*.hjq", false},
+		{"abc.edf.hjg", "abc*hjg", true},
+		{"abc.edf.hjg", "abc*hjq", false},
+		{"abc.edf.hjg", "a*g", true},
+		{"abc.edf.hjg", "a*q", false},
 
-		{"domain a.b.c", "domain a.b.c", true},
-		{"domain adb.c", "domain a.b.c", false},
-		{"aaaa", "a*a", true},
+		{"abc.edf.hjg", "ab?.edf.hjg", true},
+		{"abc.edf.hjg", "?b?.edf.hjg", true},
+		{"abc.edf.hjg", "??c.edf.hjg", true},
+		{"abc.edf.hjg", "a??.edf.hjg", true},
+		{"abc.edf.hjg", "ab??.edf.hjg", false},
+		{"abc.edf.hjg", "??.edf.hjg", false},
 	}
 
 	for i, c := range cases {
@@ -102,4 +93,13 @@ func FuzzMatch(f *testing.F) {
 			t.Fatalf("%s does not match %s", s, s)
 		}
 	})
+}
+
+func BenchmarkMatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Match(
+			"r4.cdn-aa-wow-this-is-long-a1.video-yajusenpai1145141919810-oh-hell-yeah-this-is-also-very-long-and-sukka-the-fox-has-a-very-big-fluffy-fox-tail-ao-wu-ao-wu-regex-and-wildcard-both-might-have-deadly-back-tracing-issue-be-careful-or-use-linear-matching.com",
+			"*.cdn-*-*.video**.com",
+		)
+	}
 }
