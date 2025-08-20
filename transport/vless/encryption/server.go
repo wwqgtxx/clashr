@@ -27,6 +27,7 @@ type ServerInstance struct {
 	dKeyNfs  *mlkem.DecapsulationKey768
 	minutes  time.Duration
 	sessions map[[21]byte]*ServerSession
+	stop     bool
 }
 
 type ServerConn struct {
@@ -52,6 +53,9 @@ func (i *ServerInstance) Init(dKeyNfsData []byte, minutes time.Duration) (err er
 				time.Sleep(time.Minute)
 				now := time.Now()
 				i.Lock()
+				if i.stop {
+					return
+				}
 				for index, session := range i.sessions {
 					if now.After(session.expire) {
 						delete(i.sessions, index)
@@ -61,6 +65,13 @@ func (i *ServerInstance) Init(dKeyNfsData []byte, minutes time.Duration) (err er
 			}
 		}()
 	}
+	return
+}
+
+func (i *ServerInstance) Close() (err error) {
+	i.Lock()
+	defer i.Unlock()
+	i.stop = true
 	return
 }
 

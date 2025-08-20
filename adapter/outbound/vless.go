@@ -463,26 +463,28 @@ func NewVless(option VlessOption) (*Vless, error) {
 			if t == s[0] {
 				return nil, fmt.Errorf("invaild vless encryption value: %s", option.Encryption)
 			}
-			i, err := strconv.Atoi(t)
+			var i int
+			i, err = strconv.Atoi(t)
 			if err != nil {
 				return nil, fmt.Errorf("invaild vless encryption value: %s", option.Encryption)
 			}
 			minutes = uint32(i)
 		}
-		b, err := base64.RawURLEncoding.DecodeString(s[1])
+		var b []byte
+		b, err = base64.RawURLEncoding.DecodeString(s[1])
 		if err != nil {
 			return nil, fmt.Errorf("invaild vless encryption value: %s", option.Encryption)
 		}
 		if len(b) == 1184 {
 			v.encryption = &encryption.ClientInstance{}
-			if err := v.encryption.Init(b, time.Duration(minutes)*time.Minute); err != nil {
+			if err = v.encryption.Init(b, time.Duration(minutes)*time.Minute); err != nil {
 				return nil, fmt.Errorf("failed to use mlkem768seed: %w", err)
 			}
 		} else {
 			return nil, fmt.Errorf("invaild vless encryption value: %s", option.Encryption)
 		}
 		if option.Flow != "" {
-			return nil, errors.New(`VLESS users: "encryption" doesn't support "flow" yet`)
+			return nil, errors.New(`vless "encryption" doesn't support "flow" yet`)
 		}
 	}
 

@@ -95,13 +95,15 @@ func New(config LC.VlessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 			if t == s[0] {
 				return nil, fmt.Errorf("invaild vless decryption value: %s", config.Decryption)
 			}
-			i, err := strconv.Atoi(t)
+			var i int
+			i, err = strconv.Atoi(t)
 			if err != nil {
 				return nil, fmt.Errorf("invaild vless decryption value: %s", config.Decryption)
 			}
 			minutes = uint32(i)
 		}
-		b, err := base64.RawURLEncoding.DecodeString(s[1])
+		var b []byte
+		b, err = base64.RawURLEncoding.DecodeString(s[1])
 		if err != nil {
 			return nil, fmt.Errorf("invaild vless decryption value: %s", config.Decryption)
 		}
@@ -113,6 +115,13 @@ func New(config LC.VlessServer, tunnel C.Tunnel, additions ...inbound.Addition) 
 		} else {
 			return nil, fmt.Errorf("invaild vless decryption value: %s", config.Decryption)
 		}
+
+		defer func() { // decryption must be closed to avoid the goroutine leak
+			if err != nil {
+				_ = sl.decryption.Close()
+				sl.decryption = nil
+			}
+		}()
 	}
 
 	tlsConfig := &tlsC.Config{}
@@ -217,6 +226,9 @@ func (l *Listener) Close() error {
 		if err != nil {
 			retErr = err
 		}
+	}
+	if l.decryption != nil {
+		_ = l.decryption.Close()
 	}
 	return retErr
 }
