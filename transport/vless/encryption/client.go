@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/metacubex/utls/mlkem"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/sys/cpu"
 )
 
@@ -69,10 +69,10 @@ func (i *ClientInstance) Init(nfsEKeyBytes []byte, xor uint32, minutes time.Dura
 	if err != nil {
 		return
 	}
-	hash256 := sha256.Sum256(nfsEKeyBytes)
+	hash256 := sha3.Sum256(nfsEKeyBytes)
 	copy(i.hash11[:], hash256[:])
 	if xor > 0 {
-		xorKey := sha256.Sum256(nfsEKeyBytes)
+		xorKey := sha3.Sum256(nfsEKeyBytes)
 		i.xorKey = xorKey[:]
 	}
 	i.minutes = minutes
