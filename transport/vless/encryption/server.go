@@ -40,7 +40,7 @@ type ServerConn struct {
 	peerRandom []byte
 	peerAead   cipher.AEAD
 	peerNonce  []byte
-	PeerCache  []byte
+	input      bytes.Reader // peerCache
 	aead       cipher.AEAD
 	nonce      []byte
 }
@@ -224,10 +224,8 @@ func (c *ServerConn) Read(b []byte) (int, error) {
 		c.peerAead = NewAead(c.cipher, c.baseKey, c.peerRandom, c.ticket)
 		c.peerNonce = make([]byte, 12)
 	}
-	if len(c.PeerCache) != 0 {
-		n := copy(b, c.PeerCache)
-		c.PeerCache = c.PeerCache[n:]
-		return n, nil
+	if c.input.Len() > 0 {
+		return c.input.Read(b)
 	}
 	h, t, l, err := ReadAndDecodeHeader(c.Conn) // l: 17~17000
 	if err != nil {
@@ -257,7 +255,7 @@ func (c *ServerConn) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	if len(dst) > len(b) {
-		c.PeerCache = dst[copy(b, dst):]
+		c.input.Reset(dst[copy(b, dst):])
 		dst = b // for len(dst)
 	}
 	return len(dst), nil

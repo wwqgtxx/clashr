@@ -57,7 +57,7 @@ type ClientConn struct {
 	nonce     []byte
 	peerAead  cipher.AEAD
 	peerNonce []byte
-	PeerCache []byte
+	input     bytes.Reader // peerCache
 }
 
 func (i *ClientInstance) Init(nfsEKeyBytes []byte, xor uint32, minutes time.Duration) (err error) {
@@ -232,10 +232,8 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 		c.peerAead = NewAead(ClientCipher, c.baseKey, peerRandomHello, c.random)
 		c.peerNonce = make([]byte, 12)
 	}
-	if len(c.PeerCache) != 0 {
-		n := copy(b, c.PeerCache)
-		c.PeerCache = c.PeerCache[n:]
-		return n, nil
+	if c.input.Len() > 0 {
+		return c.input.Read(b)
 	}
 	h, t, l, err := ReadAndDecodeHeader(c.Conn) // l: 17~17000
 	if err != nil {
@@ -265,7 +263,7 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	if len(dst) > len(b) {
-		c.PeerCache = dst[copy(b, dst):]
+		c.input.Reset(dst[copy(b, dst):])
 		dst = b // for len(dst)
 	}
 	return len(dst), nil
