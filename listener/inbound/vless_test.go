@@ -94,13 +94,24 @@ func TestInboundVless_Encryption(t *testing.T) {
 		t.Fatal(err)
 		return
 	}
-	inboundOptions := inbound.VlessOption{
-		Decryption: "10min-mlkem768seed-" + seedBase64,
-	}
-	outboundOptions := outbound.VlessOption{
-		Encryption: "8min-mlkem768client-" + clientBase64,
-	}
-	testInboundVless(t, inboundOptions, outboundOptions)
+	t.Run("-vless-", func(t *testing.T) {
+		inboundOptions := inbound.VlessOption{
+			Decryption: "10min-vless-mlkem768seed-" + seedBase64,
+		}
+		outboundOptions := outbound.VlessOption{
+			Encryption: "8min-vless-mlkem768client-" + clientBase64,
+		}
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
+	t.Run("-aes128xor-", func(t *testing.T) {
+		inboundOptions := inbound.VlessOption{
+			Decryption: "10min-aes128xor-mlkem768seed-" + seedBase64,
+		}
+		outboundOptions := outbound.VlessOption{
+			Encryption: "8min-aes128xor-mlkem768client-" + clientBase64,
+		}
+		testInboundVless(t, inboundOptions, outboundOptions)
+	})
 }
 
 func TestInboundVless_Wss1(t *testing.T) {
