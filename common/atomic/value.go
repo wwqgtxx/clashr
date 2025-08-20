@@ -5,24 +5,19 @@ import (
 	"sync/atomic"
 )
 
-func DefaultValue[T any]() T {
-	var defaultValue T
-	return defaultValue
-}
-
 type TypedValue[T any] struct {
 	value atomic.Pointer[T]
 }
 
-func (t *TypedValue[T]) Load() T {
-	value, _ := t.LoadOk()
-	return value
+func (t *TypedValue[T]) Load() (v T) {
+	v, _ = t.LoadOk()
+	return
 }
 
-func (t *TypedValue[T]) LoadOk() (_ T, ok bool) {
+func (t *TypedValue[T]) LoadOk() (v T, ok bool) {
 	value := t.value.Load()
 	if value == nil {
-		return DefaultValue[T](), false
+		return
 	}
 	return *value, true
 }
@@ -31,10 +26,10 @@ func (t *TypedValue[T]) Store(value T) {
 	t.value.Store(&value)
 }
 
-func (t *TypedValue[T]) Swap(new T) T {
+func (t *TypedValue[T]) Swap(new T) (v T) {
 	old := t.value.Swap(&new)
 	if old == nil {
-		return DefaultValue[T]()
+		return
 	}
 	return *old
 }
@@ -42,7 +37,7 @@ func (t *TypedValue[T]) Swap(new T) T {
 func (t *TypedValue[T]) CompareAndSwap(old, new T) bool {
 	for {
 		currentP := t.value.Load()
-		currentValue := DefaultValue[T]()
+		var currentValue T
 		if currentP != nil {
 			currentValue = *currentP
 		}
