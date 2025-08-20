@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"io"
 	"net"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/metacubex/utls/mlkem"
-	"golang.org/x/crypto/hkdf"
 	"golang.org/x/sys/cpu"
 )
 
@@ -101,7 +99,7 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 	clientHello[0] = ClientCipher
 	copy(clientHello[1:], pfsEKeyBytes)
 	copy(clientHello[1185:], encapsulatedNfsKey)
-	encodeHeader(clientHello[2273:], int(paddingLen))
+	EncodeHeader(clientHello[2273:], int(paddingLen))
 	rand.Read(clientHello[2278:])
 
 	if _, err := c.Conn.Write(clientHello); err != nil {
@@ -122,11 +120,9 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 	}
 	c.baseKey = append(pfsKey, nfsKey...)
 
-	authKey := make([]byte, 32)
-	hkdf.New(sha256.New, c.baseKey, encapsulatedPfsKey, encapsulatedNfsKey).Read(authKey)
 	nonce := [12]byte{ClientCipher}
-	VLESS, _ := newAead(ClientCipher, authKey).Open(nil, nonce[:], c.ticket, pfsEKeyBytes)
-	if !bytes.Equal(VLESS, []byte("VLESS")) { // TODO: more message
+	VLESS, _ := NewAead(ClientCipher, c.baseKey, encapsulatedPfsKey, encapsulatedNfsKey).Open(nil, nonce[:], c.ticket, pfsEKeyBytes)
+	if !bytes.Equal(VLESS, []byte("VLESS")) { // TODO: more messages
 		return nil, errors.New("invalid server")
 	}
 
@@ -145,32 +141,32 @@ func (c *ClientConn) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
+	var data []byte
 	for n := 0; n < len(b); {
 		b := b[n:]
 		if len(b) > 8192 {
 			b = b[:8192] // for avoiding another copy() in server's Read()
 		}
 		n += len(b)
-		var data []byte
 		if c.aead == nil {
 			c.random = make([]byte, 32)
 			rand.Read(c.random)
-			key := make([]byte, 32)
-			hkdf.New(sha256.New, c.baseKey, c.random, c.ticket).Read(key)
-			c.aead = newAead(ClientCipher, key)
+			c.aead = NewAead(ClientCipher, c.baseKey, c.random, c.ticket)
 			c.nonce = make([]byte, 12)
-
 			data = make([]byte, 21+32+5+len(b)+16)
 			copy(data, c.ticket)
 			copy(data[21:], c.random)
-			encodeHeader(data[53:], len(b)+16)
+			EncodeHeader(data[53:], len(b)+16)
 			c.aead.Seal(data[:58], c.nonce, b, data[53:58])
 		} else {
 			data = make([]byte, 5+len(b)+16)
-			encodeHeader(data, len(b)+16)
+			EncodeHeader(data, len(b)+16)
 			c.aead.Seal(data[:5], c.nonce, b, data[:5])
+			if bytes.Equal(c.nonce, MaxNonce) {
+				c.aead = NewAead(ClientCipher, c.baseKey, data[5:], data[:5])
+			}
 		}
-		increaseNonce(c.nonce)
+		IncreaseNonce(c.nonce)
 		if _, err := c.Conn.Write(data); err != nil {
 			return 0, err
 		}
@@ -189,7 +185,7 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 				if _, err := io.ReadFull(c.Conn, peerHeader); err != nil {
 					return 0, err
 				}
-				peerPaddingLen, _ := decodeHeader(peerHeader)
+				peerPaddingLen, _ := DecodeHeader(peerHeader)
 				if peerPaddingLen == 0 {
 					break
 				}
@@ -210,9 +206,7 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 		if c.random == nil {
 			return 0, errors.New("empty c.random")
 		}
-		peerKey := make([]byte, 32)
-		hkdf.New(sha256.New, c.baseKey, peerRandom, c.random).Read(peerKey)
-		c.peerAead = newAead(ClientCipher, peerKey)
+		c.peerAead = NewAead(ClientCipher, c.baseKey, peerRandom, c.random)
 		c.peerNonce = make([]byte, 12)
 	}
 	if len(c.peerCache) != 0 {
@@ -223,7 +217,7 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 	if _, err := io.ReadFull(c.Conn, peerHeader); err != nil {
 		return 0, err
 	}
-	peerLength, err := decodeHeader(peerHeader) // 17~17000
+	peerLength, err := DecodeHeader(peerHeader) // 17~17000
 	if err != nil {
 		if c.instance != nil {
 			c.instance.Lock()
@@ -242,8 +236,15 @@ func (c *ClientConn) Read(b []byte) (int, error) {
 	if len(dst) <= len(b) {
 		dst = b[:len(dst)] // avoids another copy()
 	}
+	var peerAead cipher.AEAD
+	if bytes.Equal(c.peerNonce, MaxNonce) {
+		peerAead = NewAead(ClientCipher, c.baseKey, peerData, peerHeader)
+	}
 	_, err = c.peerAead.Open(dst[:0], c.peerNonce, peerData, peerHeader)
-	increaseNonce(c.peerNonce)
+	if peerAead != nil {
+		c.peerAead = peerAead
+	}
+	IncreaseNonce(c.peerNonce)
 	if err != nil {
 		return 0, err
 	}
