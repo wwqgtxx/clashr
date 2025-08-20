@@ -12,6 +12,7 @@ import (
 
 	N "github.com/metacubex/mihomo/common/net"
 	tlsC "github.com/metacubex/mihomo/component/tls"
+	"github.com/metacubex/mihomo/transport/vless/encryption"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/metacubex/sing/common"
@@ -58,6 +59,18 @@ func NewConn(conn connWithUpstream, userUUID *uuid.UUID) (*Conn, error) {
 		t = reflect.TypeOf(underlying.Conn).Elem()
 		//log.Debugln("t:%v", t)
 		p = unsafe.Pointer(underlying.Conn)
+	case *encryption.ClientConn:
+		//log.Debugln("type *encryption.ClientConn")
+		c.Conn = underlying.Conn
+		c.tlsConn = underlying
+		t = reflect.TypeOf(underlying).Elem()
+		p = unsafe.Pointer(underlying)
+	case *encryption.ServerConn:
+		//log.Debugln("type *encryption.ServerConn")
+		c.Conn = underlying.Conn
+		c.tlsConn = underlying
+		t = reflect.TypeOf(underlying).Elem()
+		p = unsafe.Pointer(underlying)
 	default:
 		return nil, fmt.Errorf(`failed to use vision, maybe "security" is not "tls" or "utls"`)
 	}
