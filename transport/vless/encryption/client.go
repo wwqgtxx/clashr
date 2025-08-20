@@ -114,18 +114,18 @@ func (i *ClientInstance) Handshake(conn net.Conn) (net.Conn, error) {
 		return nil, err
 	}
 	if t != 1 {
-		return nil, fmt.Errorf("unexpected type %v, expect server hello", t)
+		return nil, fmt.Errorf("unexpected type %v, expect random hello", t)
 	}
 
-	peerServerHello := make([]byte, 1088+21)
-	if l != len(peerServerHello) {
-		return nil, fmt.Errorf("unexpected length %v for server hello", l)
+	peerRandomHello := make([]byte, 1088+21)
+	if l != len(peerRandomHello) {
+		return nil, fmt.Errorf("unexpected length %v for random hello", l)
 	}
-	if _, err := io.ReadFull(c.Conn, peerServerHello); err != nil {
+	if _, err := io.ReadFull(c.Conn, peerRandomHello); err != nil {
 		return nil, err
 	}
-	encapsulatedPfsKey := peerServerHello[:1088]
-	c.ticket = peerServerHello[1088:]
+	encapsulatedPfsKey := peerRandomHello[:1088]
+	c.ticket = peerRandomHello[1088:]
 
 	pfsKey, err := pfsDKey.Decapsulate(encapsulatedPfsKey)
 	if err != nil {
