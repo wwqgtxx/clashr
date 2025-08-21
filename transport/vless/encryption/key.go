@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/metacubex/utls/mlkem"
+	"golang.org/x/crypto/sha3"
 )
 
 const MLKEM768SeedLength = mlkem.SeedSize
@@ -14,7 +15,7 @@ const MLKEM768ClientLength = mlkem.EncapsulationKeySize768
 const X25519PasswordSize = 32
 const X25519PrivateKeySize = 32
 
-func GenMLKEM768(seedStr string) (seedBase64, clientBase64 string, err error) {
+func GenMLKEM768(seedStr string) (seedBase64, clientBase64, hash11Base64 string, err error) {
 	var seed [MLKEM768SeedLength]byte
 	if len(seedStr) > 0 {
 		s, _ := base64.RawURLEncoding.DecodeString(seedStr)
@@ -31,9 +32,11 @@ func GenMLKEM768(seedStr string) (seedBase64, clientBase64 string, err error) {
 	}
 
 	key, _ := mlkem.NewDecapsulationKey768(seed[:])
-	pub := key.EncapsulationKey()
+	client := key.EncapsulationKey().Bytes()
+	hash32 := sha3.Sum256(client)
 	seedBase64 = base64.RawURLEncoding.EncodeToString(seed[:])
-	clientBase64 = base64.RawURLEncoding.EncodeToString(pub.Bytes())
+	clientBase64 = base64.RawURLEncoding.EncodeToString(client)
+	hash11Base64 = base64.RawURLEncoding.EncodeToString(hash32[:11])
 	return
 }
 

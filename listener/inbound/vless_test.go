@@ -89,7 +89,7 @@ func TestInboundVless_TLS(t *testing.T) {
 }
 
 func TestInboundVless_Encryption(t *testing.T) {
-	seedBase64, clientBase64, err := encryption.GenMLKEM768("")
+	seedBase64, clientBase64, _, err := encryption.GenMLKEM768("")
 	if err != nil {
 		t.Fatal(err)
 		return
