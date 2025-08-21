@@ -12,7 +12,7 @@ import (
 
 func Main(args []string) {
 	if len(args) < 1 {
-		panic("Using: generate uuid/reality-keypair/wg-keypair/ech-keypair/vless-mlkem768")
+		panic("Using: generate uuid/reality-keypair/wg-keypair/ech-keypair/vless-mlkem768/vless-x25519")
 	}
 	switch args[0] {
 	case "uuid":
@@ -57,5 +57,16 @@ func Main(args []string) {
 		}
 		fmt.Println("Seed: " + seedBase64)
 		fmt.Println("Client: " + clientBase64)
+	case "vless-x25519":
+		var privateKey string
+		if len(args) > 1 {
+			privateKey = args[1]
+		}
+		privateKeyBase64, passwordBase64, err := encryption.GenX25519(privateKey)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("PrivateKey:" + privateKeyBase64)
+		fmt.Println("Password:" + passwordBase64)
 	}
 }
