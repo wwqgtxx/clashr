@@ -198,3 +198,27 @@ func (c *XorConn) Read(b []byte) (int, error) { // 5-bytes, data, 5-bytes...
 	}
 	return n, err
 }
+
+func (c *XorConn) WriterReplaceable() bool {
+	if !c.Divide { // never replaceable
+		return false
+	}
+	if !c.out_after0 {
+		return false
+	}
+	return true
+}
+
+func (c *XorConn) ReaderReplaceable() bool {
+	if !c.Divide { // never replaceable
+		return false
+	}
+	if !c.in_after0 || !c.isHeader {
+		return false
+	}
+	return true
+}
+
+func (c *XorConn) Upstream() any {
+	return c.Conn
+}
