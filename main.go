@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/metacubex/mihomo/component/generater"
+	"github.com/metacubex/mihomo/component/generator"
 	"github.com/metacubex/mihomo/component/mtproxy/tools"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "generate" {
-		generater.Main(os.Args[2:])
+		generator.Main(os.Args[2:])
 		return
 	}
 
