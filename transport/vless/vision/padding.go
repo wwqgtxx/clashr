@@ -6,6 +6,7 @@ import (
 
 	"github.com/metacubex/mihomo/common/buf"
 	"github.com/metacubex/mihomo/log"
+	N "github.com/metacubex/sing/common/network"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/metacubex/randv2"
@@ -42,16 +43,17 @@ func ApplyPadding(buffer *buf.Buffer, command byte, userUUID *uuid.UUID, padding
 	log.Debugln("XTLS Vision write padding: command=%d, payloadLen=%d, paddingLen=%d", command, contentLen, paddingLen)
 }
 
-func ReshapeBuffer(buffer *buf.Buffer) *buf.Buffer {
-	if buffer.Len() <= buf.BufferSize-PaddingHeaderLen {
-		return nil
+func (vc *Conn) ReshapeBuffer(buffer *buf.Buffer) []*buf.Buffer {
+	const xrayBufSize = 8192
+	if buffer.Len() <= xrayBufSize-PaddingHeaderLen {
+		return []*buf.Buffer{buffer}
 	}
 	cutAt := bytes.LastIndex(buffer.Bytes(), tlsApplicationDataStart)
 	if cutAt == -1 {
-		cutAt = buf.BufferSize / 2
+		cutAt = xrayBufSize / 2
 	}
-	buffer2 := buf.New()
+	buffer2 := N.NewReadWaitOptions(nil, vc).NewBuffer() // ensure the new buffer can send used in vc.WriteBuffer
 	buffer2.Write(buffer.From(cutAt))
 	buffer.Truncate(cutAt)
-	return buffer2
+	return []*buf.Buffer{buffer, buffer2}
 }
