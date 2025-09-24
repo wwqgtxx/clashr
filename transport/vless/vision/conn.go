@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"unsafe"
 
 	"github.com/metacubex/mihomo/common/buf"
 	N "github.com/metacubex/mihomo/common/net"
@@ -51,6 +52,9 @@ func (vc *Conn) Read(b []byte) (int, error) {
 	if vc.readProcess {
 		buffer := buf.With(b)
 		err := vc.ReadBuffer(buffer)
+		if unsafe.SliceData(buffer.Bytes()) != unsafe.SliceData(b) { // buffer.Bytes() not at the beginning of b
+			copy(b, buffer.Bytes())
+		}
 		return buffer.Len(), err
 	}
 	return vc.ExtendedReader.Read(b)
