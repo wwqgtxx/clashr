@@ -5,13 +5,13 @@ import (
 )
 
 // Queue is a simple concurrent safe queue
-type Queue struct {
-	items []any
+type Queue[T any] struct {
+	items []T
 	lock  sync.RWMutex
 }
 
 // Put add the item to the queue.
-func (q *Queue) Put(items ...any) {
+func (q *Queue[T]) Put(items ...T) {
 	if len(items) == 0 {
 		return
 	}
@@ -22,33 +22,32 @@ func (q *Queue) Put(items ...any) {
 }
 
 // Pop returns the head of items.
-func (q *Queue) Pop() any {
+func (q *Queue[T]) Pop() (head T) {
 	if len(q.items) == 0 {
-		return nil
+		return
 	}
 
 	q.lock.Lock()
-	head := q.items[0]
+	head = q.items[0]
 	q.items = q.items[1:]
 	q.lock.Unlock()
 	return head
 }
 
 // Last returns the last of item.
-func (q *Queue) Last() any {
+func (q *Queue[T]) Last() (last T) {
 	if len(q.items) == 0 {
-		return nil
+		return
 	}
 
 	q.lock.RLock()
-	last := q.items[len(q.items)-1]
+	last = q.items[len(q.items)-1]
 	q.lock.RUnlock()
 	return last
 }
 
 // Copy get the copy of queue.
-func (q *Queue) Copy() []any {
-	items := []any{}
+func (q *Queue[T]) Copy() (items []T) {
 	q.lock.RLock()
 	items = append(items, q.items...)
 	q.lock.RUnlock()
@@ -56,7 +55,7 @@ func (q *Queue) Copy() []any {
 }
 
 // Len returns the number of items in this queue.
-func (q *Queue) Len() int64 {
+func (q *Queue[T]) Len() int64 {
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 
@@ -64,8 +63,8 @@ func (q *Queue) Len() int64 {
 }
 
 // New is a constructor for a new concurrent safe queue.
-func New(hint int64) *Queue {
-	return &Queue{
-		items: make([]any, 0, hint),
+func New[T any](hint int64) *Queue[T] {
+	return &Queue[T]{
+		items: make([]T, 0, hint),
 	}
 }

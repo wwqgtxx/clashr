@@ -19,7 +19,7 @@ import (
 
 type Proxy struct {
 	C.ProxyAdapter
-	history       *queue.Queue
+	history       *queue.Queue[C.DelayHistory]
 	alive         atomic.Bool
 	ignoreURLTest bool
 }
@@ -91,7 +91,7 @@ func (p *Proxy) DelayHistory() []C.DelayHistory {
 	queue := p.history.Copy()
 	histories := []C.DelayHistory{}
 	for _, item := range queue {
-		histories = append(histories, item.(C.DelayHistory))
+		histories = append(histories, item)
 	}
 	return histories
 }
@@ -107,11 +107,7 @@ func (p *Proxy) LastDelay() (delay uint16) {
 		return max
 	}
 
-	last := p.history.Last()
-	if last == nil {
-		return max
-	}
-	history := last.(C.DelayHistory)
+	history := p.history.Last()
 	if history.Delay == 0 {
 		return max
 	}
@@ -129,11 +125,7 @@ func (p *Proxy) LastMeanDelay() (meanDelay uint16) {
 		return max
 	}
 
-	last := p.history.Last()
-	if last == nil {
-		return max
-	}
-	history := last.(C.DelayHistory)
+	history := p.history.Last()
 	if history.MeanDelay == 0 {
 		return max
 	}
@@ -255,11 +247,11 @@ func (p *Proxy) URLTest(ctx context.Context, url string) (delay, meanDelay uint1
 }
 
 func NewProxy(adapter C.ProxyAdapter) *Proxy {
-	return &Proxy{adapter, queue.New(10), atomic.NewBool(true), false}
+	return &Proxy{adapter, queue.New[C.DelayHistory](10), atomic.NewBool(true), false}
 }
 
 func NewProxyFromGroup(adapter C.ProxyAdapter, ignoreURLTest bool) *Proxy {
-	return &Proxy{adapter, queue.New(10), atomic.NewBool(true), ignoreURLTest}
+	return &Proxy{adapter, queue.New[C.DelayHistory](10), atomic.NewBool(true), ignoreURLTest}
 }
 
 func urlToMetadata(rawURL string) (addr C.Metadata, err error) {
