@@ -1,10 +1,12 @@
 package statistic
 
 import (
+	"os"
 	"time"
 
 	"github.com/metacubex/mihomo/common/atomic"
 	"github.com/metacubex/mihomo/common/xsync"
+	"github.com/metacubex/mihomo/component/memory"
 )
 
 var DefaultManager *Manager
@@ -17,6 +19,7 @@ func init() {
 		downloadBlip:  atomic.NewInt64(0),
 		uploadTotal:   atomic.NewInt64(0),
 		downloadTotal: atomic.NewInt64(0),
+		pid:           int32(os.Getpid()),
 	}
 
 	go DefaultManager.handle()
@@ -30,6 +33,8 @@ type Manager struct {
 	downloadBlip  atomic.Int64
 	uploadTotal   atomic.Int64
 	downloadTotal atomic.Int64
+	pid           int32
+	memory        uint64
 }
 
 func (m *Manager) Join(c Tracker) {
@@ -67,6 +72,11 @@ func (m *Manager) Now() (up int64, down int64) {
 	return m.uploadBlip.Load(), m.downloadBlip.Load()
 }
 
+func (m *Manager) Memory() uint64 {
+	m.updateMemory()
+	return m.memory
+}
+
 func (m *Manager) Snapshot() *Snapshot {
 	var connections []*TrackerInfo
 	m.Range(func(c Tracker) bool {
@@ -77,7 +87,16 @@ func (m *Manager) Snapshot() *Snapshot {
 		UploadTotal:   m.uploadTotal.Load(),
 		DownloadTotal: m.downloadTotal.Load(),
 		Connections:   connections,
+		Memory:        m.memory,
 	}
+}
+
+func (m *Manager) updateMemory() {
+	stat, err := memory.GetMemoryInfo(m.pid)
+	if err != nil {
+		return
+	}
+	m.memory = stat.RSS
 }
 
 func (m *Manager) ResetStatistic() {
@@ -102,4 +121,5 @@ type Snapshot struct {
 	DownloadTotal int64          `json:"downloadTotal"`
 	UploadTotal   int64          `json:"uploadTotal"`
 	Connections   []*TrackerInfo `json:"connections"`
+	Memory        uint64         `json:"memory"`
 }
