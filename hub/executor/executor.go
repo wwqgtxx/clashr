@@ -252,6 +252,8 @@ func updateNTP(c *config.NTP) {
 			c.DialerProxy,
 			c.WriteToSystem,
 		)
+	} else {
+		ntp.ReCreateNTPService("", 0, "", false)
 	}
 }
 
