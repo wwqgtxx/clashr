@@ -12,6 +12,7 @@ import (
 
 	"github.com/metacubex/mihomo/common/once"
 	C "github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/ntp"
 )
 
 var trustCerts []*x509.Certificate
@@ -107,6 +108,7 @@ func GetTLSConfig(opt Option) (tlsConfig *tls.Config, err error) {
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
 	}
+	tlsConfig.Time = ntp.Now
 
 	if opt.ZeroTrust {
 		tlsConfig.RootCAs = zeroTrustCertPool()
