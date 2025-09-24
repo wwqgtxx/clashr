@@ -82,14 +82,14 @@ func NewServer(decryption string) (*ServerInstance, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invaild vless decryption value: %s", decryption)
 		}
-		secondsFrom := uint32(i)
-		var secondsTo uint32
-		if len(t) > 1 {
+		secondsFrom := int64(i)
+		secondsTo := int64(0)
+		if len(t) == 2 {
 			i, err = strconv.Atoi(t[1])
 			if err != nil {
 				return nil, fmt.Errorf("invaild vless decryption value: %s", decryption)
 			}
-			secondsTo = uint32(i)
+			secondsTo = int64(i)
 		}
 		var nfsSKeysBytes [][]byte
 		var paddings []string
