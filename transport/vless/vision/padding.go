@@ -20,7 +20,7 @@ const (
 	commandPaddingDirect   byte = 0x02
 )
 
-func ApplyPadding(buffer *buf.Buffer, command byte, userUUID *uuid.UUID, paddingTLS bool) {
+func ApplyPadding(buffer *buf.Buffer, command byte, userUUID *[]byte, paddingTLS bool) {
 	contentLen := int32(buffer.Len())
 	var paddingLen int32
 	if contentLen < 900 {
@@ -35,8 +35,9 @@ func ApplyPadding(buffer *buf.Buffer, command byte, userUUID *uuid.UUID, padding
 	binary.BigEndian.PutUint16(buffer.ExtendHeader(2), uint16(paddingLen))
 	binary.BigEndian.PutUint16(buffer.ExtendHeader(2), uint16(contentLen))
 	buffer.ExtendHeader(1)[0] = command
-	if userUUID != nil {
-		copy(buffer.ExtendHeader(uuid.Size), userUUID.Bytes())
+	if userUUID != nil && *userUUID != nil {
+		copy(buffer.ExtendHeader(uuid.Size), *userUUID)
+		*userUUID = nil
 	}
 
 	buffer.Extend(int(paddingLen))
