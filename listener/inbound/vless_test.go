@@ -104,9 +104,9 @@ func TestInboundVless_Encryption(t *testing.T) {
 		data string
 	}{
 		{"unconfigured-padding", ""},
-		{"default-padding", "111-1111.111--66.3333--1234."},
-		{"old-padding", "100-1000."}, // Xray-core v25.8.29
-		{"custom-padding", "7890-1234.1111--999.6666--3333.777--777."},
+		{"default-padding", "100-111-1111.75-0-111.50-0-3333."},
+		{"old-padding", "100-100-1000."}, // Xray-core v25.8.29
+		{"custom-padding", "100-1234-7890.33-0-1111.66-0-6666.55-111-777."},
 	}
 	var modes = []string{
 		"native",
