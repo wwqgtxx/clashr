@@ -85,8 +85,6 @@ func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
 		InsecureSkipVerify:     doh.skipCertVerify,
 		MinVersion:             tls.VersionTLS12,
 		SessionTicketsDisabled: false,
-		// alpn identifier, see https://tools.ietf.org/html/draft-hoffman-dprive-dns-tls-alpn-00#page-6
-		NextProtos: []string{"dns"},
 	}})
 	if err != nil {
 		return nil, err
