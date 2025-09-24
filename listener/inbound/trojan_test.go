@@ -58,14 +58,7 @@ func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outbou
 	testSingMux(t, tunnel, out)
 }
 
-func TestInboundTrojan_TLS(t *testing.T) {
-	inboundOptions := inbound.TrojanOption{
-		Certificate: tlsCertificate,
-		PrivateKey:  tlsPrivateKey,
-	}
-	outboundOptions := outbound.TrojanOption{
-		Fingerprint: tlsFingerprint,
-	}
+func testInboundTrojanTLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
 	testInboundTrojan(t, inboundOptions, outboundOptions)
 	t.Run("ECH", func(t *testing.T) {
 		inboundOptions := inboundOptions
@@ -77,6 +70,38 @@ func TestInboundTrojan_TLS(t *testing.T) {
 		}
 		testInboundTrojan(t, inboundOptions, outboundOptions)
 	})
+	t.Run("mTLS", func(t *testing.T) {
+		inboundOptions := inboundOptions
+		outboundOptions := outboundOptions
+		inboundOptions.ClientAuthCert = tlsAuthCertificate
+		outboundOptions.Certificate = tlsAuthCertificate
+		outboundOptions.PrivateKey = tlsAuthPrivateKey
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+	t.Run("mTLS+ECH", func(t *testing.T) {
+		inboundOptions := inboundOptions
+		outboundOptions := outboundOptions
+		inboundOptions.ClientAuthCert = tlsAuthCertificate
+		outboundOptions.Certificate = tlsAuthCertificate
+		outboundOptions.PrivateKey = tlsAuthPrivateKey
+		inboundOptions.EchKey = echKeyPem
+		outboundOptions.ECHOpts = outbound.ECHOptions{
+			Enable: true,
+			Config: echConfigBase64,
+		}
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+}
+
+func TestInboundTrojan_TLS(t *testing.T) {
+	inboundOptions := inbound.TrojanOption{
+		Certificate: tlsCertificate,
+		PrivateKey:  tlsPrivateKey,
+	}
+	outboundOptions := outbound.TrojanOption{
+		Fingerprint: tlsFingerprint,
+	}
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Wss1(t *testing.T) {
@@ -92,17 +117,7 @@ func TestInboundTrojan_Wss1(t *testing.T) {
 			Path: "/ws",
 		},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Wss2(t *testing.T) {
@@ -119,17 +134,7 @@ func TestInboundTrojan_Wss2(t *testing.T) {
 			Path: "/ws",
 		},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Grpc1(t *testing.T) {
@@ -143,17 +148,7 @@ func TestInboundTrojan_Grpc1(t *testing.T) {
 		Network:     "grpc",
 		GrpcOpts:    outbound.GrpcOptions{GrpcServiceName: "GunService"},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Grpc2(t *testing.T) {
@@ -168,17 +163,7 @@ func TestInboundTrojan_Grpc2(t *testing.T) {
 		Network:     "grpc",
 		GrpcOpts:    outbound.GrpcOptions{GrpcServiceName: "GunService"},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Reality(t *testing.T) {
@@ -242,17 +227,7 @@ func TestInboundTrojan_TLS_TrojanSS(t *testing.T) {
 			Password: "password",
 		},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Wss_TrojanSS(t *testing.T) {
@@ -278,15 +253,5 @@ func TestInboundTrojan_Wss_TrojanSS(t *testing.T) {
 			Path: "/ws",
 		},
 	}
-	testInboundTrojan(t, inboundOptions, outboundOptions)
-	t.Run("ECH", func(t *testing.T) {
-		inboundOptions := inboundOptions
-		outboundOptions := outboundOptions
-		inboundOptions.EchKey = echKeyPem
-		outboundOptions.ECHOpts = outbound.ECHOptions{
-			Enable: true,
-			Config: echConfigBase64,
-		}
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }

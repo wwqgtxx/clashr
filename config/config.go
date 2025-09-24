@@ -151,6 +151,8 @@ type Profile struct {
 type TLS struct {
 	Certificate     string
 	PrivateKey      string
+	ClientAuthType  string
+	ClientAuthCert  string
 	EchKey          string
 	CustomTrustCert []string
 }
@@ -254,6 +256,8 @@ type RawSniffingConfig struct {
 type RawTLS struct {
 	Certificate     string   `yaml:"certificate" json:"certificate"`
 	PrivateKey      string   `yaml:"private-key" json:"private-key"`
+	ClientAuthType  string   `yaml:"client-auth-type" json:"client-auth-type"`
+	ClientAuthCert  string   `yaml:"client-auth-cert" json:"client-auth-cert"`
 	EchKey          string   `yaml:"ech-key" json:"ech-key"`
 	CustomTrustCert []string `yaml:"custom-certifactes" json:"custom-certifactes"`
 }
@@ -654,6 +658,8 @@ func parseTLS(cfg *RawConfig) (*TLS, error) {
 	return &TLS{
 		Certificate:     cfg.TLS.Certificate,
 		PrivateKey:      cfg.TLS.PrivateKey,
+		ClientAuthType:  cfg.TLS.ClientAuthType,
+		ClientAuthCert:  cfg.TLS.ClientAuthCert,
 		EchKey:          cfg.TLS.EchKey,
 		CustomTrustCert: cfg.TLS.CustomTrustCert,
 	}, nil

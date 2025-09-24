@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/metacubex/mihomo/common/once"
+	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/ntp"
 )
 
@@ -76,6 +77,8 @@ type Option struct {
 	TLSConfig   *tls.Config
 	Fingerprint string
 	ZeroTrust   bool
+	Certificate string
+	PrivateKey  string
 }
 
 func GetTLSConfig(opt Option) (tlsConfig *tls.Config, err error) {
@@ -97,6 +100,15 @@ func GetTLSConfig(opt Option) (tlsConfig *tls.Config, err error) {
 			return nil, err
 		}
 		tlsConfig.InsecureSkipVerify = true
+	}
+
+	if len(opt.Certificate) > 0 || len(opt.PrivateKey) > 0 {
+		var cert tls.Certificate
+		cert, err = LoadTLSKeyPair(opt.Certificate, opt.PrivateKey, C.Path)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 	return tlsConfig, nil
 }
