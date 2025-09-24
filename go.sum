@@ -137,8 +137,8 @@ github.com/metacubex/smux v0.0.0-20250922175018-15c9a6a78719 h1:T6qCCfolRDAVJKea
 github.com/metacubex/smux v0.0.0-20250922175018-15c9a6a78719/go.mod h1:4bPD8HWx9jPJ9aE4uadgyN7D1/Wz3KmPy+vale8sKLE=
 github.com/metacubex/tfo-go v0.0.0-20250921095601-b102db4216c0 h1:Ui+/2s5Qz0lSnDUBmEL12M5Oi/PzvFxGTNohm8ZcsmE=
 github.com/metacubex/tfo-go v0.0.0-20250921095601-b102db4216c0/go.mod h1:l9oLnLoEXyGZ5RVLsh7QCC5XsouTUyKk4F2nLm2DHLw=
-github.com/metacubex/utls v1.8.1-0.20250921102910-221428e5d4b2 h1:5OGzQvoE5yuOe8AsZsFwhf32ZxKmKN9G+k06AVd+6jY=
-github.com/metacubex/utls v1.8.1-0.20250921102910-221428e5d4b2/go.mod h1:GN/CB3TRwQ9LYquYpIFynDkvMTYmkjwI7+mkUIoHj88=
+github.com/metacubex/utls v1.8.1-0.20250923095929-5a5baffa4b76 h1:AVnkXS1hC68RIuMYDg3URfmf/GdOeNIfj0RUwRj9G+Q=
+github.com/metacubex/utls v1.8.1-0.20250923095929-5a5baffa4b76/go.mod h1:67I3skhEY4Sya8f1YxELwWPoeQdXqZCrWNYLvq8gn2U=
 github.com/metacubex/wireguard-go v0.0.0-20250820062549-a6cecdd7f57f h1:FGBPRb1zUabhPhDrlKEjQ9lgIwQ6cHL4x8M9lrERhbk=
 github.com/metacubex/wireguard-go v0.0.0-20250820062549-a6cecdd7f57f/go.mod h1:oPGcV994OGJedmmxrcK9+ni7jUEMGhR+uVQAdaduIP4=
 github.com/metacubex/yamux v0.0.0-20250918083631-dd5f17c0be49 h1:lhlqpYHopuTLx9xQt22kSA9HtnyTDmk5XjjQVCGHe2E=
@@ -194,7 +194,6 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/tiendc/go-deepcopy v1.6.1 h1:uVRTItFeNHkMcLueHS7OCsxgxT9P8MzGB/taUa2Y4Tk=
 github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 h1:tHNk7XK9GkmKUR6Gh8gVBKXc2MVSZ4G/NnWLtzw4gNA=
 github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923/go.mod h1:eLL9Nub3yfAho7qB0MzZizFhTU2QkLeoVsWdHtDW264=
 github.com/vishvananda/netns v0.0.4 h1:Oeaw1EM2JMxD51g9uhtC0D7erkIjgmj8+JZc26m1YX8=
