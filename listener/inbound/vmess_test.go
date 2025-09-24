@@ -54,6 +54,9 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 
 	tunnel.DoTest(t, out)
 
+	if outboundOptions.Network == "grpc" { // don't test sing-mux over grpc
+		return
+	}
 	testSingMux(t, tunnel, out)
 }
 

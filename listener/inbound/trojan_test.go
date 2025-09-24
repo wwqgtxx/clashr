@@ -52,6 +52,9 @@ func testInboundTrojan(t *testing.T, inboundOptions inbound.TrojanOption, outbou
 
 	tunnel.DoTest(t, out)
 
+	if outboundOptions.Network == "grpc" { // don't test sing-mux over grpc
+		return
+	}
 	testSingMux(t, tunnel, out)
 }
 
