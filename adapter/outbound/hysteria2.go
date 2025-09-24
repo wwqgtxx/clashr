@@ -56,8 +56,6 @@ type Hysteria2Option struct {
 	SkipCertVerify bool       `proxy:"skip-cert-verify,omitempty"`
 	Fingerprint    string     `proxy:"fingerprint,omitempty"`
 	ALPN           []string   `proxy:"alpn,omitempty"`
-	CustomCA       string     `proxy:"ca,omitempty"`
-	CustomCAString string     `proxy:"ca-str,omitempty"`
 	CWND           int        `proxy:"cwnd,omitempty"`
 	UdpMTU         int        `proxy:"udp-mtu,omitempty"`
 
@@ -147,9 +145,7 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 			InsecureSkipVerify: option.SkipCertVerify,
 			MinVersion:         tls.VersionTLS13,
 		},
-		Fingerprint:    option.Fingerprint,
-		CustomCA:       option.CustomCA,
-		CustomCAString: option.CustomCAString,
+		Fingerprint: option.Fingerprint,
 	})
 	if err != nil {
 		return nil, err
