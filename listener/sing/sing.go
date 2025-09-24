@@ -103,7 +103,7 @@ func (h *ListenerHandler) ParseSpecialFqdn(ctx context.Context, conn net.Conn, m
 	case mux.Destination.Fqdn:
 		return h.muxService.NewConnection(ctx, conn, UpstreamMetadata(metadata))
 	case vmess.MuxDestination.Fqdn:
-		return vmess.HandleMuxConnection(ctx, conn, h)
+		return vmess.HandleMuxConnection(ctx, conn, metadata, h)
 	case uot.MagicAddress:
 		request, err := uot.ReadRequest(conn)
 		if err != nil {
