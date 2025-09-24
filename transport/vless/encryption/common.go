@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/metacubex/mihomo/common/pool"
@@ -96,11 +98,11 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 	if c.input.Len() > 0 {
 		return c.input.Read(b)
 	}
-	peerHeader := make([]byte, 5)
-	if _, err := io.ReadFull(c.Conn, peerHeader); err != nil {
+	peerHeader := [5]byte{}
+	if _, err := io.ReadFull(c.Conn, peerHeader[:]); err != nil {
 		return 0, err
 	}
-	l, err := DecodeHeader(peerHeader) // l: 17~17000
+	l, err := DecodeHeader(peerHeader[:]) // l: 17~17000
 	if err != nil {
 		if c.Client != nil && errors.Is(err, ErrInvalidHeader) { // client's 0-RTT
 			c.Client.RWLock.Lock()
@@ -113,7 +115,9 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	c.Client = nil
-	c.rawInput.Grow(l)
+	if c.rawInput.Cap() < l {
+		c.rawInput.Grow(l) // no need to use sync.Pool, because we are always reading
+	}
 	peerData := c.rawInput.Bytes()[:l]
 	if _, err := io.ReadFull(c.Conn, peerData); err != nil {
 		return 0, err
@@ -124,9 +128,9 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 	}
 	var newAEAD *AEAD
 	if bytes.Equal(c.PeerAEAD.Nonce[:], MaxNonce) {
-		newAEAD = NewAEAD(append(peerHeader, peerData...), c.UnitedKey, c.UseAES)
+		newAEAD = NewAEAD(append(peerHeader[:], peerData...), c.UnitedKey, c.UseAES)
 	}
-	_, err = c.PeerAEAD.Open(dst[:0], nil, peerData, peerHeader)
+	_, err = c.PeerAEAD.Open(dst[:0], nil, peerData, peerHeader[:])
 	if newAEAD != nil {
 		c.PeerAEAD = newAEAD
 	}
@@ -213,9 +217,69 @@ func DecodeHeader(h []byte) (l int, err error) {
 	return
 }
 
+func ParsePadding(padding string, paddingLens, paddingGaps *[][2]int) (err error) {
+	if padding == "" {
+		return
+	}
+	maxLen := 0
+	for i, s := range strings.Split(padding, ".") {
+		x := strings.SplitN(s, "-", 2)
+		if len(x) != 2 || x[0] == "" || x[1] == "" {
+			return errors.New("invalid padding lenth/gap parameter: " + s)
+		}
+		y := [2]int{}
+		if y[0], err = strconv.Atoi(x[0]); err != nil {
+			return
+		}
+		if y[1], err = strconv.Atoi(x[1]); err != nil {
+			return
+		}
+		if i == 0 && (y[0] < 17 || y[1] < 17) {
+			return errors.New("first padding length must be larger than 16")
+		}
+		if i%2 == 0 {
+			*paddingLens = append(*paddingLens, y)
+			maxLen += max(y[0], y[1])
+		} else {
+			*paddingGaps = append(*paddingGaps, y)
+		}
+	}
+	if maxLen > 65535 {
+		return errors.New("total padding length must be smaller than 65536")
+	}
+	return
+}
+
+func CreatPadding(paddingLens, paddingGaps [][2]int) (length int, lens []int, gaps []time.Duration) {
+	if len(paddingLens) == 0 {
+		paddingLens = [][2]int{{111, 1111}, {3333, -1234}}
+		paddingGaps = [][2]int{{111, -66}}
+	}
+	for _, l := range paddingLens {
+		lens = append(lens, int(max(0, randBetween(int64(l[0]), int64(l[1])))))
+		length += lens[len(lens)-1]
+	}
+	for _, g := range paddingGaps {
+		gaps = append(gaps, time.Duration(max(0, randBetween(int64(g[0]), int64(g[1]))))*time.Millisecond)
+	}
+	return
+}
+
+func max[T ~int | ~uint | ~int64 | ~uint64 | ~int32 | ~uint32 | ~int16 | ~uint16 | ~int8 | ~uint8](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func randBetween(from int64, to int64) int64 {
 	if from == to {
 		return from
 	}
+
+	if to < from {
+		from, to = to, from
+	}
+
 	return from + randv2.Int64N(to-from)
 }
