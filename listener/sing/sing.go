@@ -11,6 +11,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/adapter/outbound"
 	N "github.com/metacubex/mihomo/common/net"
+	"github.com/metacubex/mihomo/common/utils"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 
@@ -144,6 +145,8 @@ func (h *ListenerHandler) NewPacketConnection(ctx context.Context, conn network.
 		conn = packetaddr.NewConn(bufio.NewNetPacketConn(conn), M.Socksaddr{})
 	}
 
+	connID := utils.NewUUIDV4().String() // make a new SNAT key
+
 	defer func() { _ = conn.Close() }()
 	mutex := sync.Mutex{}
 	writer := bufio.NewNetPacketWriter(conn) // a new interface to set nil in defer
@@ -186,6 +189,7 @@ func (h *ListenerHandler) NewPacketConnection(ctx context.Context, conn network.
 			lAddr:  conn.LocalAddr(),
 			buff:   buff,
 		}
+		cPacket.rAddr = N.NewCustomAddr(h.Type.String(), connID, cPacket.rAddr) // for tunnel's handleUDPConn
 		if lAddr := getInAddr(ctx); lAddr != nil {
 			cPacket.lAddr = lAddr
 		}
@@ -204,7 +208,7 @@ func (h *ListenerHandler) NewPacket(ctx context.Context, key netip.AddrPort, buf
 	cPacket := &packet{
 		writer: &writer,
 		mutex:  &mutex,
-		rAddr:  metadata.Source.UDPAddr(),
+		rAddr:  metadata.Source.UDPAddr(), // TODO: using key argument to make a SNAT key
 		buff:   buffer,
 	}
 	if conn, ok := common.Cast[localAddr](writer); ok { // tun does not have real inAddr
