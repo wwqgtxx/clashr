@@ -30,15 +30,14 @@ type Service struct {
 func ReCreateNTPService(server string, interval time.Duration, dialerProxy string, syncSystemTime bool) {
 	globalMu.Lock()
 	defer globalMu.Unlock()
-	service := globalSrv.Swap(nil)
-	if service != nil {
+	if service := globalSrv.Swap(nil); service != nil {
 		service.Stop()
 	}
-	if server == "" {
+	if server == "" || interval <= 0 {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	service = &Service{
+	service := &Service{
 		server:         M.ParseSocksaddr(server),
 		dialer:         proxydialer.NewByNameSingDialer(dialerProxy, dialer.NewDialer()),
 		ticker:         time.NewTicker(interval * time.Minute),
@@ -56,17 +55,12 @@ func (srv *Service) Start() {
 }
 
 func (srv *Service) Stop() {
+	log.Infoln("NTP service stop")
 	srv.cancel()
 }
 
 func (srv *Service) Offset() time.Duration {
-	if srv == nil {
-		return 0
-	}
-	if srv.ctx.Err() != nil {
-		return time.Duration(srv.offset.Load())
-	}
-	return 0
+	return time.Duration(srv.offset.Load())
 }
 
 func (srv *Service) update() error {
@@ -75,6 +69,9 @@ func (srv *Service) update() error {
 	for i := 0; i < 3; i++ {
 		response, err = ntp.Exchange(srv.ctx, srv.dialer, srv.server)
 		if err != nil {
+			if srv.ctx.Err() != nil {
+				return nil
+			}
 			continue
 		}
 		offset := response.ClockOffset
@@ -100,6 +97,7 @@ func (srv *Service) update() error {
 }
 
 func (srv *Service) loopUpdate() {
+	defer srv.offset.Store(0)
 	defer srv.ticker.Stop()
 	for {
 		err := srv.update()
@@ -116,8 +114,10 @@ func (srv *Service) loopUpdate() {
 
 func Now() time.Time {
 	now := time.Now()
-	if offset := globalSrv.Load().Offset(); offset.Abs() > 0 {
-		now = now.Add(offset)
+	if service := globalSrv.Load(); service != nil {
+		if offset := service.Offset(); offset.Abs() > 0 {
+			now = now.Add(offset)
+		}
 	}
 	return now
 }
