@@ -171,7 +171,7 @@ func NewTuic(option TuicOption) (*Tuic, error) {
 	}
 
 	var err error
-	tlsConfig, err = ca.GetTLSConfig(tlsConfig, option.Fingerprint, option.CustomCA, option.CustomCAString)
+	tlsConfig, err = ca.GetTLSConfig(ca.Option{TLSConfig: tlsConfig, Fingerprint: option.Fingerprint, CustomCA: option.CustomCA, CustomCAString: option.CustomCAString})
 	if err != nil {
 		return nil, err
 	}

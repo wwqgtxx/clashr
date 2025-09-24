@@ -22,10 +22,11 @@ const (
 )
 
 type dohClient struct {
-	url         string
-	transport   *http.Transport
-	ecsPrefix   netip.Prefix
-	ecsOverride bool
+	url            string
+	transport      *http.Transport
+	skipCertVerify bool
+	ecsPrefix      netip.Prefix
+	ecsOverride    bool
 }
 
 var _ dnsClient = (*dohClient)(nil)
@@ -80,6 +81,17 @@ func (doh *dohClient) newRequest(m *D.Msg) (*http.Request, error) {
 }
 
 func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
+	tlsConfig, err := ca.GetTLSConfig(ca.Option{TLSConfig: &tls.Config{
+		InsecureSkipVerify:     doh.skipCertVerify,
+		MinVersion:             tls.VersionTLS12,
+		SessionTicketsDisabled: false,
+		// alpn identifier, see https://tools.ietf.org/html/draft-hoffman-dprive-dns-tls-alpn-00#page-6
+		NextProtos: []string{"dns"},
+	}})
+	if err != nil {
+		return nil, err
+	}
+	doh.transport.TLSClientConfig = tlsConfig
 	client := &http.Client{Transport: doh.transport, Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -97,20 +109,16 @@ func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
 }
 
 func newDoHClient(url string, r *Resolver, proxyAdapter C.ProxyAdapter, proxyName string, params map[string]string) *dohClient {
-	tlsConfig := &tls.Config{
-		// alpn identifier, see https://tools.ietf.org/html/draft-hoffman-dprive-dns-tls-alpn-00#page-6
-		NextProtos: []string{"dns"},
-	}
-	if params["skip-cert-verify"] == "true" {
-		tlsConfig.InsecureSkipVerify = true
-	}
 	doh := &dohClient{
 		url: url,
 		transport: &http.Transport{
 			ForceAttemptHTTP2: true,
 			DialContext:       newDNSDialer(r, proxyAdapter, proxyName).DialContext,
-			TLSClientConfig:   ca.GetGlobalTLSConfig(tlsConfig),
 		},
+	}
+
+	if params["skip-cert-verify"] == "true" {
+		doh.skipCertVerify = true
 	}
 
 	if ecs := params["ecs"]; ecs != "" {
