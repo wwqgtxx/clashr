@@ -11,10 +11,17 @@ import (
 	"math/big"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/metacubex/blake3"
 )
+
+var OutBytesPool = sync.Pool{
+	New: func() any {
+		return make([]byte, 5+8192+16)
+	},
+}
 
 type CommonConn struct {
 	net.Conn
@@ -23,36 +30,45 @@ type CommonConn struct {
 	PreWrite    []byte
 	GCM         *GCM
 	PeerPadding []byte
+	PeerInBytes []byte
 	PeerGCM     *GCM
 	input       bytes.Reader // PeerCache
+}
+
+func NewCommonConn(conn net.Conn) *CommonConn {
+	return &CommonConn{
+		Conn:        conn,
+		PeerInBytes: make([]byte, 5+17000), // no need to use sync.Pool, because we are always reading
+	}
 }
 
 func (c *CommonConn) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	var data []byte
+	outBytes := OutBytesPool.Get().([]byte)
+	defer OutBytesPool.Put(outBytes)
 	for n := 0; n < len(b); {
 		b := b[n:]
 		if len(b) > 8192 {
 			b = b[:8192] // for avoiding another copy() in peer's Read()
 		}
 		n += len(b)
-		data = make([]byte, 5+len(b)+16)
-		EncodeHeader(data, len(b)+16)
+		headerAndData := outBytes[:5+len(b)+16]
+		EncodeHeader(headerAndData, len(b)+16)
 		max := false
 		if bytes.Equal(c.GCM.Nonce[:], MaxNonce) {
 			max = true
 		}
-		c.GCM.Seal(data[:5], nil, b, data[:5])
+		c.GCM.Seal(headerAndData[:5], nil, b, headerAndData[:5])
 		if max {
-			c.GCM = NewGCM(data[5:], c.UnitedKey)
+			c.GCM = NewGCM(headerAndData, c.UnitedKey)
 		}
 		if c.PreWrite != nil {
-			data = append(c.PreWrite, data...)
+			headerAndData = append(c.PreWrite, headerAndData...)
 			c.PreWrite = nil
 		}
-		if _, err := c.Conn.Write(data); err != nil {
+		if _, err := c.Conn.Write(headerAndData); err != nil {
 			return 0, err
 		}
 	}
@@ -85,9 +101,13 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 	if c.input.Len() > 0 {
 		return c.input.Read(b)
 	}
-	h, l, err := ReadAndDecodeHeader(c.Conn) // l: 17~17000
+	peerHeader := c.PeerInBytes[:5]
+	if _, err := io.ReadFull(c.Conn, peerHeader); err != nil {
+		return 0, err
+	}
+	l, err := DecodeHeader(c.PeerInBytes[:5]) // l: 17~17000
 	if err != nil {
-		if c.Client != nil && strings.HasPrefix(err.Error(), "invalid header: ") { // client's 0-RTT
+		if c.Client != nil && strings.Contains(err.Error(), "invalid header: ") { // client's 0-RTT
 			c.Client.RWLock.Lock()
 			if bytes.HasPrefix(c.UnitedKey, c.Client.PfsKey) {
 				c.Client.Expire = time.Now() // expired
@@ -98,7 +118,7 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	c.Client = nil
-	peerData := make([]byte, l)
+	peerData := c.PeerInBytes[5 : 5+l]
 	if _, err := io.ReadFull(c.Conn, peerData); err != nil {
 		return 0, err
 	}
@@ -108,9 +128,9 @@ func (c *CommonConn) Read(b []byte) (int, error) {
 	}
 	var newGCM *GCM
 	if bytes.Equal(c.PeerGCM.Nonce[:], MaxNonce) {
-		newGCM = NewGCM(peerData, c.UnitedKey)
+		newGCM = NewGCM(c.PeerInBytes[:5+l], c.UnitedKey)
 	}
-	_, err = c.PeerGCM.Open(dst[:0], nil, peerData, h)
+	_, err = c.PeerGCM.Open(dst[:0], nil, peerData, peerHeader)
 	if newGCM != nil {
 		c.PeerGCM = newGCM
 	}
@@ -189,26 +209,6 @@ func DecodeHeader(h []byte) (l int, err error) {
 		err = fmt.Errorf("invalid header: %v", h[:5]) // DO NOT CHANGE: relied by client's Read()
 	}
 	return
-}
-
-func ReadAndDecodeHeader(conn net.Conn) (h []byte, l int, err error) {
-	h = make([]byte, 5)
-	if _, err = io.ReadFull(conn, h); err != nil {
-		return
-	}
-	l, err = DecodeHeader(h)
-	return
-}
-
-func ReadAndDiscardPaddings(conn net.Conn) (h []byte, l int, err error) {
-	for {
-		if h, l, err = ReadAndDecodeHeader(conn); err != nil {
-			return
-		}
-		if _, err = io.ReadFull(conn, make([]byte, l)); err != nil {
-			return
-		}
-	}
 }
 
 func randBetween(from int64, to int64) int64 {
