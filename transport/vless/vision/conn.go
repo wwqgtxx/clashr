@@ -24,7 +24,7 @@ type Conn struct {
 	net.Conn // should be *vless.Conn
 	N.ExtendedReader
 	N.ExtendedWriter
-	userUUID *uuid.UUID
+	userUUID uuid.UUID
 
 	// [*tls.Conn] or other tls-like [net.Conn]'s internal variables
 	netConn  net.Conn      // tlsConn.NetConn()
