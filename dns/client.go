@@ -48,7 +48,9 @@ func (c *client) ExchangeContext(ctx context.Context, m *D.Msg) (*D.Msg, error) 
 		network = "tcp"
 	}
 
-	tlsConfig, err := ca.GetTLSConfig(ca.Option{TLSConfig: c.Client.TLSConfig})
+	tlsConfig, err := ca.GetTLSConfig(ca.Option{
+		TLSConfig: c.Client.TLSConfig,
+	})
 	if err != nil {
 		return nil, err
 	}

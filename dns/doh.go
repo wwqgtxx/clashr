@@ -81,11 +81,12 @@ func (doh *dohClient) newRequest(m *D.Msg) (*http.Request, error) {
 }
 
 func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
-	tlsConfig, err := ca.GetTLSConfig(ca.Option{TLSConfig: &tls.Config{
-		InsecureSkipVerify:     doh.skipCertVerify,
-		MinVersion:             tls.VersionTLS12,
-		SessionTicketsDisabled: false,
-	}})
+	tlsConfig, err := ca.GetTLSConfig(ca.Option{
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify:     doh.skipCertVerify,
+			MinVersion:             tls.VersionTLS12,
+			SessionTicketsDisabled: false,
+		}})
 	if err != nil {
 		return nil, err
 	}
