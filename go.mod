@@ -34,7 +34,7 @@ require (
 	github.com/metacubex/sing-tun v0.4.8
 	github.com/metacubex/sing-vmess v0.2.4
 	github.com/metacubex/sing-wireguard v0.0.0-20250503063753-2dc62acc626f
-	github.com/metacubex/smux v0.0.0-20250503055512-501391591dee
+	github.com/metacubex/smux v0.0.0-20250922175018-15c9a6a78719
 	github.com/metacubex/tfo-go v0.0.0-20250921095601-b102db4216c0
 	github.com/metacubex/utls v1.8.1-0.20250921102910-221428e5d4b2
 	github.com/metacubex/wireguard-go v0.0.0-20250820062549-a6cecdd7f57f
