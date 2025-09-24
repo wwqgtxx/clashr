@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 
 	"github.com/metacubex/mihomo/common/buf"
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/log"
-	N "github.com/metacubex/sing/common/network"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/metacubex/randv2"

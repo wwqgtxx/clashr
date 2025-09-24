@@ -2,7 +2,6 @@ package vision
 
 import (
 	"bytes"
-	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -57,8 +56,8 @@ func (vc *Conn) Read(b []byte) (int, error) {
 }
 
 func (vc *Conn) ReadBuffer(buffer *buf.Buffer) error {
-	toRead := buffer.FreeBytes()
 	if vc.readRemainingContent > 0 {
+		toRead := buffer.FreeBytes()
 		if vc.readRemainingContent < buffer.FreeLen() {
 			toRead = toRead[:vc.readRemainingContent]
 		}
@@ -79,12 +78,12 @@ func (vc *Conn) ReadBuffer(buffer *buf.Buffer) error {
 		switch vc.readLastCommand {
 		case commandPaddingContinue:
 			//if vc.isTLS || vc.packetsToFilter > 0 {
-			headerUUIDLen := 0
-			if vc.readFilterUUID {
-				headerUUIDLen = uuid.Size
+			need := PaddingHeaderLen
+			if !vc.readFilterUUID {
+				need = PaddingHeaderLen - uuid.Size
 			}
 			var header []byte
-			if need := headerUUIDLen + PaddingHeaderLen - uuid.Size; buffer.FreeLen() < need {
+			if buffer.FreeLen() < need {
 				header = make([]byte, need)
 			} else {
 				header = buffer.FreeBytes()[:need]
@@ -95,9 +94,8 @@ func (vc *Conn) ReadBuffer(buffer *buf.Buffer) error {
 			}
 			if vc.readFilterUUID {
 				vc.readFilterUUID = false
-				if subtle.ConstantTimeCompare(vc.userUUID.Bytes(), header[:uuid.Size]) != 1 {
-					err = fmt.Errorf("XTLS Vision server responded unknown UUID: %s",
-						uuid.FromBytesOrNil(header[:uuid.Size]).String())
+				if !bytes.Equal(vc.userUUID.Bytes(), header[:uuid.Size]) {
+					err = fmt.Errorf("XTLS Vision server responded unknown UUID: %s", uuid.FromBytesOrNil(header[:uuid.Size]))
 					log.Errorln(err.Error())
 					return err
 				}
@@ -180,7 +178,7 @@ func (vc *Conn) WriteBuffer(buffer *buf.Buffer) (err error) {
 		for i, buffer := range buffers {
 			command := commandPaddingContinue
 			if applyPadding {
-				if vc.isTLS && buffer.Len() > 6 && bytes.Equal(buffer.To(3), tlsApplicationDataStart) {
+				if vc.isTLS && buffer.Len() > 6 && bytes.Equal(tlsApplicationDataStart, buffer.To(3)) {
 					command = commandPaddingEnd
 					if vc.enableXTLS {
 						command = commandPaddingDirect
