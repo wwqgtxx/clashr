@@ -104,8 +104,8 @@ github.com/metacubex/fswatch v0.1.1 h1:jqU7C/v+g0qc2RUFgmAOPoVvfl2BXXUXEumn6oQux
 github.com/metacubex/fswatch v0.1.1/go.mod h1:czrTT7Zlbz7vWft8RQu9Qqh+JoX+Nnb+UabuyN1YsgI=
 github.com/metacubex/gvisor v0.0.0-20250919004547-6122b699a301 h1:N5GExQJqYAH3gOCshpp2u/J3CtNYzMctmlb0xK9wtbQ=
 github.com/metacubex/gvisor v0.0.0-20250919004547-6122b699a301/go.mod h1:8LpS0IJW1VmWzUm3ylb0e2SK5QDm5lO/2qwWLZgRpBU=
-github.com/metacubex/kcp-go v0.0.0-20250922034656-df9a2b90cdf7 h1:vGsrjQxlepSfkMALzJuvDzd+wp6NvKXpoyPuPb4SYCE=
-github.com/metacubex/kcp-go v0.0.0-20250922034656-df9a2b90cdf7/go.mod h1:HIJZW4QMhbBqXuqC1ly6Hn0TEYT2SzRw58ns1yGhXTs=
+github.com/metacubex/kcp-go v0.0.0-20250923001605-1ba6f691c45b h1:z7JLKjugnQ1qvDOAD8yMA5C8AlJY3bG+VrrgRntRlUY=
+github.com/metacubex/kcp-go v0.0.0-20250923001605-1ba6f691c45b/go.mod h1:HIJZW4QMhbBqXuqC1ly6Hn0TEYT2SzRw58ns1yGhXTs=
 github.com/metacubex/nftables v0.0.0-20250503052935-30a69ab87793 h1:1Qpuy+sU3DmyX9HwI+CrBT/oLNJngvBorR2RbajJcqo=
 github.com/metacubex/nftables v0.0.0-20250503052935-30a69ab87793/go.mod h1:RjRNb4G52yAgfR+Oe/kp9G4PJJ97Fnj89eY1BFO3YyA=
 github.com/metacubex/quic-go v0.54.1-0.20250730114134-a1ae705fe295 h1:8JVlYuE8uSJAvmyCd4TjvDxs57xjb0WxEoaWafK5+qs=
