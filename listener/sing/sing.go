@@ -207,10 +207,8 @@ func (h *ListenerHandler) NewPacket(ctx context.Context, key netip.AddrPort, buf
 		rAddr:  metadata.Source.UDPAddr(),
 		buff:   buffer,
 	}
-	if conn, ok := common.Cast[localAddr](writer); ok {
-		cPacket.rAddr = conn.LocalAddr()
-	} else {
-		cPacket.rAddr = metadata.Source.UDPAddr() // tun does not have real inAddr
+	if conn, ok := common.Cast[localAddr](writer); ok { // tun does not have real inAddr
+		cPacket.lAddr = conn.LocalAddr()
 	}
 	h.handlePacket(ctx, cPacket, metadata.Source, metadata.Destination)
 }
