@@ -18,10 +18,10 @@ jobs:
           - { target: "darwin-amd64 darwin-amd64-v3 darwin-arm64", id: "8" }
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           check-latest: true
           go-version: "1.25"
