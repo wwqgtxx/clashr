@@ -37,12 +37,8 @@ jobs:
       # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
       - name: Revert Golang1.25 commit for Windows7/8
         run: |
-          alias curl='curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"'
           cd $(go env GOROOT)
-          curl https://github.com/MetaCubeX/go/commit/8cb5472d94c34b88733a81091bd328e70ee565a4.diff | patch --verbose -p 1
-          curl https://github.com/MetaCubeX/go/commit/6788c4c6f9fafb56729bad6b660f7ee2272d699f.diff | patch --verbose -p 1
-          curl https://github.com/MetaCubeX/go/commit/a5b2168bb836ed9d6601c626f95e56c07923f906.diff | patch --verbose -p 1
-          curl https://github.com/MetaCubeX/go/commit/f56f1e23507e646c85243a71bde7b9629b2f970c.diff | patch --verbose -p 1
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/go1.25.patch
 
       - name: Set variables
         run: echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
