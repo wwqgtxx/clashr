@@ -261,10 +261,10 @@ func updateDNS(c *config.DNS) {
 	if !c.Enable {
 		resolver.DefaultResolver = nil
 		resolver.DefaultHostMapper = nil
-		resolver.DefaultLocalServer = nil
+		resolver.DefaultService = nil
 		resolver.ProxyServerHostResolver = nil
 		resolver.DirectHostResolver = nil
-		dns.ReCreateServer("", nil, nil)
+		dns.ReCreateServer("", nil)
 		return
 	}
 
@@ -295,9 +295,11 @@ func updateDNS(c *config.DNS) {
 		m.PatchFrom(old.(*dns.ResolverEnhancer))
 	}
 
+	s := dns.NewService(r.Resolver, m)
+
 	resolver.DefaultResolver = r
 	resolver.DefaultHostMapper = m
-	resolver.DefaultLocalServer = dns.NewLocalServer(r.Resolver, m)
+	resolver.DefaultService = s
 
 	if r.ProxyResolver.Invalid() {
 		resolver.ProxyServerHostResolver = r.ProxyResolver
@@ -311,7 +313,7 @@ func updateDNS(c *config.DNS) {
 		resolver.DirectHostResolver = r.Resolver
 	}
 
-	dns.ReCreateServer(c.Listen, r.Resolver, m)
+	dns.ReCreateServer(c.Listen, s)
 }
 
 func updateHosts(tree *trie.DomainTrie[netip.Addr]) {

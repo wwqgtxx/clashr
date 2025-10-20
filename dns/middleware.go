@@ -9,20 +9,20 @@ import (
 	"github.com/metacubex/mihomo/component/fakeip"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/context"
+	icontext "github.com/metacubex/mihomo/context"
 	"github.com/metacubex/mihomo/log"
 
 	D "github.com/miekg/dns"
 )
 
 type (
-	handler    func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error)
+	handler    func(ctx *icontext.DNSContext, r *D.Msg) (*D.Msg, error)
 	middleware func(next handler) handler
 )
 
 func withHosts(mapping *lru.LruCache[netip.Addr, string]) middleware {
 	return func(next handler) handler {
-		return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
+		return func(ctx *icontext.DNSContext, r *D.Msg) (*D.Msg, error) {
 			q := r.Question[0]
 
 			if !isIPRequest(q) {
@@ -60,7 +60,7 @@ func withHosts(mapping *lru.LruCache[netip.Addr, string]) middleware {
 				return next(ctx, r)
 			}
 
-			ctx.SetType(context.DNSTypeHost)
+			ctx.SetType(icontext.DNSTypeHost)
 			msg.SetRcode(r, D.RcodeSuccess)
 			msg.Authoritative = true
 			msg.RecursionAvailable = true
@@ -72,7 +72,7 @@ func withHosts(mapping *lru.LruCache[netip.Addr, string]) middleware {
 
 func withMapping(mapping *lru.LruCache[netip.Addr, string]) middleware {
 	return func(next handler) handler {
-		return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
+		return func(ctx *icontext.DNSContext, r *D.Msg) (*D.Msg, error) {
 			q := r.Question[0]
 
 			if !isIPRequest(q) {
@@ -122,7 +122,7 @@ func withMapping(mapping *lru.LruCache[netip.Addr, string]) middleware {
 
 func withFakeIP(fakePool *fakeip.Pool) middleware {
 	return func(next handler) handler {
-		return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
+		return func(ctx *icontext.DNSContext, r *D.Msg) (*D.Msg, error) {
 			q := r.Question[0]
 
 			host := strings.TrimRight(q.Name, ".")
@@ -146,7 +146,7 @@ func withFakeIP(fakePool *fakeip.Pool) middleware {
 			msg := r.Copy()
 			msg.Answer = []D.RR{rr}
 
-			ctx.SetType(context.DNSTypeFakeIP)
+			ctx.SetType(icontext.DNSTypeFakeIP)
 			setMsgTTL(msg, 1)
 			msg.SetRcode(r, D.RcodeSuccess)
 			msg.Authoritative = true
@@ -158,8 +158,8 @@ func withFakeIP(fakePool *fakeip.Pool) middleware {
 }
 
 func withResolver(resolver *Resolver) handler {
-	return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
-		ctx.SetType(context.DNSTypeRaw)
+	return func(ctx *icontext.DNSContext, r *D.Msg) (*D.Msg, error) {
+		ctx.SetType(icontext.DNSTypeRaw)
 		q := r.Question[0]
 
 		// return a empty AAAA msg when ipv6 disabled
@@ -190,8 +190,8 @@ func compose(middlewares []middleware, endpoint handler) handler {
 	return h
 }
 
-func NewHandler(resolver *Resolver, mapper *ResolverEnhancer) handler {
-	middlewares := []middleware{}
+func newHandler(resolver *Resolver, mapper *ResolverEnhancer) handler {
+	var middlewares []middleware
 
 	if mapper.useHosts {
 		middlewares = append(middlewares, withHosts(mapper.mapping))
