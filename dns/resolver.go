@@ -11,7 +11,6 @@ import (
 	"github.com/metacubex/mihomo/common/arc"
 	"github.com/metacubex/mihomo/common/lru"
 	"github.com/metacubex/mihomo/common/singleflight"
-	"github.com/metacubex/mihomo/component/fakeip"
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/component/trie"
 	C "github.com/metacubex/mihomo/constant"
@@ -41,7 +40,6 @@ type result struct {
 
 type Resolver struct {
 	ipv6                  bool
-	hosts                 *trie.DomainTrie[netip.Addr]
 	main                  []dnsClient
 	fallback              []dnsClient
 	fallbackDomainFilters []C.DomainMatcher
@@ -479,11 +477,8 @@ type Config struct {
 	DirectServer         []NameServer
 	DirectFollowPolicy   bool
 	IPv6                 bool
-	EnhancedMode         C.DNSMode
 	FallbackIPFilter     []C.IpMatcher
 	FallbackDomainFilter []C.DomainMatcher
-	Pool                 *fakeip.Pool
-	Hosts                *trie.DomainTrie[netip.Addr]
 	Policy               []Policy
 	SearchDomains        []string
 	CacheAlgorithm       string
@@ -557,7 +552,6 @@ func NewResolver(config Config) (rs Resolvers) {
 		ipv6:          config.IPv6,
 		main:          cacheTransform(config.Main),
 		cache:         config.newCache(),
-		hosts:         config.Hosts,
 		searchDomains: config.SearchDomains,
 	}
 	r.defaultResolver = defaultResolver
@@ -568,7 +562,6 @@ func NewResolver(config Config) (rs Resolvers) {
 			ipv6:          config.IPv6,
 			main:          cacheTransform(config.ProxyServer),
 			cache:         config.newCache(),
-			hosts:         config.Hosts,
 			searchDomains: config.SearchDomains,
 		}
 	}
@@ -578,7 +571,6 @@ func NewResolver(config Config) (rs Resolvers) {
 			ipv6:          config.IPv6,
 			main:          cacheTransform(config.DirectServer),
 			cache:         config.newCache(),
-			hosts:         config.Hosts,
 			searchDomains: config.SearchDomains,
 		}
 	}

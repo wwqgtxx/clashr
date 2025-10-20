@@ -7,7 +7,7 @@ import (
 
 	"github.com/metacubex/mihomo/common/lru"
 	"github.com/metacubex/mihomo/component/fakeip"
-	"github.com/metacubex/mihomo/component/trie"
+	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/context"
 	"github.com/metacubex/mihomo/log"
@@ -20,7 +20,7 @@ type (
 	middleware func(next handler) handler
 )
 
-func withHosts(hosts *trie.DomainTrie[netip.Addr]) middleware {
+func withHosts(mapping *lru.LruCache[netip.Addr, string]) middleware {
 	return func(next handler) handler {
 		return func(ctx *context.DNSContext, r *D.Msg) (*D.Msg, error) {
 			q := r.Question[0]
@@ -29,7 +29,8 @@ func withHosts(hosts *trie.DomainTrie[netip.Addr]) middleware {
 				return next(ctx, r)
 			}
 
-			record := hosts.Search(strings.TrimRight(q.Name, "."))
+			host := strings.TrimRight(q.Name, ".")
+			record := resolver.DefaultHosts.Search(host)
 			if record == nil {
 				return next(ctx, r)
 			}
@@ -43,12 +44,18 @@ func withHosts(hosts *trie.DomainTrie[netip.Addr]) middleware {
 				rr.A = ip.AsSlice()
 
 				msg.Answer = []D.RR{rr}
+				if mapping != nil {
+					mapping.SetWithExpire(ip, host, time.Now().Add(time.Second*10))
+				}
 			} else if ip.Is6() && q.Qtype == D.TypeAAAA {
 				rr := &D.AAAA{}
 				rr.Hdr = D.RR_Header{Name: q.Name, Rrtype: D.TypeAAAA, Class: D.ClassINET, Ttl: dnsDefaultTTL}
 				rr.AAAA = ip.AsSlice()
 
 				msg.Answer = []D.RR{rr}
+				if mapping != nil {
+					mapping.SetWithExpire(ip, host, time.Now().Add(time.Second*10))
+				}
 			} else {
 				return next(ctx, r)
 			}
@@ -186,8 +193,8 @@ func compose(middlewares []middleware, endpoint handler) handler {
 func NewHandler(resolver *Resolver, mapper *ResolverEnhancer) handler {
 	middlewares := []middleware{}
 
-	if resolver.hosts != nil {
-		middlewares = append(middlewares, withHosts(resolver.hosts))
+	if mapper.useHosts {
+		middlewares = append(middlewares, withHosts(mapper.mapping))
 	}
 
 	if mapper.mode == C.DNSFakeIP {

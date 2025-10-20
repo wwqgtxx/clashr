@@ -268,13 +268,11 @@ func updateDNS(c *config.DNS) {
 		return
 	}
 
-	cfg := dns.Config{
+
+	r := dns.NewResolver(dns.Config{
 		Main:                 c.NameServer,
 		Fallback:             c.Fallback,
 		IPv6:                 c.IPv6,
-		EnhancedMode:         c.EnhancedMode,
-		Pool:                 c.FakeIPRange,
-		Hosts:                c.Hosts,
 		FallbackIPFilter:     c.FallbackIPFilter,
 		FallbackDomainFilter: c.FallbackDomainFilter,
 		Default:              c.DefaultNameserver,
@@ -285,10 +283,12 @@ func updateDNS(c *config.DNS) {
 		SearchDomains:        c.SearchDomains,
 		CacheAlgorithm:       c.CacheAlgorithm,
 		CacheMaxSize:         c.CacheMaxSize,
-	}
-
-	r := dns.NewResolver(cfg)
-	m := dns.NewEnhancer(cfg)
+	})
+	m := dns.NewEnhancer(dns.EnhancerConfig{
+		EnhancedMode: c.EnhancedMode,
+		Pool:         c.FakeIPRange,
+		UseHosts:     c.UseHosts,
+	})
 
 	// reuse cache of old host mapper
 	if old := resolver.DefaultHostMapper; old != nil {

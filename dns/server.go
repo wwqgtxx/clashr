@@ -51,7 +51,7 @@ func (s *Server) SetHandler(handler handler) {
 }
 
 func ReCreateServer(addr string, resolver *Resolver, mapper *ResolverEnhancer) {
-	if addr == address && resolver != nil {
+	if addr == address && resolver != nil && mapper != nil {
 		handler := NewHandler(resolver, mapper)
 		server.SetHandler(handler)
 		return
@@ -70,7 +70,7 @@ func ReCreateServer(addr string, resolver *Resolver, mapper *ResolverEnhancer) {
 	server.handler = nil
 	address = ""
 
-	if addr == "" {
+	if addr == "" || resolver == nil || mapper == nil {
 		return
 	}
 

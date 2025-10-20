@@ -123,6 +123,7 @@ type NTP struct {
 type DNS struct {
 	Enable                bool
 	IPv6                  bool
+	UseHosts              bool
 	NameServer            []dns.NameServer
 	Fallback              []dns.NameServer
 	FallbackIPFilter      []C.IpMatcher
@@ -525,7 +526,7 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 	}
 	config.Hosts = hosts
 
-	dnsCfg, err := parseDNS(rawCfg, hosts, ruleProviders)
+	dnsCfg, err := parseDNS(rawCfg, ruleProviders)
 	if err != nil {
 		return nil, err
 	}
@@ -1139,7 +1140,7 @@ func parseNameServerPolicy(nsPolicy *orderedmap.OrderedMap[string, any], rulePro
 	return policy, nil
 }
 
-func parseDNS(rawCfg *RawConfig, hosts *trie.DomainTrie[netip.Addr], ruleProviders map[string]providerTypes.RuleProvider) (*DNS, error) {
+func parseDNS(rawCfg *RawConfig, ruleProviders map[string]providerTypes.RuleProvider) (*DNS, error) {
 	cfg := rawCfg.DNS
 	if cfg.Enable && len(cfg.NameServer) == 0 {
 		return nil, fmt.Errorf("if DNS configuration is turned on, NameServer cannot be empty")
@@ -1153,6 +1154,7 @@ func parseDNS(rawCfg *RawConfig, hosts *trie.DomainTrie[netip.Addr], ruleProvide
 		Enable:         cfg.Enable,
 		Listen:         cfg.Listen,
 		IPv6:           cfg.IPv6,
+		UseHosts:       cfg.UseHosts,
 		EnhancedMode:   cfg.EnhancedMode,
 		CacheAlgorithm: cfg.CacheAlgorithm,
 		CacheMaxSize:   cfg.CacheMaxSize,
@@ -1268,10 +1270,6 @@ func parseDNS(rawCfg *RawConfig, hosts *trie.DomainTrie[netip.Addr], ruleProvide
 			matcher := domainTrie.NewDomainSet() // dns.fallback-filter.domain
 			dnsCfg.FallbackDomainFilter = append(dnsCfg.FallbackDomainFilter, matcher)
 		}
-	}
-
-	if cfg.UseHosts {
-		dnsCfg.Hosts = hosts
 	}
 
 	if len(cfg.SearchDomains) != 0 {
