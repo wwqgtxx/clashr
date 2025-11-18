@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	//"encoding/binary"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -32,14 +32,6 @@ var (
 		0x16,
 		0x03,
 		0x01,
-		0x02,
-		0x00,
-		0x01,
-		0x00,
-		0x01,
-		0xfc,
-		0x03,
-		0x03,
 	}
 )
 
@@ -60,6 +52,14 @@ func (c *fakeTLSServerProtocol) Handshake(socket net.Conn) (net.Conn, error) {
 
 			return nil, errors.New("failed first bytes of tls handshake")
 		}
+	}
+
+	var tlsHandshakeLen uint16
+	if err := binary.Read(bufferedReader, binary.BigEndian, &tlsHandshakeLen); err != nil || tlsHandshakeLen < 512 {
+		rewinded.Rewind()
+		c.CloakHost(rewinded)
+
+		return nil, errors.New("failed tls handshake length")
 	}
 
 	rewinded.Rewind()
