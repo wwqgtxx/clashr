@@ -19,7 +19,7 @@ import (
 	"github.com/metacubex/mihomo/component/cidr"
 	"github.com/metacubex/mihomo/component/fakeip"
 	mihomoHttp "github.com/metacubex/mihomo/component/http"
-	P "github.com/metacubex/mihomo/component/process"
+	"github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resource"
 	"github.com/metacubex/mihomo/component/sniffer"
 	"github.com/metacubex/mihomo/component/trie"
@@ -43,23 +43,23 @@ import (
 // General config
 type General struct {
 	Inbound
-	Mode                    T.TunnelMode      `json:"mode"`
-	LogLevel                log.LogLevel      `json:"log-level"`
-	IPv6                    bool              `json:"ipv6"`
-	Interface               string            `json:"interface-name"`
-	RoutingMark             int               `json:"routing-mark"`
-	HealthCheckURL          string            `json:"health-check-url"`
-	HealthCheckLazyDefault  bool              `json:"health-check-lazy-default"`
-	TouchAfterLazyPassNum   int               `json:"touch-after-lazy-pass-num"`
-	TCPConcurrent           bool              `json:"tcp-concurrent"`
-	FindProcessMode         P.FindProcessMode `json:"find-process-mode"`
-	Sniffing                bool              `json:"sniffing"`
-	GlobalClientFingerprint string            `json:"global-client-fingerprint"`
-	GlobalUA                string            `json:"global-ua"`
-	ETagSupport             bool              `json:"etag-support"`
-	KeepAliveIdle           int               `json:"keep-alive-idle"`
-	KeepAliveInterval       int               `json:"keep-alive-interval"`
-	DisableKeepAlive        bool              `json:"disable-keep-alive"`
+	Mode                    T.TunnelMode            `json:"mode"`
+	LogLevel                log.LogLevel            `json:"log-level"`
+	IPv6                    bool                    `json:"ipv6"`
+	Interface               string                  `json:"interface-name"`
+	RoutingMark             int                     `json:"routing-mark"`
+	HealthCheckURL          string                  `json:"health-check-url"`
+	HealthCheckLazyDefault  bool                    `json:"health-check-lazy-default"`
+	TouchAfterLazyPassNum   int                     `json:"touch-after-lazy-pass-num"`
+	TCPConcurrent           bool                    `json:"tcp-concurrent"`
+	FindProcessMode         process.FindProcessMode `json:"find-process-mode"`
+	Sniffing                bool                    `json:"sniffing"`
+	GlobalClientFingerprint string                  `json:"global-client-fingerprint"`
+	GlobalUA                string                  `json:"global-ua"`
+	ETagSupport             bool                    `json:"etag-support"`
+	KeepAliveIdle           int                     `json:"keep-alive-idle"`
+	KeepAliveInterval       int                     `json:"keep-alive-interval"`
+	DisableKeepAlive        bool                    `json:"disable-keep-alive"`
 }
 
 // Inbound
@@ -269,48 +269,48 @@ type RawTLS struct {
 }
 
 type RawConfig struct {
-	Port                    int               `yaml:"port" json:"port"`
-	SocksPort               int               `yaml:"socks-port" json:"socks-port"`
-	RedirPort               int               `yaml:"redir-port" json:"redir-port"`
-	TProxyPort              int               `yaml:"tproxy-port" json:"tproxy-port"`
-	MixedPort               int               `yaml:"mixed-port" json:"mixed-port"`
-	MixECConfig             string            `yaml:"mixec-config" json:"mix-ec-config"`
-	ShadowSocksConfig       string            `yaml:"ss-config" json:"shadow-socks-config"`
-	VmessConfig             string            `yaml:"vmess-config" json:"vmess-config"`
-	MTProxyConfig           string            `yaml:"mtproxy-config" json:"mt-proxy-config"`
-	InboundTfo              bool              `yaml:"inbound-tfo" json:"inbound-tfo"`
-	InboundMPTCP            bool              `yaml:"inbound-mptcp" json:"inbound-mptcp"`
-	Authentication          []string          `yaml:"authentication" json:"authentication"`
-	SkipAuthPrefixes        []netip.Prefix    `yaml:"skip-auth-prefixes" json:"skip-auth-prefixes"`
-	LanAllowedIPs           []netip.Prefix    `yaml:"lan-allowed-ips" json:"lan-allowed-i-ps"`
-	LanDisAllowedIPs        []netip.Prefix    `yaml:"lan-disallowed-ips" json:"lan-dis-allowed-i-ps"`
-	AllowLan                bool              `yaml:"allow-lan" json:"allow-lan"`
-	BindAddress             string            `yaml:"bind-address" json:"bind-address"`
-	Mode                    T.TunnelMode      `yaml:"mode" json:"mode"`
-	LogLevel                log.LogLevel      `yaml:"log-level" json:"log-level"`
-	IPv6                    bool              `yaml:"ipv6" json:"ipv6"`
-	ExternalController      string            `yaml:"external-controller" json:"external-controller"`
-	ExternalControllerPipe  string            `yaml:"external-controller-pipe" json:"external-controller-pipe"`
-	ExternalControllerUnix  string            `yaml:"external-controller-unix" json:"external-controller-unix"`
-	ExternalControllerTLS   string            `yaml:"external-controller-tls" json:"external-controller-tls"`
-	ExternalControllerCors  RawCors           `yaml:"external-controller-cors" json:"external-controller-cors"`
-	ExternalUI              string            `yaml:"external-ui" json:"external-ui"`
-	ExternalDohServer       string            `yaml:"external-doh-server" json:"external-doh-server"`
-	Secret                  string            `yaml:"secret" json:"secret"`
-	Interface               string            `yaml:"interface-name" json:"interface"`
-	RoutingMark             int               `yaml:"routing-mark" json:"routing-mark"`
-	Tunnels                 []LC.Tunnel       `yaml:"tunnels" json:"tunnels"`
-	HealthCheckURL          string            `yaml:"health-check-url" json:"health-check-url"`
-	HealthCheckLazyDefault  bool              `yaml:"health-check-lazy-default" json:"health-check-lazy-default"`
-	TouchAfterLazyPassNum   int               `yaml:"touch-after-lazy-pass-num" json:"touch-after-lazy-pass-num"`
-	TCPConcurrent           bool              `yaml:"tcp-concurrent" json:"tcp-concurrent"`
-	FindProcessMode         P.FindProcessMode `yaml:"find-process-mode" json:"find-process-mode"`
-	GlobalClientFingerprint string            `yaml:"global-client-fingerprint" json:"global-client-fingerprint"`
-	GlobalUA                string            `yaml:"global-ua" json:"global-ua"`
-	ETagSupport             bool              `yaml:"etag-support" json:"etag-support"`
-	KeepAliveIdle           int               `yaml:"keep-alive-idle" json:"keep-alive-idle"`
-	KeepAliveInterval       int               `yaml:"keep-alive-interval" json:"keep-alive-interval"`
-	DisableKeepAlive        bool              `yaml:"disable-keep-alive" json:"disable-keep-alive"`
+	Port                    int                     `yaml:"port" json:"port"`
+	SocksPort               int                     `yaml:"socks-port" json:"socks-port"`
+	RedirPort               int                     `yaml:"redir-port" json:"redir-port"`
+	TProxyPort              int                     `yaml:"tproxy-port" json:"tproxy-port"`
+	MixedPort               int                     `yaml:"mixed-port" json:"mixed-port"`
+	MixECConfig             string                  `yaml:"mixec-config" json:"mix-ec-config"`
+	ShadowSocksConfig       string                  `yaml:"ss-config" json:"shadow-socks-config"`
+	VmessConfig             string                  `yaml:"vmess-config" json:"vmess-config"`
+	MTProxyConfig           string                  `yaml:"mtproxy-config" json:"mt-proxy-config"`
+	InboundTfo              bool                    `yaml:"inbound-tfo" json:"inbound-tfo"`
+	InboundMPTCP            bool                    `yaml:"inbound-mptcp" json:"inbound-mptcp"`
+	Authentication          []string                `yaml:"authentication" json:"authentication"`
+	SkipAuthPrefixes        []netip.Prefix          `yaml:"skip-auth-prefixes" json:"skip-auth-prefixes"`
+	LanAllowedIPs           []netip.Prefix          `yaml:"lan-allowed-ips" json:"lan-allowed-i-ps"`
+	LanDisAllowedIPs        []netip.Prefix          `yaml:"lan-disallowed-ips" json:"lan-dis-allowed-i-ps"`
+	AllowLan                bool                    `yaml:"allow-lan" json:"allow-lan"`
+	BindAddress             string                  `yaml:"bind-address" json:"bind-address"`
+	Mode                    T.TunnelMode            `yaml:"mode" json:"mode"`
+	LogLevel                log.LogLevel            `yaml:"log-level" json:"log-level"`
+	IPv6                    bool                    `yaml:"ipv6" json:"ipv6"`
+	ExternalController      string                  `yaml:"external-controller" json:"external-controller"`
+	ExternalControllerPipe  string                  `yaml:"external-controller-pipe" json:"external-controller-pipe"`
+	ExternalControllerUnix  string                  `yaml:"external-controller-unix" json:"external-controller-unix"`
+	ExternalControllerTLS   string                  `yaml:"external-controller-tls" json:"external-controller-tls"`
+	ExternalControllerCors  RawCors                 `yaml:"external-controller-cors" json:"external-controller-cors"`
+	ExternalUI              string                  `yaml:"external-ui" json:"external-ui"`
+	ExternalDohServer       string                  `yaml:"external-doh-server" json:"external-doh-server"`
+	Secret                  string                  `yaml:"secret" json:"secret"`
+	Interface               string                  `yaml:"interface-name" json:"interface"`
+	RoutingMark             int                     `yaml:"routing-mark" json:"routing-mark"`
+	Tunnels                 []LC.Tunnel             `yaml:"tunnels" json:"tunnels"`
+	HealthCheckURL          string                  `yaml:"health-check-url" json:"health-check-url"`
+	HealthCheckLazyDefault  bool                    `yaml:"health-check-lazy-default" json:"health-check-lazy-default"`
+	TouchAfterLazyPassNum   int                     `yaml:"touch-after-lazy-pass-num" json:"touch-after-lazy-pass-num"`
+	TCPConcurrent           bool                    `yaml:"tcp-concurrent" json:"tcp-concurrent"`
+	FindProcessMode         process.FindProcessMode `yaml:"find-process-mode" json:"find-process-mode"`
+	GlobalClientFingerprint string                  `yaml:"global-client-fingerprint" json:"global-client-fingerprint"`
+	GlobalUA                string                  `yaml:"global-ua" json:"global-ua"`
+	ETagSupport             bool                    `yaml:"etag-support" json:"etag-support"`
+	KeepAliveIdle           int                     `yaml:"keep-alive-idle" json:"keep-alive-idle"`
+	KeepAliveInterval       int                     `yaml:"keep-alive-interval" json:"keep-alive-interval"`
+	DisableKeepAlive        bool                    `yaml:"disable-keep-alive" json:"disable-keep-alive"`
 
 	ProxyProvider map[string]map[string]any `yaml:"proxy-providers" json:"proxy-provider"`
 	RuleProvider  map[string]map[string]any `yaml:"rule-providers" json:"rule-provider"`
@@ -353,7 +353,7 @@ func DefaultRawConfig() *RawConfig {
 		HealthCheckLazyDefault: true,
 		TouchAfterLazyPassNum:  0,
 		TCPConcurrent:          true,
-		FindProcessMode:        P.FindProcessStrict,
+		FindProcessMode:        process.FindProcessStrict,
 		GlobalUA:               "clash.meta/" + C.Version,
 		ETagSupport:            true,
 		DNS: RawDNS{
