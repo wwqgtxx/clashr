@@ -138,6 +138,7 @@ type DNS struct {
 	FakeIPRange6          netip.Prefix
 	FakeIPPool6           *fakeip.Pool
 	FakeIPSkipper         *fakeip.Skipper
+	FakeIPTTL             int
 	Hosts                 *trie.DomainTrie[netip.Addr]
 	NameServerPolicy      []dns.Policy
 	ProxyServerNameserver []dns.NameServer
@@ -202,6 +203,7 @@ type RawDNS struct {
 	FakeIPRange6                 string                              `yaml:"fake-ip-range6" json:"fake-ip-range6"`
 	FakeIPFilter                 []string                            `yaml:"fake-ip-filter" json:"fake-ip-filter"`
 	FakeIPFilterMode             C.FilterMode                        `yaml:"fake-ip-filter-mode" json:"fake-ip-filter-mode"`
+	FakeIPTTL                    int                                 `yaml:"fake-ip-ttl" json:"fake-ip-ttl"`
 	DefaultNameserver            []string                            `yaml:"default-nameserver" json:"default-nameserver"`
 	CacheAlgorithm               string                              `yaml:"cache-algorithm" json:"cache-algorithm"`
 	CacheMaxSize                 int                                 `yaml:"cache-max-size" json:"cache-max-size"`
@@ -361,6 +363,7 @@ func DefaultRawConfig() *RawConfig {
 			IPv6:        true,
 			UseHosts:    true,
 			FakeIPRange: "198.18.0.1/16",
+			FakeIPTTL:   1,
 			FallbackFilter: RawFallbackFilter{
 				GeoIP:     true,
 				GeoIPCode: "CN",
@@ -1246,6 +1249,7 @@ func parseDNS(rawCfg *RawConfig, ruleProviders map[string]P.RuleProvider) (*DNS,
 			Mode: cfg.FakeIPFilterMode,
 		}
 		dnsCfg.FakeIPSkipper = skipper
+		dnsCfg.FakeIPTTL = cfg.FakeIPTTL
 
 		if dnsCfg.FakeIPRange.IsValid() {
 			pool, err := fakeip.New(fakeip.Options{
