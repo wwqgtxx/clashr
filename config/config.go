@@ -1208,12 +1208,18 @@ func parseDNS(rawCfg *RawConfig, ruleProviders map[string]providerTypes.RuleProv
 		if err != nil {
 			return nil, err
 		}
+		if !dnsCfg.FakeIPRange.Addr().Is4() {
+			return nil, errors.New("dns.fake-ip-range must be a IPv4 prefix")
+		}
 	}
 
 	if cfg.FakeIPRange6 != "" {
 		dnsCfg.FakeIPRange6, err = netip.ParsePrefix(cfg.FakeIPRange6)
 		if err != nil {
 			return nil, err
+		}
+		if !dnsCfg.FakeIPRange6.Addr().Is6() {
+			return nil, errors.New("dns.fake-ip-range6 must be a IPv6 prefix")
 		}
 	}
 
