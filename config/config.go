@@ -27,7 +27,7 @@ import (
 	P "github.com/metacubex/mihomo/constant/provider"
 	snifferTypes "github.com/metacubex/mihomo/constant/sniffer"
 	"github.com/metacubex/mihomo/dns"
-	L "github.com/metacubex/mihomo/listener"
+	"github.com/metacubex/mihomo/listener"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/log"
 	R "github.com/metacubex/mihomo/rules"
@@ -796,7 +796,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 func parseListeners(cfg *RawConfig) (listeners map[string]C.InboundListener, err error) {
 	listeners = make(map[string]C.InboundListener)
 	for index, mapping := range cfg.Listeners {
-		listener, err := L.ParseListener(mapping)
+		listener, err := listener.ParseListener(mapping)
 		if err != nil {
 			return nil, fmt.Errorf("proxy %d: %w", index, err)
 		}
