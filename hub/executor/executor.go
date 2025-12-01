@@ -31,7 +31,7 @@ import (
 	"github.com/metacubex/mihomo/component/trie"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
-	providerTypes "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/dns"
 	"github.com/metacubex/mihomo/listener"
 	authStore "github.com/metacubex/mihomo/listener/auth"
@@ -168,9 +168,9 @@ func GetGeneral() *config.General {
 	return general
 }
 
-func loadProvider[P providerTypes.Provider](providers map[string]P) {
-	load := func(pv P) {
-		if pv.VehicleType() == providerTypes.Compatible {
+func loadProvider[T P.Provider](providers map[string]T) {
+	load := func(pv T) {
+		if pv.VehicleType() == P.Compatible {
 			log.Infoln("Start initial compatible provider %s", pv.Name())
 		} else {
 			log.Infoln("Start initial provider %s", (pv).Name())
@@ -178,11 +178,11 @@ func loadProvider[P providerTypes.Provider](providers map[string]P) {
 
 		if err := (pv).Initial(); err != nil {
 			switch pv.Type() {
-			case providerTypes.Proxy:
+			case P.Proxy:
 				{
 					log.Warnln("initial proxy provider %s error: %v", (pv).Name(), err)
 				}
-			case providerTypes.Rule:
+			case P.Rule:
 				{
 					log.Warnln("initial rule provider %s error: %v", (pv).Name(), err)
 				}
@@ -268,7 +268,6 @@ func updateDNS(c *config.DNS) {
 		return
 	}
 
-
 	ipv6 := c.IPv6
 	r := dns.NewResolver(dns.Config{
 		Main:                 c.NameServer,
@@ -324,11 +323,11 @@ func updateHosts(tree *trie.DomainTrie[netip.Addr]) {
 	resolver.DefaultHosts = tree
 }
 
-func updateProxies(proxies map[string]C.Proxy, providers map[string]providerTypes.ProxyProvider) {
+func updateProxies(proxies map[string]C.Proxy, providers map[string]P.ProxyProvider) {
 	tunnel.UpdateProxies(proxies, providers)
 }
 
-func updateRules(rules []C.Rule, subRules map[string][]C.Rule, providers map[string]providerTypes.RuleProvider) {
+func updateRules(rules []C.Rule, subRules map[string][]C.Rule, providers map[string]P.RuleProvider) {
 	tunnel.UpdateRules(rules, subRules, providers)
 }
 

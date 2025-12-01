@@ -5,7 +5,7 @@ import (
 	"time"
 
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/tunnel"
 
 	"github.com/dlclark/regexp2"
@@ -15,13 +15,13 @@ const (
 	defaultGetProxiesDuration = time.Second * 5
 )
 
-func touchProviders(providers []provider.ProxyProvider) {
+func touchProviders(providers []P.ProxyProvider) {
 	for _, provider := range providers {
 		provider.Touch()
 	}
 }
 
-func getProvidersProxies(providers []provider.ProxyProvider, touch bool, filter string) []C.Proxy {
+func getProvidersProxies(providers []P.ProxyProvider, touch bool, filter string) []C.Proxy {
 	proxies := []C.Proxy{}
 	for _, provider := range providers {
 		if touch {
@@ -63,7 +63,7 @@ func getProvidersProxies(providers []provider.ProxyProvider, touch bool, filter 
 	return proxies
 }
 
-func doHealthCheck(providers []provider.ProxyProvider, proxy C.Proxy) {
+func doHealthCheck(providers []P.ProxyProvider, proxy C.Proxy) {
 	for _, proxyProvider := range providers {
 		for _, proxy2 := range proxyProvider.Proxies() {
 			if proxy == proxy2 {

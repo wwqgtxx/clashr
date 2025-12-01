@@ -11,7 +11,7 @@ import (
 	"github.com/metacubex/mihomo/common/structure"
 	"github.com/metacubex/mihomo/component/resource"
 	C "github.com/metacubex/mihomo/constant"
-	types "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 
 	"github.com/dlclark/regexp2"
 )
@@ -74,7 +74,7 @@ type proxyProviderSchema struct {
 	Header      map[string][]string `provider:"header,omitempty"`
 }
 
-func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefault bool, healthCheckURL string) (types.ProxyProvider, error) {
+func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefault bool, healthCheckURL string) (P.ProxyProvider, error) {
 	decoder := structure.NewDecoder(structure.Option{TagName: "provider", WeaklyTypedInput: true})
 
 	schema := &proxyProviderSchema{
@@ -102,7 +102,7 @@ func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefa
 		return nil, err
 	}
 
-	var vehicle types.Vehicle
+	var vehicle P.Vehicle
 	switch schema.Type {
 	case "file":
 		path := C.Path.Resolve(schema.Path)

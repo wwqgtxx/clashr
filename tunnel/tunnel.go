@@ -21,8 +21,7 @@ import (
 	"github.com/metacubex/mihomo/component/slowdown"
 	"github.com/metacubex/mihomo/component/sniffer"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
-	providerTypes "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 	icontext "github.com/metacubex/mihomo/context"
 	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/tunnel/statistic"
@@ -39,9 +38,9 @@ var (
 	natTable      = nat.New()
 	rules         []C.Rule
 	subRules      map[string][]C.Rule
-	ruleProviders map[string]providerTypes.RuleProvider
+	ruleProviders map[string]P.RuleProvider
 	proxies       = make(map[string]C.Proxy)
-	providers     map[string]provider.ProxyProvider
+	providers     map[string]P.ProxyProvider
 	configMux     sync.RWMutex
 
 	// for compatibility, lazy init
@@ -61,14 +60,14 @@ var (
 	snifferDispatcher *sniffer.Dispatcher
 	sniffingEnable    = false
 
-	ruleUpdateCallback = utils.NewCallback[provider.RuleProvider]()
+	ruleUpdateCallback = utils.NewCallback[P.RuleProvider]()
 )
 
 type tunnel struct{}
 
 var Tunnel = tunnel{}
 var _ C.Tunnel = Tunnel
-var _ provider.Tunnel = Tunnel
+var _ P.Tunnel = Tunnel
 
 func (t tunnel) HandleTCPConn(conn net.Conn, metadata *C.Metadata) {
 	connCtx := icontext.NewConnContext(conn, metadata)
@@ -109,15 +108,15 @@ func (t tunnel) NatTable() C.NatTable {
 	return natTable
 }
 
-func (t tunnel) Providers() map[string]provider.ProxyProvider {
+func (t tunnel) Providers() map[string]P.ProxyProvider {
 	return providers
 }
 
-func (t tunnel) RuleProviders() map[string]provider.RuleProvider {
+func (t tunnel) RuleProviders() map[string]P.RuleProvider {
 	return ruleProviders
 }
 
-func (t tunnel) RuleUpdateCallback() *utils.Callback[provider.RuleProvider] {
+func (t tunnel) RuleUpdateCallback() *utils.Callback[P.RuleProvider] {
 	return ruleUpdateCallback
 }
 
@@ -179,12 +178,12 @@ func Rules() []C.Rule {
 }
 
 // RuleProviders return all compatible providers
-func RuleProviders() map[string]providerTypes.RuleProvider {
+func RuleProviders() map[string]P.RuleProvider {
 	return ruleProviders
 }
 
 // UpdateRules handle update rules
-func UpdateRules(newRules []C.Rule, newSubRules map[string][]C.Rule, newProviders map[string]providerTypes.RuleProvider) {
+func UpdateRules(newRules []C.Rule, newSubRules map[string][]C.Rule, newProviders map[string]P.RuleProvider) {
 	configMux.Lock()
 	rules = newRules
 	subRules = newSubRules
@@ -198,12 +197,12 @@ func Proxies() map[string]C.Proxy {
 }
 
 // Providers return all compatible providers
-func Providers() map[string]provider.ProxyProvider {
+func Providers() map[string]P.ProxyProvider {
 	return providers
 }
 
 // UpdateProxies handle update proxies
-func UpdateProxies(newProxies map[string]C.Proxy, newProviders map[string]provider.ProxyProvider) {
+func UpdateProxies(newProxies map[string]C.Proxy, newProviders map[string]P.ProxyProvider) {
 	configMux.Lock()
 	proxies = newProxies
 	providers = newProviders

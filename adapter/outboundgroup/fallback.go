@@ -10,7 +10,7 @@ import (
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/singledo"
 	C "github.com/metacubex/mihomo/constant"
-	providerTypes "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 )
 
 type Fallback struct {
@@ -18,7 +18,7 @@ type Fallback struct {
 	disableUDP bool
 	filter     string
 	single     *singledo.Single[[]C.Proxy]
-	providers  []providerTypes.ProxyProvider
+	providers  []P.ProxyProvider
 }
 
 func (f *Fallback) Now() string {
@@ -118,7 +118,7 @@ func (f *Fallback) findAliveProxy(touch bool) C.Proxy {
 	return proxies[0]
 }
 
-func NewFallback(option *GroupCommonOption, providers []providerTypes.ProxyProvider) *Fallback {
+func NewFallback(option *GroupCommonOption, providers []P.ProxyProvider) *Fallback {
 	return &Fallback{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,

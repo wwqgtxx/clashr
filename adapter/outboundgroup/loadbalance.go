@@ -12,7 +12,7 @@ import (
 	"github.com/metacubex/mihomo/common/singledo"
 	"github.com/metacubex/mihomo/common/utils"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 
 	"github.com/metacubex/randv2"
 	"golang.org/x/net/publicsuffix"
@@ -25,7 +25,7 @@ type LoadBalance struct {
 	disableUDP bool
 	filter     string
 	single     *singledo.Single[[]C.Proxy]
-	providers  []provider.ProxyProvider
+	providers  []P.ProxyProvider
 	strategyFn strategyFn
 }
 
@@ -209,7 +209,7 @@ func (lb *LoadBalance) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func NewLoadBalance(option *GroupCommonOption, providers []provider.ProxyProvider, strategy string) (lb *LoadBalance, err error) {
+func NewLoadBalance(option *GroupCommonOption, providers []P.ProxyProvider, strategy string) (lb *LoadBalance, err error) {
 	var strategyFn strategyFn
 	switch strategy {
 	case "random":
@@ -223,8 +223,8 @@ func NewLoadBalance(option *GroupCommonOption, providers []provider.ProxyProvide
 	}
 	return &LoadBalance{
 		Base: outbound.NewBase(outbound.BaseOption{
-			Name:        option.Name,
-			Type:        C.LoadBalance,
+			Name: option.Name,
+			Type: C.LoadBalance,
 		}),
 		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		providers:  providers,

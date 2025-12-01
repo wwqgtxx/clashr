@@ -8,13 +8,13 @@ import (
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 )
 
 type Relay struct {
 	*outbound.Base
 	single    *singledo.Single[[]C.Proxy]
-	providers []provider.ProxyProvider
+	providers []P.ProxyProvider
 	filter    string
 }
 
@@ -150,11 +150,11 @@ func (r *Relay) proxies(metadata *C.Metadata, touch bool) ([]C.Proxy, []C.Proxy)
 	return targetProxies, chainProxies
 }
 
-func NewRelay(option *GroupCommonOption, providers []provider.ProxyProvider) *Relay {
+func NewRelay(option *GroupCommonOption, providers []P.ProxyProvider) *Relay {
 	return &Relay{
 		Base: outbound.NewBase(outbound.BaseOption{
-			Name:        option.Name,
-			Type:        C.Relay,
+			Name: option.Name,
+			Type: C.Relay,
 		}),
 		single:    singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		providers: providers,

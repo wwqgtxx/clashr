@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	providerTypes "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/tunnel"
 
 	"github.com/go-chi/chi/v5"
@@ -31,12 +31,12 @@ func getRuleProviders(w http.ResponseWriter, r *http.Request) {
 }
 
 func getRuleProvider(w http.ResponseWriter, r *http.Request) {
-	provider := r.Context().Value(CtxKeyProvider).(providerTypes.RuleProvider)
+	provider := r.Context().Value(CtxKeyProvider).(P.RuleProvider)
 	render.JSON(w, r, provider)
 }
 
 func updateRuleProvider(w http.ResponseWriter, r *http.Request) {
-	provider := r.Context().Value(CtxKeyProvider).(providerTypes.RuleProvider)
+	provider := r.Context().Value(CtxKeyProvider).(P.RuleProvider)
 	if err := provider.Update(); err != nil {
 		render.Status(r, http.StatusServiceUnavailable)
 		render.JSON(w, r, newError(err.Error()))

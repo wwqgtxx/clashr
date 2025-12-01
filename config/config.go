@@ -24,7 +24,7 @@ import (
 	"github.com/metacubex/mihomo/component/sniffer"
 	"github.com/metacubex/mihomo/component/trie"
 	C "github.com/metacubex/mihomo/constant"
-	providerTypes "github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 	snifferTypes "github.com/metacubex/mihomo/constant/sniffer"
 	"github.com/metacubex/mihomo/dns"
 	L "github.com/metacubex/mihomo/listener"
@@ -172,10 +172,10 @@ type Config struct {
 	Profile       *Profile
 	Rules         []C.Rule
 	SubRules      map[string][]C.Rule
-	RuleProviders map[string]providerTypes.RuleProvider
+	RuleProviders map[string]P.RuleProvider
 	Users         []auth.AuthUser
 	Proxies       map[string]C.Proxy
-	Providers     map[string]providerTypes.ProxyProvider
+	Providers     map[string]P.ProxyProvider
 	Listeners     map[string]C.InboundListener
 	Tunnels       []LC.Tunnel
 	Sniffer       *sniffer.Config
@@ -671,9 +671,9 @@ func parseTLS(cfg *RawConfig) (*TLS, error) {
 	}, nil
 }
 
-func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[string]providerTypes.ProxyProvider, err error) {
+func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[string]P.ProxyProvider, err error) {
 	proxies = make(map[string]C.Proxy)
-	providersMap = make(map[string]providerTypes.ProxyProvider)
+	providersMap = make(map[string]P.ProxyProvider)
 	proxyList := []string{}
 	proxiesConfig := cfg.Proxy
 	groupsConfig := cfg.ProxyGroup
@@ -762,7 +762,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 	// --------------------------------
 	// initial compatible provider
 	//for _, pd := range providersMap {
-	//	if pd.VehicleType() != providerTypes.Compatible {
+	//	if pd.VehicleType() != P.Compatible {
 	//		continue
 	//	}
 	//
@@ -787,7 +787,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 		&outboundgroup.GroupCommonOption{
 			Name: "GLOBAL",
 		},
-		[]providerTypes.ProxyProvider{pd},
+		[]P.ProxyProvider{pd},
 	)
 	proxies["GLOBAL"] = adapter.NewProxy(global)
 	return proxies, providersMap, nil
@@ -811,9 +811,9 @@ func parseListeners(cfg *RawConfig) (listeners map[string]C.InboundListener, err
 	return
 }
 
-func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]providerTypes.RuleProvider, err error) {
+func parseRuleProviders(cfg *RawConfig) (ruleProviders map[string]P.RuleProvider, err error) {
 	RP.SetTunnel(T.Tunnel)
-	ruleProviders = map[string]providerTypes.RuleProvider{}
+	ruleProviders = map[string]P.RuleProvider{}
 	// parse rule provider
 	for name, mapping := range cfg.RuleProvider {
 		rp, err := RP.ParseRuleProvider(name, mapping, R.ParseRule)
@@ -1085,7 +1085,7 @@ func parsePureDNSServer(server string) string {
 	}
 }
 
-func parseNameServerPolicy(nsPolicy *orderedmap.OrderedMap[string, any], ruleProviders map[string]providerTypes.RuleProvider, respectRules bool) ([]dns.Policy, error) {
+func parseNameServerPolicy(nsPolicy *orderedmap.OrderedMap[string, any], ruleProviders map[string]P.RuleProvider, respectRules bool) ([]dns.Policy, error) {
 	var policy []dns.Policy
 
 	for pair := nsPolicy.Oldest(); pair != nil; pair = pair.Next() {
@@ -1145,7 +1145,7 @@ func parseNameServerPolicy(nsPolicy *orderedmap.OrderedMap[string, any], rulePro
 	return policy, nil
 }
 
-func parseDNS(rawCfg *RawConfig, ruleProviders map[string]providerTypes.RuleProvider) (*DNS, error) {
+func parseDNS(rawCfg *RawConfig, ruleProviders map[string]P.RuleProvider) (*DNS, error) {
 	cfg := rawCfg.DNS
 	if cfg.Enable && len(cfg.NameServer) == 0 {
 		return nil, fmt.Errorf("if DNS configuration is turned on, NameServer cannot be empty")
@@ -1337,7 +1337,7 @@ func parseAuthentication(rawRecords []string) []auth.AuthUser {
 	return users
 }
 
-func parseSniffer(snifferRaw RawSniffer, ruleProviders map[string]providerTypes.RuleProvider) (*sniffer.Config, error) {
+func parseSniffer(snifferRaw RawSniffer, ruleProviders map[string]P.RuleProvider) (*sniffer.Config, error) {
 	snifferConfig := &sniffer.Config{
 		Enable:          snifferRaw.Enable,
 		ForceDnsMapping: snifferRaw.ForceDnsMapping,
@@ -1427,7 +1427,7 @@ func parseSniffer(snifferRaw RawSniffer, ruleProviders map[string]providerTypes.
 	return snifferConfig, nil
 }
 
-func parseIPCIDR(addresses []string, cidrSet *cidr.IpCidrSet, adapterName string, ruleProviders map[string]providerTypes.RuleProvider) (matchers []C.IpMatcher, err error) {
+func parseIPCIDR(addresses []string, cidrSet *cidr.IpCidrSet, adapterName string, ruleProviders map[string]P.RuleProvider) (matchers []C.IpMatcher, err error) {
 	var matcher C.IpMatcher
 	for _, ipcidr := range addresses {
 		ipcidrLower := strings.ToLower(ipcidr)
@@ -1474,7 +1474,7 @@ func parseIPCIDR(addresses []string, cidrSet *cidr.IpCidrSet, adapterName string
 	return
 }
 
-func parseDomain(domains []string, domainTrie *trie.DomainTrie[struct{}], adapterName string, ruleProviders map[string]providerTypes.RuleProvider) (matchers []C.DomainMatcher, err error) {
+func parseDomain(domains []string, domainTrie *trie.DomainTrie[struct{}], adapterName string, ruleProviders map[string]P.RuleProvider) (matchers []C.DomainMatcher, err error) {
 	var matcher C.DomainMatcher
 	for _, domain := range domains {
 		domainLower := strings.ToLower(domain)
@@ -1506,14 +1506,14 @@ func parseDomain(domains []string, domainTrie *trie.DomainTrie[struct{}], adapte
 	return
 }
 
-func parseIPRuleSet(domainSetName string, adapterName string, ruleProviders map[string]providerTypes.RuleProvider) (C.IpMatcher, error) {
+func parseIPRuleSet(domainSetName string, adapterName string, ruleProviders map[string]P.RuleProvider) (C.IpMatcher, error) {
 	if rp, ok := ruleProviders[domainSetName]; !ok {
 		return nil, fmt.Errorf("not found rule-set: %s", domainSetName)
 	} else {
 		switch rp.Behavior() {
-		case providerTypes.Domain:
+		case P.Domain:
 			return nil, fmt.Errorf("rule provider type error, except ipcidr,actual %s", rp.Behavior())
-		case providerTypes.Classical:
+		case P.Classical:
 			log.Warnln("%s provider is %s, only matching it contain ip rule", rp.Name(), rp.Behavior())
 		default:
 		}
@@ -1521,14 +1521,14 @@ func parseIPRuleSet(domainSetName string, adapterName string, ruleProviders map[
 	return RP.NewRuleSet(domainSetName, adapterName, false, true)
 }
 
-func parseDomainRuleSet(domainSetName string, adapterName string, ruleProviders map[string]providerTypes.RuleProvider) (C.DomainMatcher, error) {
+func parseDomainRuleSet(domainSetName string, adapterName string, ruleProviders map[string]P.RuleProvider) (C.DomainMatcher, error) {
 	if rp, ok := ruleProviders[domainSetName]; !ok {
 		return nil, fmt.Errorf("not found rule-set: %s", domainSetName)
 	} else {
 		switch rp.Behavior() {
-		case providerTypes.IPCIDR:
+		case P.IPCIDR:
 			return nil, fmt.Errorf("rule provider type error, except domain,actual %s", rp.Behavior())
-		case providerTypes.Classical:
+		case P.Classical:
 			log.Warnln("%s provider is %s, only matching it contain domain rule", rp.Name(), rp.Behavior())
 		default:
 		}

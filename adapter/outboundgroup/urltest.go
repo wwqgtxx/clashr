@@ -10,7 +10,7 @@ import (
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/singledo"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 )
 
 type urlTestOption func(*URLTest)
@@ -29,7 +29,7 @@ type URLTest struct {
 	filter     string
 	single     *singledo.Single[[]C.Proxy]
 	fastSingle *singledo.Single[C.Proxy]
-	providers  []provider.ProxyProvider
+	providers  []P.ProxyProvider
 }
 
 func (u *URLTest) Now() string {
@@ -155,11 +155,11 @@ func parseURLTestOption(config map[string]any) []urlTestOption {
 	return opts
 }
 
-func NewURLTest(option *GroupCommonOption, providers []provider.ProxyProvider, options ...urlTestOption) *URLTest {
+func NewURLTest(option *GroupCommonOption, providers []P.ProxyProvider, options ...urlTestOption) *URLTest {
 	urlTest := &URLTest{
 		Base: outbound.NewBase(outbound.BaseOption{
-			Name:        option.Name,
-			Type:        C.URLTest,
+			Name: option.Name,
+			Type: C.URLTest,
 		}),
 		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
 		fastSingle: singledo.NewSingle[C.Proxy](time.Second * 10),

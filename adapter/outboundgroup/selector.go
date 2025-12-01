@@ -8,7 +8,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/common/singledo"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/constant/provider"
+	P "github.com/metacubex/mihomo/constant/provider"
 )
 
 type Selector struct {
@@ -17,7 +17,7 @@ type Selector struct {
 	filter     string
 	single     *singledo.Single[C.Proxy]
 	selected   string
-	providers  []provider.ProxyProvider
+	providers  []P.ProxyProvider
 }
 
 // DialContext implements C.ProxyAdapter
@@ -106,7 +106,7 @@ func (s *Selector) selectedProxy(touch bool) C.Proxy {
 	return elm
 }
 
-func NewSelector(option *GroupCommonOption, providers []provider.ProxyProvider) *Selector {
+func NewSelector(option *GroupCommonOption, providers []P.ProxyProvider) *Selector {
 	return &Selector{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,
