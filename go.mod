@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/bahlo/generic-list-go v0.2.0
 	github.com/dlclark/regexp2 v1.11.5
-	github.com/ebitengine/purego v0.9.0
+	github.com/ebitengine/purego v0.9.1
 	github.com/enfein/mieru/v3 v3.22.1
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/render v1.0.3
