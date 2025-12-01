@@ -58,8 +58,6 @@ var (
 
 	findProcessMode = atomic.NewInt32Enum(P.FindProcessStrict)
 
-	fakeIPRange netip.Prefix
-
 	snifferDispatcher *sniffer.Dispatcher
 	sniffingEnable    = false
 
@@ -121,14 +119,6 @@ func (t tunnel) RuleProviders() map[string]provider.RuleProvider {
 
 func (t tunnel) RuleUpdateCallback() *utils.Callback[provider.RuleProvider] {
 	return ruleUpdateCallback
-}
-
-func SetFakeIPRange(p netip.Prefix) {
-	fakeIPRange = p
-}
-
-func FakeIPRange() netip.Prefix {
-	return fakeIPRange
 }
 
 func SetSniffing(b bool) {
@@ -481,7 +471,7 @@ func handleTCPConn(connCtx C.ConnContext) {
 	dialMetadata := metadata
 	if len(metadata.Host) > 0 {
 		if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
-			if dstIp := node.Data(); !FakeIPRange().Contains(dstIp) {
+			if dstIp := node.Data(); !resolver.IsFakeIP(dstIp) {
 				dialMetadata.DstIP = node.Data()
 				dialMetadata.DNSMode = C.DNSHosts
 				dialMetadata = dialMetadata.Pure()
