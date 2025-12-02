@@ -70,12 +70,7 @@ type TuicOption struct {
 
 // DialContext implements C.ProxyAdapter
 func (t *Tuic) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn, error) {
-	return t.DialContextWithDialer(ctx, dialer.NewDialer(t.DialOptions()...), metadata)
-}
-
-// DialContextWithDialer implements C.ProxyAdapter
-func (t *Tuic) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (C.Conn, error) {
-	conn, err := t.client.DialContextWithDialer(ctx, metadata, dialer, t.dialWithDialer)
+	conn, err := t.client.DialContext(ctx, metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -84,11 +79,6 @@ func (t *Tuic) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metad
 
 // ListenPacketContext implements C.ProxyAdapter
 func (t *Tuic) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
-	return t.ListenPacketWithDialer(ctx, dialer.NewDialer(t.DialOptions()...), metadata)
-}
-
-// ListenPacketWithDialer implements C.ProxyAdapter
-func (t *Tuic) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.PacketConn, err error) {
 	if err = t.ResolveUDP(ctx, metadata); err != nil {
 		return nil, err
 	}
@@ -98,7 +88,7 @@ func (t *Tuic) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, meta
 		uotMetadata := *metadata
 		uotMetadata.Host = uotDestination.Fqdn
 		uotMetadata.DstPort = uotDestination.Port
-		c, err := t.DialContextWithDialer(ctx, dialer, &uotMetadata)
+		c, err := t.DialContext(ctx, &uotMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -112,21 +102,17 @@ func (t *Tuic) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, meta
 			return newPacketConn(uot.NewLazyConn(c, uot.Request{Destination: destination}), t), nil
 		}
 	}
-	pc, err := t.client.ListenPacketWithDialer(ctx, metadata, dialer, t.dialWithDialer)
+	pc, err := t.client.ListenPacket(ctx, metadata)
 	if err != nil {
 		return nil, err
 	}
 	return newPacketConn(pc, t), nil
 }
 
-// SupportWithDialer implements C.ProxyAdapter
-func (t *Tuic) SupportWithDialer() C.NetWork {
-	return C.ALLNet
-}
-
-func (t *Tuic) dialWithDialer(ctx context.Context, dialer C.Dialer) (transport *quic.Transport, addr net.Addr, err error) {
+func (t *Tuic) dial(ctx context.Context) (transport *quic.Transport, addr net.Addr, err error) {
+	var cDialer C.Dialer = dialer.NewDialer(t.DialOptions()...)
 	if len(t.option.DialerProxy) > 0 {
-		dialer, err = proxydialer.NewByName(t.option.DialerProxy, dialer)
+		cDialer, err = proxydialer.NewByName(t.option.DialerProxy, cDialer)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -141,7 +127,7 @@ func (t *Tuic) dialWithDialer(ctx context.Context, dialer C.Dialer) (transport *
 	}
 	addr = udpAddr
 	var pc net.PacketConn
-	pc, err = dialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
+	pc, err = cDialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -313,7 +299,7 @@ func NewTuic(option TuicOption) (*Tuic, error) {
 			CWND:                  option.CWND,
 		}
 
-		t.client = tuic.NewPoolClientV4(clientOption)
+		t.client = tuic.NewPoolClientV4(clientOption, t.dial)
 	} else {
 		maxUdpRelayPacketSize := option.MaxUdpRelayPacketSize
 		if maxUdpRelayPacketSize > tuic.MaxFragSizeV5 {
@@ -332,7 +318,7 @@ func NewTuic(option TuicOption) (*Tuic, error) {
 			CWND:                  option.CWND,
 		}
 
-		t.client = tuic.NewPoolClientV5(clientOption)
+		t.client = tuic.NewPoolClientV5(clientOption, t.dial)
 	}
 
 	return t, nil
