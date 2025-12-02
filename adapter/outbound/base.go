@@ -46,29 +46,14 @@ func (b *Base) Type() C.AdapterType {
 	return b.tp
 }
 
-// StreamConnContext implements C.ProxyAdapter
-func (b *Base) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (net.Conn, error) {
-	return c, C.ErrNotSupport
-}
-
-// DialContextWithDialer implements C.ProxyAdapter
-func (b *Base) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.Conn, err error) {
+// DialContext implements C.ProxyAdapter
+func (b *Base) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn, error) {
 	return nil, C.ErrNotSupport
 }
 
 // ListenPacketContext implements C.ProxyAdapter
 func (b *Base) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
 	return nil, C.ErrNotSupport
-}
-
-// ListenPacketWithDialer implements C.ProxyAdapter
-func (b *Base) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.PacketConn, err error) {
-	return nil, C.ErrNotSupport
-}
-
-// SupportWithDialer implements C.ProxyAdapter
-func (b *Base) SupportWithDialer() C.NetWork {
-	return C.InvalidNet
 }
 
 // SupportUOT implements C.ProxyAdapter
@@ -310,30 +295,8 @@ func (p *autoCloseProxyAdapter) DialContext(ctx context.Context, metadata *C.Met
 	return c, nil
 }
 
-func (p *autoCloseProxyAdapter) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.Conn, err error) {
-	c, err := p.ProxyAdapter.DialContextWithDialer(ctx, dialer, metadata)
-	if err != nil {
-		return nil, err
-	}
-	if c, ok := c.(AddRef); ok {
-		c.AddRef(p)
-	}
-	return c, nil
-}
-
 func (p *autoCloseProxyAdapter) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
 	pc, err := p.ProxyAdapter.ListenPacketContext(ctx, metadata)
-	if err != nil {
-		return nil, err
-	}
-	if pc, ok := pc.(AddRef); ok {
-		pc.AddRef(p)
-	}
-	return pc, nil
-}
-
-func (p *autoCloseProxyAdapter) ListenPacketWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.PacketConn, err error) {
-	pc, err := p.ProxyAdapter.ListenPacketWithDialer(ctx, dialer, metadata)
 	if err != nil {
 		return nil, err
 	}

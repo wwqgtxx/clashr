@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	N "github.com/metacubex/mihomo/common/net"
-	"github.com/metacubex/mihomo/component/dialer"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/tunnel"
 	"github.com/metacubex/mihomo/tunnel/statistic"
@@ -50,13 +49,7 @@ func (p proxyDialer) DialContext(ctx context.Context, network, address string) (
 		}
 		return N.NewBindPacketConn(pc, currentMeta.UDPAddr()), nil
 	}
-	var conn C.Conn
-	var err error
-	if _, ok := p.dialer.(dialer.Dialer); ok { // first using old function to let mux work
-		conn, err = p.proxy.DialContext(ctx, currentMeta)
-	} else {
-		conn, err = p.proxy.DialContextWithDialer(ctx, p.dialer, currentMeta)
-	}
+	conn, err := p.proxy.DialContext(ctx, currentMeta)
 	if err != nil {
 		return nil, err
 	}
@@ -72,14 +65,8 @@ func (p proxyDialer) ListenPacket(ctx context.Context, network, address string, 
 }
 
 func (p proxyDialer) listenPacket(ctx context.Context, currentMeta *C.Metadata) (C.PacketConn, error) {
-	var pc C.PacketConn
-	var err error
 	currentMeta.NetWork = C.UDP
-	if _, ok := p.dialer.(dialer.Dialer); ok { // first using old function to let mux work
-		pc, err = p.proxy.ListenPacketContext(ctx, currentMeta)
-	} else {
-		pc, err = p.proxy.ListenPacketWithDialer(ctx, p.dialer, currentMeta)
-	}
+	pc, err := p.proxy.ListenPacketContext(ctx, currentMeta)
 	if err != nil {
 		return nil, err
 	}
