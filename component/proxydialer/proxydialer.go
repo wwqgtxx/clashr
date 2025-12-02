@@ -2,33 +2,22 @@ package proxydialer
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/netip"
 	"strings"
 
 	N "github.com/metacubex/mihomo/common/net"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/tunnel"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 )
 
 type proxyDialer struct {
 	proxy     C.ProxyAdapter
-	dialer    C.Dialer
 	statistic bool
 }
 
-func New(proxy C.ProxyAdapter, dialer C.Dialer, statistic bool) C.Dialer {
-	return proxyDialer{proxy: proxy, dialer: dialer, statistic: statistic}
-}
-
-func NewByName(proxyName string, dialer C.Dialer) (C.Dialer, error) {
-	proxies := tunnel.Proxies()
-	if proxy, ok := proxies[proxyName]; ok {
-		return New(proxy, dialer, true), nil
-	}
-	return nil, fmt.Errorf("proxyName[%s] not found", proxyName)
+func New(proxy C.ProxyAdapter, statistic bool) C.Dialer {
+	return proxyDialer{proxy: proxy, statistic: statistic}
 }
 
 func (p proxyDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {

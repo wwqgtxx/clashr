@@ -10,9 +10,7 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/component/ca"
-	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/ech"
-	"github.com/metacubex/mihomo/component/proxydialer"
 	tlsC "github.com/metacubex/mihomo/component/tls"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/tuic"
@@ -110,13 +108,6 @@ func (t *Tuic) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_
 }
 
 func (t *Tuic) dial(ctx context.Context) (transport *quic.Transport, addr net.Addr, err error) {
-	var cDialer C.Dialer = dialer.NewDialer(t.DialOptions()...)
-	if len(t.option.DialerProxy) > 0 {
-		cDialer, err = proxydialer.NewByName(t.option.DialerProxy, cDialer)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
 	udpAddr, err := resolveUDPAddr(ctx, "udp", t.addr, t.prefer)
 	if err != nil {
 		return nil, nil, err
@@ -127,7 +118,7 @@ func (t *Tuic) dial(ctx context.Context) (transport *quic.Transport, addr net.Ad
 	}
 	addr = udpAddr
 	var pc net.PacketConn
-	pc, err = cDialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
+	pc, err = t.dialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -271,6 +262,7 @@ func NewTuic(option TuicOption) (*Tuic, error) {
 		tlsConfig: tlsClientConfig,
 		echConfig: echConfig,
 	}
+	t.dialer = option.NewDialer(t.DialOptions())
 
 	clientMaxOpenStreams := int64(option.MaxOpenStreams)
 

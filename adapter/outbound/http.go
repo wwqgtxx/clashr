@@ -14,8 +14,6 @@ import (
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
-	"github.com/metacubex/mihomo/component/dialer"
-	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
 )
 
@@ -63,18 +61,7 @@ func (h *Http) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Me
 
 // DialContext implements C.ProxyAdapter
 func (h *Http) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
-	return h.DialContextWithDialer(ctx, dialer.NewDialer(h.DialOptions()...), metadata)
-}
-
-// DialContextWithDialer implements C.ProxyAdapter
-func (h *Http) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metadata *C.Metadata) (_ C.Conn, err error) {
-	if len(h.option.DialerProxy) > 0 {
-		dialer, err = proxydialer.NewByName(h.option.DialerProxy, dialer)
-		if err != nil {
-			return nil, err
-		}
-	}
-	c, err := dialer.DialContext(ctx, "tcp", h.addr)
+	c, err := h.dialer.DialContext(ctx, "tcp", h.addr)
 	if err != nil {
 		return nil, fmt.Errorf("%s connect error: %w", h.addr, err)
 	}
@@ -89,11 +76,6 @@ func (h *Http) DialContextWithDialer(ctx context.Context, dialer C.Dialer, metad
 	}
 
 	return NewConn(c, h), nil
-}
-
-// SupportWithDialer implements C.ProxyAdapter
-func (h *Http) SupportWithDialer() C.NetWork {
-	return C.TCP
 }
 
 // ProxyInfo implements C.ProxyAdapter
@@ -181,7 +163,7 @@ func NewHttp(option HttpOption) (*Http, error) {
 		headers.Add(name, value)
 	}
 
-	return &Http{
+	outbound := &Http{
 		Base: &Base{
 			name:   option.Name,
 			addr:   net.JoinHostPort(option.Server, strconv.Itoa(option.Port)),
@@ -197,5 +179,7 @@ func NewHttp(option HttpOption) (*Http, error) {
 		pass:      option.Password,
 		tlsConfig: tlsConfig,
 		Headers:   headers,
-	}, nil
+	}
+	outbound.dialer = option.NewDialer(outbound.DialOptions())
+	return outbound, nil
 }
