@@ -111,7 +111,7 @@ func (u *URLTest) fast(touch bool) C.Proxy {
 		return u.fastNode, nil
 	})
 	if shared && touch { // a shared fastSingle.Do() may cause providers untouched, so we touch them again
-		touchProviders(u.providers)
+		u.Touch()
 	}
 
 	return elm.(C.Proxy)
@@ -142,6 +142,20 @@ func (u *URLTest) MarshalJSON() ([]byte, error) {
 		"now":  u.Now(),
 		"all":  all,
 	})
+}
+
+func (u *URLTest) Touch() {
+	for _, pd := range u.providers {
+		pd.Touch()
+	}
+}
+
+func (u *URLTest) Providers() []P.ProxyProvider {
+	return u.providers
+}
+
+func (u *URLTest) Proxies() []C.Proxy {
+	return u.proxies(false)
 }
 
 func parseURLTestOption(config map[string]any) []urlTestOption {

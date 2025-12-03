@@ -96,7 +96,7 @@ func (f *Fallback) proxies(touch bool) []C.Proxy {
 		return getProvidersProxies(f.providers, touch, f.filter), nil
 	})
 	if shared && touch { // a shared fastSingle.Do() may cause providers untouched, so we touch them again
-		touchProviders(f.providers)
+		f.Touch()
 	}
 
 	return elm
@@ -116,6 +116,20 @@ func (f *Fallback) findAliveProxy(touch bool) C.Proxy {
 	}
 
 	return proxies[0]
+}
+
+func (f *Fallback) Touch() {
+	for _, pd := range f.providers {
+		pd.Touch()
+	}
+}
+
+func (f *Fallback) Providers() []P.ProxyProvider {
+	return f.providers
+}
+
+func (f *Fallback) Proxies() []C.Proxy {
+	return f.proxies(false)
 }
 
 func NewFallback(option *GroupCommonOption, providers []P.ProxyProvider) *Fallback {

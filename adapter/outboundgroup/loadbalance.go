@@ -191,7 +191,7 @@ func (lb *LoadBalance) proxies(touch bool) []C.Proxy {
 		return getProvidersProxies(lb.providers, touch, lb.filter), nil
 	})
 	if shared && touch { // a shared fastSingle.Do() may cause providers untouched, so we touch them again
-		touchProviders(lb.providers)
+		lb.Touch()
 	}
 
 	return elm
@@ -207,6 +207,24 @@ func (lb *LoadBalance) MarshalJSON() ([]byte, error) {
 		"type": lb.Type().String(),
 		"all":  all,
 	})
+}
+
+func (lb *LoadBalance) Touch() {
+	for _, pd := range lb.providers {
+		pd.Touch()
+	}
+}
+
+func (lb *LoadBalance) Providers() []P.ProxyProvider {
+	return lb.providers
+}
+
+func (lb *LoadBalance) Proxies() []C.Proxy {
+	return lb.proxies(false)
+}
+
+func (lb *LoadBalance) Now() string {
+	return ""
 }
 
 func NewLoadBalance(option *GroupCommonOption, providers []P.ProxyProvider, strategy string) (lb *LoadBalance, err error) {

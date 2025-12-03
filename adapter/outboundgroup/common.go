@@ -15,12 +15,6 @@ const (
 	defaultGetProxiesDuration = time.Second * 5
 )
 
-func touchProviders(providers []P.ProxyProvider) {
-	for _, provider := range providers {
-		provider.Touch()
-	}
-}
-
 func getProvidersProxies(providers []P.ProxyProvider, touch bool, filter string) []C.Proxy {
 	proxies := []C.Proxy{}
 	for _, provider := range providers {

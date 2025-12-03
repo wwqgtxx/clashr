@@ -106,6 +106,20 @@ func (s *Selector) selectedProxy(touch bool) C.Proxy {
 	return elm
 }
 
+func (s *Selector) Touch() {
+	for _, pd := range s.providers {
+		pd.Touch()
+	}
+}
+
+func (s *Selector) Providers() []P.ProxyProvider {
+	return s.providers
+}
+
+func (s *Selector) Proxies() []C.Proxy {
+	return getProvidersProxies(s.providers, false, s.filter)
+}
+
 func NewSelector(option *GroupCommonOption, providers []P.ProxyProvider) *Selector {
 	return &Selector{
 		Base: outbound.NewBase(outbound.BaseOption{
