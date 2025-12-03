@@ -58,8 +58,10 @@ var (
 )
 
 type Traffic struct {
-	Up   int64 `json:"up"`
-	Down int64 `json:"down"`
+	Up        int64 `json:"up"`
+	Down      int64 `json:"down"`
+	UpTotal   int64 `json:"upTotal"`
+	DownTotal int64 `json:"downTotal"`
 }
 
 type Memory struct {
@@ -437,9 +439,12 @@ func traffic(w http.ResponseWriter, r *http.Request) {
 	for range tick.C {
 		buf.Reset()
 		up, down := t.Now()
+		upTotal, downTotal := t.Total()
 		if err := json.NewEncoder(buf).Encode(Traffic{
-			Up:   up,
-			Down: down,
+			Up:        up,
+			Down:      down,
+			UpTotal:   upTotal,
+			DownTotal: downTotal,
 		}); err != nil {
 			break
 		}
