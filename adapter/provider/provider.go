@@ -143,7 +143,7 @@ func (pp *proxySetProvider) Initial() error {
 
 func (pp *proxySetProvider) closeAllConnections() {
 	statistic.DefaultManager.Range(func(c statistic.Tracker) bool {
-		for _, chain := range c.Chains() {
+		for _, chain := range c.ProviderChains() {
 			if chain == pp.Name() {
 				_ = c.Close()
 				break
