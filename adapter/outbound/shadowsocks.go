@@ -458,6 +458,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.Shadowsocks,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

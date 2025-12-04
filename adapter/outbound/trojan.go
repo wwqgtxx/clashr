@@ -288,6 +288,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.Trojan,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

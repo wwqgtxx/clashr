@@ -252,6 +252,7 @@ func NewTuic(option TuicOption) (*Tuic, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.Tuic,
+			pdName: option.ProviderName,
 			udp:    true,
 			tfo:    option.TFO,
 			iface:  option.Interface,

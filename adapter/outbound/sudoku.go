@@ -238,6 +238,7 @@ func NewSudoku(option SudokuOption) (*Sudoku, error) {
 			name:   option.Name,
 			addr:   baseConf.ServerAddress,
 			tp:     C.Sudoku,
+			pdName: option.ProviderName,
 			udp:    true,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

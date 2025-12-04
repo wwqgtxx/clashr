@@ -167,10 +167,11 @@ func NewMieru(option MieruOption) (*Mieru, error) {
 		Base: &Base{
 			name:   option.Name,
 			addr:   addr,
-			iface:  option.Interface,
 			tp:     C.Mieru,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			xudp:   false,
+			iface:  option.Interface,
 			rmark:  option.RoutingMark,
 			prefer: option.IPVersion,
 		},

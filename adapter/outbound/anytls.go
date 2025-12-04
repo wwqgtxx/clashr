@@ -90,6 +90,7 @@ func NewAnyTLS(option AnyTLSOption) (*AnyTLS, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.AnyTLS,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

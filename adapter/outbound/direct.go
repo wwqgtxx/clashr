@@ -72,6 +72,7 @@ func NewDirectWithOption(option DirectOption) *Direct {
 		Base: &Base{
 			name:   option.Name,
 			tp:     C.Direct,
+			pdName: option.ProviderName,
 			udp:    true,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

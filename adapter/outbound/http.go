@@ -168,6 +168,7 @@ func NewHttp(option HttpOption) (*Http, error) {
 			name:   option.Name,
 			addr:   net.JoinHostPort(option.Server, strconv.Itoa(option.Port)),
 			tp:     C.Http,
+			pdName: option.ProviderName,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,

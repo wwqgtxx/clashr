@@ -417,6 +417,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 			name:   option.Name,
 			addr:   net.JoinHostPort(option.Server, strconv.Itoa(option.Port)),
 			tp:     C.Vless,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			xudp:   option.XUDP,
 			tfo:    option.TFO,

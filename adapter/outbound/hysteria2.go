@@ -110,6 +110,7 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.Hysteria2,
+			pdName: option.ProviderName,
 			udp:    true,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,

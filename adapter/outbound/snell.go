@@ -165,6 +165,7 @@ func NewSnell(option SnellOption) (*Snell, error) {
 			name:   option.Name,
 			addr:   addr,
 			tp:     C.Snell,
+			pdName: option.ProviderName,
 			udp:    option.UDP,
 			tfo:    option.TFO,
 			mpTcp:  option.MPTCP,

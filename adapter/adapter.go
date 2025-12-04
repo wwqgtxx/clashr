@@ -139,8 +139,9 @@ func (p *Proxy) MarshalJSON() ([]byte, error) {
 	mapping["mptcp"] = proxyInfo.MPTCP
 	mapping["smux"] = proxyInfo.SMUX
 	mapping["interface"] = proxyInfo.Interface
-	mapping["dialer-proxy"] = proxyInfo.DialerProxy
 	mapping["routing-mark"] = proxyInfo.RoutingMark
+	mapping["provider-name"] = proxyInfo.ProviderName
+	mapping["dialer-proxy"] = proxyInfo.DialerProxy
 
 	return json.Marshal(mapping)
 }

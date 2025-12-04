@@ -27,15 +27,17 @@ type ProxyAdapter interface {
 type Base struct {
 	name   string
 	addr   string
-	iface  string
 	tp     C.AdapterType
+	pdName string
 	udp    bool
 	xudp   bool
 	tfo    bool
 	mpTcp  bool
+	iface  string
 	rmark  int
 	prefer C.DNSPrefer
 	dialer C.Dialer
+	id     string
 }
 
 // Name implements C.ProxyAdapter
@@ -76,6 +78,7 @@ func (b *Base) ProxyInfo() (info C.ProxyInfo) {
 	info.SMUX = false
 	info.Interface = b.iface
 	info.RoutingMark = b.rmark
+	info.ProviderName = b.pdName
 	return
 }
 
@@ -157,7 +160,11 @@ type BasicOption struct {
 	IPVersion   C.DNSPrefer `proxy:"ip-version,omitempty"`
 	DialerProxy string      `proxy:"dialer-proxy,omitempty"` // don't apply this option into groups, but can set a group name in a proxy
 
+	//
+	// The following parameters are used internally, assign value by the structure decoder are disallowed
+	//
 	DialerForAPI C.Dialer `proxy:"-"` // the dialer used for API usage has higher priority than all the above configurations.
+	ProviderName string   `proxy:"-"`
 }
 
 func (b *BasicOption) NewDialer(opts []dialer.Option) C.Dialer {
