@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	CN "github.com/metacubex/mihomo/common/net"
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/ca"
 	"github.com/metacubex/mihomo/component/proxydialer"
@@ -85,7 +85,7 @@ func (h *Hysteria2) ListenPacketContext(ctx context.Context, metadata *C.Metadat
 	if pc == nil {
 		return nil, errors.New("packetConn is nil")
 	}
-	return newPacketConn(CN.NewThreadSafePacketConn(pc), h), nil
+	return newPacketConn(N.NewThreadSafePacketConn(pc), h), nil
 }
 
 // Close implements C.ProxyAdapter

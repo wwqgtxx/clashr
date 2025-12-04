@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"sync"
 
-	CN "github.com/metacubex/mihomo/common/net"
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 
@@ -104,7 +104,7 @@ func (m *Mieru) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (
 	if err != nil {
 		return nil, fmt.Errorf("dial to %s failed: %w", metadata.UDPAddr(), err)
 	}
-	return newPacketConn(CN.NewThreadSafePacketConn(mierucommon.NewUDPAssociateWrapper(mierucommon.NewPacketOverStreamTunnel(c))), m), nil
+	return newPacketConn(N.NewThreadSafePacketConn(mierucommon.NewUDPAssociateWrapper(mierucommon.NewPacketOverStreamTunnel(c))), m), nil
 }
 
 // SupportUOT implements C.ProxyAdapter

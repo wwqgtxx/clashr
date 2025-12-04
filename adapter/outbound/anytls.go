@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	CN "github.com/metacubex/mihomo/common/net"
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/anytls"
@@ -63,7 +63,7 @@ func (t *AnyTLS) ListenPacketContext(ctx context.Context, metadata *C.Metadata) 
 
 	// create uot on tcp
 	destination := M.SocksaddrFromNet(metadata.UDPAddr())
-	return newPacketConn(CN.NewThreadSafePacketConn(uot.NewLazyConn(c, uot.Request{Destination: destination})), t), nil
+	return newPacketConn(N.NewThreadSafePacketConn(uot.NewLazyConn(c, uot.Request{Destination: destination})), t), nil
 }
 
 // SupportUOT implements C.ProxyAdapter
