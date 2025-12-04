@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -19,7 +18,7 @@ import (
 	N "github.com/metacubex/mihomo/common/net"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
-	ts "github.com/metacubex/mihomo/transport/sudoku"
+	"github.com/metacubex/mihomo/transport/sudoku"
 )
 
 type Sudoku struct {
@@ -101,12 +100,12 @@ func (s *Sudoku) ListenPacketContext(ctx context.Context, metadata *C.Metadata) 
 		return nil, err
 	}
 
-	if err = ts.WritePreface(c); err != nil {
+	if err = sudoku.WritePreface(c); err != nil {
 		_ = c.Close()
 		return nil, fmt.Errorf("send uot preface failed: %w", err)
 	}
 
-	return newPacketConn(N.NewThreadSafePacketConn(ts.NewUoTPacketConn(c)), s), nil
+	return newPacketConn(N.NewThreadSafePacketConn(sudoku.NewUoTPacketConn(c)), s), nil
 }
 
 // SupportUOT implements C.ProxyAdapter
@@ -163,7 +162,12 @@ func (s *Sudoku) streamConn(rawConn net.Conn, cfg *apis.ProtocolConfig) (_ net.C
 		return nil, err
 	}
 
-	if err = writeTargetAddress(cConn, cfg.TargetAddress); err != nil {
+	addrBuf, err := sudoku.EncodeAddress(cfg.TargetAddress)
+	if err != nil {
+		return nil, fmt.Errorf("encode target address failed: %w", err)
+	}
+
+	if _, err = cConn.Write(addrBuf); err != nil {
 		cConn.Close()
 		return nil, fmt.Errorf("send target address failed: %w", err)
 	}
@@ -255,41 +259,4 @@ func buildSudokuHandshakePayload(key string) [16]byte {
 	hash := sha256.Sum256([]byte(key))
 	copy(payload[8:], hash[:8])
 	return payload
-}
-
-func writeTargetAddress(w io.Writer, rawAddr string) error {
-	host, portStr, err := net.SplitHostPort(rawAddr)
-	if err != nil {
-		return err
-	}
-
-	portInt, err := net.LookupPort("tcp", portStr)
-	if err != nil {
-		return err
-	}
-
-	var buf []byte
-	if ip := net.ParseIP(host); ip != nil {
-		if ip4 := ip.To4(); ip4 != nil {
-			buf = append(buf, 0x01) // IPv4
-			buf = append(buf, ip4...)
-		} else {
-			buf = append(buf, 0x04) // IPv6
-			buf = append(buf, ip...)
-		}
-	} else {
-		if len(host) > 255 {
-			return fmt.Errorf("domain too long")
-		}
-		buf = append(buf, 0x03) // domain
-		buf = append(buf, byte(len(host)))
-		buf = append(buf, host...)
-	}
-
-	var portBytes [2]byte
-	binary.BigEndian.PutUint16(portBytes[:], uint16(portInt))
-	buf = append(buf, portBytes[:]...)
-
-	_, err = w.Write(buf)
-	return err
 }

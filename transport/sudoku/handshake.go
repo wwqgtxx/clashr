@@ -131,7 +131,7 @@ func ServerHandshake(rawConn net.Conn, cfg *apis.ProtocolConfig) (*ServerSession
 	}
 
 	prefixed := &preBufferedConn{Conn: cConn, buf: firstByte}
-	target, err := decodeAddress(prefixed)
+	target, err := DecodeAddress(prefixed)
 	if err != nil {
 		cConn.Close()
 		return nil, fmt.Errorf("read target address failed: %w", err)
