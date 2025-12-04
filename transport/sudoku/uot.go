@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
+	"strconv"
 	"sync"
 	"time"
 
@@ -109,11 +111,14 @@ func (c *UoTPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 			return 0, nil, io.ErrShortBuffer
 		}
 
-		udpAddr, err := net.ResolveUDPAddr("udp", addrStr)
-		if err != nil {
+		host, port, _ := net.SplitHostPort(addrStr)
+		portInt, _ := strconv.ParseUint(port, 10, 16)
+		ip, err := netip.ParseAddr(host)
+		if err != nil { // disallow domain addr at here, just ignore
 			log.Debugln("[Sudoku][UoT] discard datagram with invalid address %s: %v", addrStr, err)
 			continue
 		}
+		udpAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(ip.Unmap(), uint16(portInt)))
 
 		copy(p, payload)
 		return len(payload), udpAddr, nil

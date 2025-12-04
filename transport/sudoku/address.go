@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 )
 
 func EncodeAddress(rawAddr string) ([]byte, error) {
@@ -13,7 +14,7 @@ func EncodeAddress(rawAddr string) ([]byte, error) {
 		return nil, err
 	}
 
-	portInt, err := net.LookupPort("udp", portStr)
+	portInt, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
 		return nil, err
 	}
