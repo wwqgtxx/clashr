@@ -21,7 +21,7 @@ require (
 	github.com/metacubex/chacha v0.1.5
 	github.com/metacubex/fswatch v0.1.1
 	github.com/metacubex/kcp-go v0.0.0-20251111012849-7455698490e9
-	github.com/metacubex/quic-go v0.55.1-0.20251024060151-bd465f127128
+	github.com/metacubex/quic-go v0.55.1-0.20251203073212-6940cac967c2
 	github.com/metacubex/randv2 v0.2.0
 	github.com/metacubex/restls-client-go v0.1.7
 	github.com/metacubex/sing v0.5.6
