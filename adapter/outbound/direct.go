@@ -77,7 +77,7 @@ func NewDirectWithOption(option DirectOption) *Direct {
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 	}
 }

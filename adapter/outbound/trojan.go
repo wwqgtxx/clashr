@@ -293,7 +293,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		option:      &option,
 		hexPassword: trojan.Key(option.Password),

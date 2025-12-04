@@ -113,7 +113,7 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 			udp:    true,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		option: &option,
 	}
@@ -189,7 +189,7 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 		CWND:               option.CWND,
 		UdpMTU:             option.UdpMTU,
 		ServerAddress: func(ctx context.Context) (*net.UDPAddr, error) {
-			udpAddr, err := resolveUDPAddr(ctx, "udp", addr, C.NewDNSPrefer(option.IPVersion))
+			udpAddr, err := resolveUDPAddr(ctx, "udp", addr, option.IPVersion)
 			if err != nil {
 				return nil, err
 			}

@@ -423,7 +423,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		client: client,
 		option: &option,

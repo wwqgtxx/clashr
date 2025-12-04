@@ -463,7 +463,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		method: method,
 

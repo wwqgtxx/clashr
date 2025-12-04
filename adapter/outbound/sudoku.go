@@ -243,7 +243,7 @@ func NewSudoku(option SudokuOption) (*Sudoku, error) {
 			mpTcp:  option.MPTCP,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		option:   &option,
 		table:    table,

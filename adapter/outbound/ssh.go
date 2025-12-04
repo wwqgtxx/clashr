@@ -189,7 +189,7 @@ func NewSsh(option SshOption) (*Ssh, error) {
 			udp:    false,
 			iface:  option.Interface,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		option: &option,
 		config: &config,

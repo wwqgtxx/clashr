@@ -156,13 +156,14 @@ func (*dnsPacketConn) SetWriteDeadline(t time.Time) error {
 func NewDnsWithOption(option DnsOption) *Dns {
 	return &Dns{
 		Base: &Base{
-			name:  option.Name,
-			tp:    C.Dns,
-			udp:   true,
-			tfo:   option.TFO,
-			mpTcp: option.MPTCP,
-			iface: option.Interface,
-			rmark: option.RoutingMark,
+			name:   option.Name,
+			tp:     C.Dns,
+			udp:    true,
+			tfo:    option.TFO,
+			mpTcp:  option.MPTCP,
+			iface:  option.Interface,
+			rmark:  option.RoutingMark,
+			prefer: option.IPVersion,
 		},
 	}
 }

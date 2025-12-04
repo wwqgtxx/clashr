@@ -150,12 +150,12 @@ func (b *Base) Close() error {
 }
 
 type BasicOption struct {
-	TFO         bool   `proxy:"tfo,omitempty" group:"tfo,omitempty"`
-	MPTCP       bool   `proxy:"mptcp,omitempty" group:"mptcp,omitempty"`
-	Interface   string `proxy:"interface-name,omitempty"`
-	RoutingMark int    `proxy:"routing-mark,omitempty"`
-	IPVersion   string `proxy:"ip-version,omitempty" group:"ip-version,omitempty"`
-	DialerProxy string `proxy:"dialer-proxy,omitempty"` // don't apply this option into groups, but can set a group name in a proxy
+	TFO         bool        `proxy:"tfo,omitempty"`
+	MPTCP       bool        `proxy:"mptcp,omitempty"`
+	Interface   string      `proxy:"interface-name,omitempty"`
+	RoutingMark int         `proxy:"routing-mark,omitempty"`
+	IPVersion   C.DNSPrefer `proxy:"ip-version,omitempty"`
+	DialerProxy string      `proxy:"dialer-proxy,omitempty"` // don't apply this option into groups, but can set a group name in a proxy
 
 	DialerForAPI C.Dialer `proxy:"-"` // the dialer used for API usage has higher priority than all the above configurations.
 }

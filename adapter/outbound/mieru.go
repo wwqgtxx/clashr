@@ -172,7 +172,7 @@ func NewMieru(option MieruOption) (*Mieru, error) {
 			udp:    option.UDP,
 			xudp:   false,
 			rmark:  option.RoutingMark,
-			prefer: C.NewDNSPrefer(option.IPVersion),
+			prefer: option.IPVersion,
 		},
 		option: &option,
 		client: c,
