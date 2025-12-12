@@ -259,7 +259,11 @@ func msgToHTTPSRRInfo(msg *D.Msg) string {
 	}
 
 	collect(msg.Answer)
-	collect(msg.Extra)
+
+	//TODO: Do we need to process the data in msg.Extra?
+	//      If so, do we need to validate whether the domain names within it match our request?
+	//      To simplify the problem, let's ignore it for now.
+	//collect(msg.Extra)
 
 	if len(alpns) == 0 && publicName == "" && !hasIPv4 && !hasIPv6 {
 		return ""
