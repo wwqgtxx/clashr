@@ -370,17 +370,11 @@ func streamWebsocketConn(ctx context.Context, conn net.Conn, c *WebsocketConfig,
 				return nil, err
 			}
 			conn = tlsConn
-		} else if c.ECHConfig != nil {
-			tlsConfig := tlsC.UConfig(config)
-			err = c.ECHConfig.ClientHandleUTLS(ctx, tlsConfig)
+		} else {
+			err = c.ECHConfig.ClientHandle(ctx, config)
 			if err != nil {
 				return nil, err
 			}
-			tlsConn := tlsC.Client(conn, tlsConfig)
-
-			err = tlsConn.HandshakeContext(ctx)
-			conn = tlsConn
-		} else {
 			tlsConn := tls.Client(conn, config)
 			err = tlsConn.HandshakeContext(ctx)
 			if err != nil {

@@ -259,14 +259,13 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, clientFingerprint stri
 		}
 
 		if clientFingerprint, ok := tlsC.GetFingerprint(clientFingerprint); ok {
-			tlsConfig := tlsC.UConfig(cfg)
-			err := echConfig.ClientHandleUTLS(ctx, tlsConfig)
-			if err != nil {
-				pconn.Close()
-				return nil, err
-			}
-
 			if realityConfig == nil {
+				tlsConfig := tlsC.UConfig(cfg)
+				err := echConfig.ClientHandleUTLS(ctx, tlsConfig)
+				if err != nil {
+					pconn.Close()
+					return nil, err
+				}
 				tlsConn := tlsC.UClient(pconn, tlsConfig, clientFingerprint)
 				if err := tlsConn.HandshakeContext(ctx); err != nil {
 					pconn.Close()
@@ -279,7 +278,7 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, clientFingerprint stri
 				}
 				return tlsConn, nil
 			} else {
-				realityConn, err := tlsC.GetRealityConn(ctx, pconn, clientFingerprint, tlsConfig, realityConfig)
+				realityConn, err := tlsC.GetRealityConn(ctx, pconn, clientFingerprint, cfg.ServerName, realityConfig)
 				if err != nil {
 					pconn.Close()
 					return nil, err
@@ -296,25 +295,10 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config, clientFingerprint stri
 			return nil, errors.New("REALITY is based on uTLS, please set a client-fingerprint")
 		}
 
-		if echConfig != nil {
-			tlsConfig := tlsC.UConfig(cfg)
-			err := echConfig.ClientHandleUTLS(ctx, tlsConfig)
-			if err != nil {
-				pconn.Close()
-				return nil, err
-			}
-
-			conn := tlsC.Client(pconn, tlsConfig)
-			if err := conn.HandshakeContext(ctx); err != nil {
-				pconn.Close()
-				return nil, err
-			}
-			state := conn.ConnectionState()
-			if p := state.NegotiatedProtocol; p != http.Http2NextProtoTLS {
-				conn.Close()
-				return nil, fmt.Errorf("http2: unexpected ALPN protocol %s, want %s", p, http.Http2NextProtoTLS)
-			}
-			return conn, nil
+		err = echConfig.ClientHandle(ctx, cfg)
+		if err != nil {
+			pconn.Close()
+			return nil, err
 		}
 
 		conn := tls.Client(pconn, cfg)
