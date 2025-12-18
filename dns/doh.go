@@ -3,9 +3,7 @@ package dns
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"io"
-	"net/http"
 	"net/netip"
 	"time"
 
@@ -13,6 +11,8 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 
+	"github.com/metacubex/http"
+	"github.com/metacubex/tls"
 	D "github.com/miekg/dns"
 )
 

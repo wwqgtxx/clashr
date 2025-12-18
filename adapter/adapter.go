@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -15,6 +14,8 @@ import (
 	"github.com/metacubex/mihomo/common/queue"
 	"github.com/metacubex/mihomo/component/ca"
 	C "github.com/metacubex/mihomo/constant"
+
+	"github.com/metacubex/http"
 )
 
 type Proxy struct {

@@ -3,12 +3,13 @@ package config
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 
 	"github.com/metacubex/mihomo/component/mmdb"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
+
+	"github.com/metacubex/http"
 )
 
 func downloadMMDB(path string) (err error) {

@@ -2,13 +2,14 @@ package vmess
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"net"
 
 	"github.com/metacubex/mihomo/component/ca"
 	"github.com/metacubex/mihomo/component/ech"
 	tlsC "github.com/metacubex/mihomo/component/tls"
+
+	"github.com/metacubex/tls"
 )
 
 type TLSConfig struct {
@@ -44,7 +45,7 @@ func StreamTLSConn(ctx context.Context, conn net.Conn, cfg *TLSConfig) (net.Conn
 
 	if clientFingerprint, ok := tlsC.GetFingerprint(cfg.ClientFingerprint); ok {
 		tlsConfig := tlsC.UConfig(tlsConfig)
-		err = cfg.ECH.ClientHandle(ctx, tlsConfig)
+		err = cfg.ECH.ClientHandleUTLS(ctx, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +67,7 @@ func StreamTLSConn(ctx context.Context, conn net.Conn, cfg *TLSConfig) (net.Conn
 
 	if cfg.ECH != nil {
 		tlsConfig := tlsC.UConfig(tlsConfig)
-		err = cfg.ECH.ClientHandle(ctx, tlsConfig)
+		err = cfg.ECH.ClientHandleUTLS(ctx, tlsConfig)
 		if err != nil {
 			return nil, err
 		}

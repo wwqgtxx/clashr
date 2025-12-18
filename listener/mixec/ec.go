@@ -3,7 +3,6 @@ package mixec
 import (
 	"errors"
 	"net"
-	"net/http"
 	"net/netip"
 	"sync"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/metacubex/mihomo/listener/sing_shadowsocks"
 	"github.com/metacubex/mihomo/listener/sing_vmess"
 	"github.com/metacubex/mihomo/transport/vmess"
+
+	"github.com/metacubex/http"
 )
 
 type ChanListener interface {

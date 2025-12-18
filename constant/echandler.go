@@ -1,6 +1,6 @@
 package constant
 
-import "net/http"
+import "github.com/metacubex/http"
 
 var ecHandler http.Handler
 
