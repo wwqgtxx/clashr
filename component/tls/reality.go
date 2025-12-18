@@ -42,6 +42,7 @@ func GetRealityConn(ctx context.Context, conn net.Conn, fingerprint UClientHello
 			serverName: serverName,
 		}
 		uConfig := &utls.Config{
+			Time:                   ntp.Now,
 			ServerName:             serverName,
 			InsecureSkipVerify:     true,
 			SessionTicketsDisabled: true,
