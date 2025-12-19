@@ -96,6 +96,9 @@ func LoadCertificates(certificate string) (*x509.CertPool, error) {
 	if loadErr != nil {
 		return nil, fmt.Errorf("parse certificate failed, maybe format error:%s, or path error: %s", painTextErr.Error(), loadErr.Error())
 	}
+	//TODO: support dynamic update pool too
+	//      blocked by: https://github.com/golang/go/issues/64796
+	//      maybe we can direct add `GetRootCAs` and `GetClientCAs` to ourselves tls fork
 	return pool, nil
 }
 
