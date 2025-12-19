@@ -14,19 +14,14 @@ import (
 	"os"
 	"time"
 
+	C "github.com/metacubex/mihomo/constant"
+
 	"github.com/metacubex/tls"
 )
 
-type Path interface {
-	Resolve(path string) string
-	IsSafePath(path string) bool
-	ErrNotSafePath(path string) error
-}
-
 // NewTLSKeyPairLoader creates a loader function for TLS key pairs from the provided certificate and private key data or file paths.
 // If both certificate and privateKey are empty, generates a random TLS RSA key pair.
-// Accepts a Path interface for resolving file paths when necessary.
-func NewTLSKeyPairLoader(certificate, privateKey string, path Path) (func() (*tls.Certificate, error), error) {
+func NewTLSKeyPairLoader(certificate, privateKey string) (func() (*tls.Certificate, error), error) {
 	if certificate == "" && privateKey == "" {
 		var err error
 		certificate, privateKey, _, err = NewRandomTLSKeyPair(KeyPairTypeRSA)
@@ -40,17 +35,14 @@ func NewTLSKeyPairLoader(certificate, privateKey string, path Path) (func() (*tl
 			return &cert, nil
 		}, nil
 	}
-	if path == nil {
-		return nil, painTextErr
-	}
 
-	certificate = path.Resolve(certificate)
-	privateKey = path.Resolve(privateKey)
+	certificate = C.Path.Resolve(certificate)
+	privateKey = C.Path.Resolve(privateKey)
 	var loadErr error
-	if !path.IsSafePath(certificate) {
-		loadErr = path.ErrNotSafePath(certificate)
-	} else if !path.IsSafePath(privateKey) {
-		loadErr = path.ErrNotSafePath(privateKey)
+	if !C.Path.IsSafePath(certificate) {
+		loadErr = C.Path.ErrNotSafePath(certificate)
+	} else if !C.Path.IsSafePath(privateKey) {
+		loadErr = C.Path.ErrNotSafePath(privateKey)
 	} else {
 		cert, loadErr = tls.LoadX509KeyPair(certificate, privateKey)
 	}
@@ -62,20 +54,17 @@ func NewTLSKeyPairLoader(certificate, privateKey string, path Path) (func() (*tl
 	}, nil
 }
 
-func LoadCertificates(certificate string, path Path) (*x509.CertPool, error) {
+func LoadCertificates(certificate string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 	if pool.AppendCertsFromPEM([]byte(certificate)) {
 		return pool, nil
 	}
 	painTextErr := fmt.Errorf("invalid certificate: %s", certificate)
-	if path == nil {
-		return nil, painTextErr
-	}
 
-	certificate = path.Resolve(certificate)
+	certificate = C.Path.Resolve(certificate)
 	var loadErr error
-	if !path.IsSafePath(certificate) {
-		loadErr = path.ErrNotSafePath(certificate)
+	if !C.Path.IsSafePath(certificate) {
+		loadErr = C.Path.ErrNotSafePath(certificate)
 	} else {
 		certPEMBlock, err := os.ReadFile(certificate)
 		if pool.AppendCertsFromPEM(certPEMBlock) {

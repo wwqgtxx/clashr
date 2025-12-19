@@ -248,7 +248,7 @@ func startTLS(cfg *Config) {
 
 	// handle tlsAddr
 	if len(cfg.TLSAddr) > 0 {
-		certLoader, err := ca.NewTLSKeyPairLoader(cfg.Certificate, cfg.PrivateKey, C.Path)
+		certLoader, err := ca.NewTLSKeyPairLoader(cfg.Certificate, cfg.PrivateKey)
 		if err != nil {
 			log.Errorln("External controller tls listen error: %s", err)
 			return
@@ -273,7 +273,7 @@ func startTLS(cfg *Config) {
 			}
 		}
 		if tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven || tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
-			pool, err := ca.LoadCertificates(cfg.ClientAuthCert, C.Path)
+			pool, err := ca.LoadCertificates(cfg.ClientAuthCert)
 			if err != nil {
 				log.Errorln("External controller tls listen error: %s", err)
 				return
@@ -282,7 +282,7 @@ func startTLS(cfg *Config) {
 		}
 
 		if cfg.EchKey != "" {
-			err = ech.LoadECHKey(cfg.EchKey, tlsConfig, C.Path)
+			err = ech.LoadECHKey(cfg.EchKey, tlsConfig)
 			if err != nil {
 				log.Errorln("External controller tls serve error: %s", err)
 				return

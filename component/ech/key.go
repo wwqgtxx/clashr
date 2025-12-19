@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/metacubex/mihomo/component/ca"
+	C "github.com/metacubex/mihomo/constant"
 
 	"github.com/metacubex/tls"
 	"golang.org/x/crypto/cryptobyte"
@@ -104,7 +104,7 @@ func UnmarshalECHKeys(raw []byte) ([]tls.EncryptedClientHelloKey, error) {
 	return keys, nil
 }
 
-func LoadECHKey(key string, tlsConfig *tls.Config, path ca.Path) error {
+func LoadECHKey(key string, tlsConfig *tls.Config) error {
 	if key == "" {
 		return nil
 	}
@@ -112,10 +112,10 @@ func LoadECHKey(key string, tlsConfig *tls.Config, path ca.Path) error {
 	if painTextErr == nil {
 		return nil
 	}
-	key = path.Resolve(key)
+	key = C.Path.Resolve(key)
 	var loadErr error
-	if !path.IsSafePath(key) {
-		loadErr = path.ErrNotSafePath(key)
+	if !C.Path.IsSafePath(key) {
+		loadErr = C.Path.ErrNotSafePath(key)
 	} else {
 		var echKey []byte
 		echKey, loadErr = os.ReadFile(key)

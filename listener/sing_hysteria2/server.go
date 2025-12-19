@@ -60,7 +60,7 @@ func New(config LC.Hysteria2Server, tunnel C.Tunnel, additions ...inbound.Additi
 		Time:       ntp.Now,
 		MinVersion: tls.VersionTLS13,
 	}
-	certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey, C.Path)
+	certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func New(config LC.Hysteria2Server, tunnel C.Tunnel, additions ...inbound.Additi
 		}
 	}
 	if tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven || tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
-		pool, err := ca.LoadCertificates(config.ClientAuthCert, C.Path)
+		pool, err := ca.LoadCertificates(config.ClientAuthCert)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func New(config LC.Hysteria2Server, tunnel C.Tunnel, additions ...inbound.Additi
 	}
 
 	if config.EchKey != "" {
-		err = ech.LoadECHKey(config.EchKey, tlsConfig, C.Path)
+		err = ech.LoadECHKey(config.EchKey, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
