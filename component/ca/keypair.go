@@ -23,24 +23,25 @@ type Path interface {
 	ErrNotSafePath(path string) error
 }
 
-// LoadTLSKeyPair loads a TLS key pair from the provided certificate and private key data or file paths, supporting fallback resolution.
-// Returns a tls.Certificate and an error, where the error indicates issues during parsing or file loading.
+// NewTLSKeyPairLoader creates a loader function for TLS key pairs from the provided certificate and private key data or file paths.
 // If both certificate and privateKey are empty, generates a random TLS RSA key pair.
 // Accepts a Path interface for resolving file paths when necessary.
-func LoadTLSKeyPair(certificate, privateKey string, path Path) (tls.Certificate, error) {
+func NewTLSKeyPairLoader(certificate, privateKey string, path Path) (func() (*tls.Certificate, error), error) {
 	if certificate == "" && privateKey == "" {
 		var err error
 		certificate, privateKey, _, err = NewRandomTLSKeyPair(KeyPairTypeRSA)
 		if err != nil {
-			return tls.Certificate{}, err
+			return nil, err
 		}
 	}
 	cert, painTextErr := tls.X509KeyPair([]byte(certificate), []byte(privateKey))
 	if painTextErr == nil {
-		return cert, nil
+		return func() (*tls.Certificate, error) {
+			return &cert, nil
+		}, nil
 	}
 	if path == nil {
-		return tls.Certificate{}, painTextErr
+		return nil, painTextErr
 	}
 
 	certificate = path.Resolve(certificate)
@@ -54,9 +55,11 @@ func LoadTLSKeyPair(certificate, privateKey string, path Path) (tls.Certificate,
 		cert, loadErr = tls.LoadX509KeyPair(certificate, privateKey)
 	}
 	if loadErr != nil {
-		return tls.Certificate{}, fmt.Errorf("parse certificate failed, maybe format error:%s, or path error: %s", painTextErr.Error(), loadErr.Error())
+		return nil, fmt.Errorf("parse certificate failed, maybe format error:%s, or path error: %s", painTextErr.Error(), loadErr.Error())
 	}
-	return cert, nil
+	return func() (*tls.Certificate, error) {
+		return &cert, nil
+	}, nil
 }
 
 func LoadCertificates(certificate string, path Path) (*x509.CertPool, error) {

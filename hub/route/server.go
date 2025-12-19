@@ -248,7 +248,7 @@ func startTLS(cfg *Config) {
 
 	// handle tlsAddr
 	if len(cfg.TLSAddr) > 0 {
-		cert, err := ca.LoadTLSKeyPair(cfg.Certificate, cfg.PrivateKey, C.Path)
+		certLoader, err := ca.NewTLSKeyPairLoader(cfg.Certificate, cfg.PrivateKey, C.Path)
 		if err != nil {
 			log.Errorln("External controller tls listen error: %s", err)
 			return
@@ -263,7 +263,9 @@ func startTLS(cfg *Config) {
 		log.Infoln("RESTful API tls listening at: %s", l.Addr().String())
 		tlsConfig := &tls.Config{Time: ntp.Now}
 		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
-		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConfig.GetCertificate = func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return certLoader()
+		}
 		tlsConfig.ClientAuth = ca.ClientAuthTypeFromString(cfg.ClientAuthType)
 		if len(cfg.ClientAuthCert) > 0 {
 			if tlsConfig.ClientAuth == tls.NoClientCert {

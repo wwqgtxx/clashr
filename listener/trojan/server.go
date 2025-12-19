@@ -76,11 +76,13 @@ func New(config LC.TrojanServer, tunnel C.Tunnel, additions ...inbound.Addition)
 	var httpServer http.Server
 
 	if config.Certificate != "" && config.PrivateKey != "" {
-		cert, err := ca.LoadTLSKeyPair(config.Certificate, config.PrivateKey, C.Path)
+		certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey, C.Path)
 		if err != nil {
 			return nil, err
 		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConfig.GetCertificate = func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return certLoader()
+		}
 
 		if config.EchKey != "" {
 			err = ech.LoadECHKey(config.EchKey, tlsConfig, C.Path)
@@ -103,7 +105,7 @@ func New(config LC.TrojanServer, tunnel C.Tunnel, additions ...inbound.Addition)
 		tlsConfig.ClientCAs = pool
 	}
 	if config.RealityConfig.PrivateKey != "" {
-		if tlsConfig.Certificates != nil {
+		if tlsConfig.GetCertificate != nil {
 			return nil, errors.New("certificate is unavailable in reality")
 		}
 		if tlsConfig.ClientAuth != tls.NoClientCert {
@@ -148,7 +150,7 @@ func New(config LC.TrojanServer, tunnel C.Tunnel, additions ...inbound.Addition)
 		}
 		if realityBuilder != nil {
 			l = realityBuilder.NewListener(l)
-		} else if len(tlsConfig.Certificates) > 0 {
+		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
 		} else if !config.TrojanSSOption.Enabled {
 			return nil, errors.New("disallow using Trojan without both certificates/reality/ss config")

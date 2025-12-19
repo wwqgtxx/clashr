@@ -49,15 +49,17 @@ func New(config LC.TuicServer, tunnel C.Tunnel, additions ...inbound.Addition) (
 		return nil, err
 	}
 
-	cert, err := ca.LoadTLSKeyPair(config.Certificate, config.PrivateKey, C.Path)
-	if err != nil {
-		return nil, err
-	}
 	tlsConfig := &tls.Config{
 		Time:       ntp.Now,
 		MinVersion: tls.VersionTLS13,
 	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
+	certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey, C.Path)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.GetCertificate = func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return certLoader()
+	}
 	tlsConfig.ClientAuth = ca.ClientAuthTypeFromString(config.ClientAuthType)
 	if len(config.ClientAuthCert) > 0 {
 		if tlsConfig.ClientAuth == tls.NoClientCert {

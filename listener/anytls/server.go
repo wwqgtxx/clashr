@@ -45,11 +45,13 @@ func New(config LC.AnyTLSServer, tunnel C.Tunnel, additions ...inbound.Addition)
 
 	tlsConfig := &tls.Config{Time: ntp.Now}
 	if config.Certificate != "" && config.PrivateKey != "" {
-		cert, err := ca.LoadTLSKeyPair(config.Certificate, config.PrivateKey, C.Path)
+		certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey, C.Path)
 		if err != nil {
 			return nil, err
 		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConfig.GetCertificate = func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return certLoader()
+		}
 
 		if config.EchKey != "" {
 			err = ech.LoadECHKey(config.EchKey, tlsConfig, C.Path)
@@ -108,7 +110,7 @@ func New(config LC.AnyTLSServer, tunnel C.Tunnel, additions ...inbound.Addition)
 		if err != nil {
 			return nil, err
 		}
-		if len(tlsConfig.Certificates) > 0 {
+		if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
 		} else {
 			return nil, errors.New("disallow using AnyTLS without certificates config")
