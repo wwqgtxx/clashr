@@ -12,10 +12,13 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
 	C "github.com/metacubex/mihomo/constant"
 
+	"github.com/metacubex/fswatch"
 	"github.com/metacubex/tls"
 )
 
@@ -49,7 +52,25 @@ func NewTLSKeyPairLoader(certificate, privateKey string) (func() (*tls.Certifica
 	if loadErr != nil {
 		return nil, fmt.Errorf("parse certificate failed, maybe format error:%s, or path error: %s", painTextErr.Error(), loadErr.Error())
 	}
+	gcFlag := new(os.File)
+	updateMutex := sync.RWMutex{}
+	if watcher, err := fswatch.NewWatcher(fswatch.Options{Path: []string{certificate, privateKey}, Callback: func(path string) {
+		updateMutex.Lock()
+		defer updateMutex.Unlock()
+		if newCert, err := tls.LoadX509KeyPair(certificate, privateKey); err == nil {
+			cert = newCert
+		}
+	}}); err == nil {
+		if err = watcher.Start(); err == nil {
+			runtime.SetFinalizer(gcFlag, func(f *os.File) {
+				_ = watcher.Close()
+			})
+		}
+	}
 	return func() (*tls.Certificate, error) {
+		defer runtime.KeepAlive(gcFlag)
+		updateMutex.RLock()
+		defer updateMutex.RUnlock()
 		return &cert, nil
 	}, nil
 }
