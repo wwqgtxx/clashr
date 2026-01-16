@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/adapter"
+	"github.com/metacubex/mihomo/common/yaml"
 	"github.com/metacubex/mihomo/component/resource"
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 
 	"github.com/dlclark/regexp2"
-	"gopkg.in/yaml.v3"
 )
 
 const (

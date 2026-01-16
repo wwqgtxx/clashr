@@ -15,6 +15,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/utils"
+	"github.com/metacubex/mihomo/common/yaml"
 	"github.com/metacubex/mihomo/component/auth"
 	"github.com/metacubex/mihomo/component/cidr"
 	"github.com/metacubex/mihomo/component/fakeip"
@@ -38,7 +39,6 @@ import (
 
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 )
 
 // General config
