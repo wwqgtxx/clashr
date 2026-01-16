@@ -33,6 +33,7 @@ import (
 	R "github.com/metacubex/mihomo/rules"
 	RC "github.com/metacubex/mihomo/rules/common"
 	RP "github.com/metacubex/mihomo/rules/provider"
+	RW "github.com/metacubex/mihomo/rules/wrapper"
 	T "github.com/metacubex/mihomo/tunnel"
 
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -1370,6 +1371,8 @@ func parseFakeIPRules(rawRules []string, ruleProviders map[string]P.RuleProvider
 		if !isDomainRule(parsed.RuleType()) && parsed.RuleType() != C.MATCH {
 			return nil, fmt.Errorf("dns.fake-ip-filter[%d] [%s] error: rule type '%s' not supported, only domain-based rules allowed", idx, line, tp)
 		}
+
+		parsed = RW.NewRuleWrapper(parsed)
 
 		rules = append(rules, parsed)
 	}
