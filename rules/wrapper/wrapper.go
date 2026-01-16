@@ -1,9 +1,9 @@
 package wrapper
 
 import (
+	"sync/atomic"
 	"time"
 
-	"github.com/metacubex/mihomo/common/atomic"
 	C "github.com/metacubex/mihomo/constant"
 )
 
@@ -11,9 +11,9 @@ type RuleWrapper struct {
 	C.Rule
 	disabled  atomic.Bool
 	hitCount  atomic.Uint64
-	hitAt     atomic.TypedValue[time.Time]
+	hitAt     atomic.Int64 // unix microsecond
 	missCount atomic.Uint64
-	missAt    atomic.TypedValue[time.Time]
+	missAt    atomic.Int64 // unix microsecond
 }
 
 func (r *RuleWrapper) IsDisabled() bool {
@@ -29,7 +29,7 @@ func (r *RuleWrapper) HitCount() uint64 {
 }
 
 func (r *RuleWrapper) HitAt() time.Time {
-	return r.hitAt.Load()
+	return time.UnixMicro(r.hitAt.Load())
 }
 
 func (r *RuleWrapper) MissCount() uint64 {
@@ -37,7 +37,7 @@ func (r *RuleWrapper) MissCount() uint64 {
 }
 
 func (r *RuleWrapper) MissAt() time.Time {
-	return r.missAt.Load()
+	return time.UnixMicro(r.missAt.Load())
 }
 
 func (r *RuleWrapper) Unwrap() C.Rule {
@@ -46,12 +46,12 @@ func (r *RuleWrapper) Unwrap() C.Rule {
 
 func (r *RuleWrapper) Hit() {
 	r.hitCount.Add(1)
-	r.hitAt.Store(time.Now())
+	r.hitAt.Store(time.Now().UnixMicro())
 }
 
 func (r *RuleWrapper) Miss() {
 	r.missCount.Add(1)
-	r.missAt.Store(time.Now())
+	r.missAt.Store(time.Now().UnixMicro())
 }
 
 func (r *RuleWrapper) Match(metadata *C.Metadata, helper C.RuleMatchHelper) (bool, string) {
