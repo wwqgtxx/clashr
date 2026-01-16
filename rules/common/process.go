@@ -10,7 +10,7 @@ import (
 )
 
 type Process struct {
-	*Base
+	Base
 	pattern  string
 	adapter  string
 	ruleType C.RuleType
@@ -54,7 +54,7 @@ func (ps *Process) Match(metadata *C.Metadata, helper C.RuleMatchHelper) (bool, 
 
 func NewProcess(pattern string, adapter string, ruleType C.RuleType) (*Process, error) {
 	ps := &Process{
-		Base:     &Base{},
+		Base:     Base{},
 		pattern:  pattern,
 		adapter:  adapter,
 		ruleType: ruleType,
@@ -70,3 +70,5 @@ func NewProcess(pattern string, adapter string, ruleType C.RuleType) (*Process, 
 	}
 	return ps, nil
 }
+
+var _ C.Rule = (*Process)(nil)

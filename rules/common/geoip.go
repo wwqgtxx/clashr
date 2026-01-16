@@ -11,7 +11,7 @@ import (
 )
 
 type GEOIP struct {
-	*Base
+	Base
 	country     string
 	adapter     string
 	noResolveIP bool
@@ -134,7 +134,7 @@ func NewGEOIP(country string, adapter string, isSrc, noResolveIP bool) (*GEOIP, 
 	country = strings.ToLower(country)
 
 	geoip := &GEOIP{
-		Base:        &Base{},
+		Base:        Base{},
 		country:     country,
 		adapter:     adapter,
 		noResolveIP: noResolveIP,
@@ -142,3 +142,5 @@ func NewGEOIP(country string, adapter string, isSrc, noResolveIP bool) (*GEOIP, 
 	}
 	return geoip, nil
 }
+
+var _ C.Rule = (*GEOIP)(nil)
