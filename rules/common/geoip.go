@@ -89,6 +89,10 @@ func (g dnsFallbackFilter) MatchIp(ip netip.Addr) bool {
 		return false
 	}
 
+	if g.country == "lan" {
+		return !g.isLan(ip)
+	}
+
 	codes := mmdb.IPInstance().LookupCode(ip.AsSlice())
 	return !slices.Contains(codes, g.country)
 }
