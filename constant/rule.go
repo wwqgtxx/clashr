@@ -24,6 +24,8 @@ const (
 	ProcessPath
 	ProcessNameRegex
 	ProcessPathRegex
+	ProcessNameWildcard
+	ProcessPathWildcard
 	Network
 	Type_
 	IPSet
@@ -89,6 +91,10 @@ func (rt RuleType) String() string {
 		return "ProcessNameRegex"
 	case ProcessPathRegex:
 		return "ProcessPathRegex"
+	case ProcessNameWildcard:
+		return "ProcessNameWildcard"
+	case ProcessPathWildcard:
+		return "ProcessPathWildcard"
 	case IPSet:
 		return "IPSet"
 	case MATCH:
