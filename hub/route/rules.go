@@ -24,12 +24,16 @@ type Rule struct {
 	Payload string `json:"payload"`
 	Proxy   string `json:"proxy"`
 
-	// from RuleWrapper
-	Disabled  bool      `json:"disabled,omitempty"`
-	HitCount  uint64    `json:"hitCount,omitempty"`
-	HitAt     time.Time `json:"hitAt,omitempty"`
-	MissCount uint64    `json:"missCount,omitempty"`
-	MissAt    time.Time `json:"missAt,omitempty"`
+	// Extra contains information from RuleWrapper
+	Extra *RuleExtra `json:"extra,omitempty"`
+}
+
+type RuleExtra struct {
+	Disabled  bool      `json:"disabled"`
+	HitCount  uint64    `json:"hitCount"`
+	HitAt     time.Time `json:"hitAt"`
+	MissCount uint64    `json:"missCount"`
+	MissAt    time.Time `json:"missAt"`
 }
 
 func getRules(w http.ResponseWriter, r *http.Request) {
@@ -44,11 +48,13 @@ func getRules(w http.ResponseWriter, r *http.Request) {
 			Proxy:   rule.Adapter(),
 		}
 		if ruleWrapper, ok := rule.(constant.RuleWrapper); ok {
-			r.Disabled = ruleWrapper.IsDisabled()
-			r.HitCount = ruleWrapper.HitCount()
-			r.HitAt = ruleWrapper.HitAt()
-			r.MissCount = ruleWrapper.MissCount()
-			r.MissAt = ruleWrapper.MissAt()
+			r.Extra = &RuleExtra{
+				Disabled:  ruleWrapper.IsDisabled(),
+				HitCount:  ruleWrapper.HitCount(),
+				HitAt:     ruleWrapper.HitAt(),
+				MissCount: ruleWrapper.MissCount(),
+				MissAt:    ruleWrapper.MissAt(),
+			}
 			rule = ruleWrapper.Unwrap() // unwrap RuleWrapper
 		}
 		rules = append(rules, r)
