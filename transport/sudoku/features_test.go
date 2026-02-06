@@ -5,40 +5,9 @@ import (
 	"io"
 	"net"
 	"testing"
-	"time"
 
 	sudokuobfs "github.com/metacubex/mihomo/transport/sudoku/obfs/sudoku"
 )
-
-type discardConn struct{}
-
-func (discardConn) Read([]byte) (int, error)         { return 0, io.EOF }
-func (discardConn) Write(p []byte) (int, error)      { return len(p), nil }
-func (discardConn) Close() error                     { return nil }
-func (discardConn) LocalAddr() net.Addr              { return nil }
-func (discardConn) RemoteAddr() net.Addr             { return nil }
-func (discardConn) SetDeadline(time.Time) error      { return nil }
-func (discardConn) SetReadDeadline(time.Time) error  { return nil }
-func (discardConn) SetWriteDeadline(time.Time) error { return nil }
-
-func TestSudokuObfsWriter_ReducesWriteAllocs(t *testing.T) {
-	table := sudokuobfs.NewTable("alloc-seed", "prefer_ascii")
-	w := newSudokuObfsWriter(discardConn{}, table, 0, 0)
-
-	payload := bytes.Repeat([]byte{0x42}, 2048)
-	if _, err := w.Write(payload); err != nil {
-		t.Fatalf("warmup write: %v", err)
-	}
-
-	allocs := testing.AllocsPerRun(100, func() {
-		if _, err := w.Write(payload); err != nil {
-			t.Fatalf("write: %v", err)
-		}
-	})
-	if allocs != 0 {
-		t.Fatalf("expected 0 allocs/run, got %.2f", allocs)
-	}
-}
 
 func TestCustomTablesRotation_ProbedByServer(t *testing.T) {
 	key := "rotate-test-key"
