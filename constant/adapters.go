@@ -36,6 +36,7 @@ const (
 	Mieru
 	AnyTLS
 	Sudoku
+	Masque
 
 	Relay
 	Selector
@@ -197,6 +198,8 @@ func (at AdapterType) String() string {
 		return "AnyTLS"
 	case Sudoku:
 		return "Sudoku"
+	case Masque:
+		return "Masque"
 	case Relay:
 		return "Relay"
 	case Selector:
