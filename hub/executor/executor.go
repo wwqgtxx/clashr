@@ -278,6 +278,7 @@ func updateDNS(c *config.DNS) {
 		Default:              c.DefaultNameserver,
 		Policy:               c.NameServerPolicy,
 		ProxyServer:          c.ProxyServerNameserver,
+		ProxyServerPolicy:    c.ProxyServerPolicy,
 		DirectServer:         c.DirectNameServer,
 		DirectFollowPolicy:   c.DirectFollowPolicy,
 		SearchDomains:        c.SearchDomains,

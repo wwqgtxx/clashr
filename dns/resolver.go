@@ -478,6 +478,7 @@ type Config struct {
 	FallbackIPFilter     []C.IpMatcher
 	FallbackDomainFilter []C.DomainMatcher
 	Policy               []Policy
+	ProxyServerPolicy    []Policy
 	SearchDomains        []string
 	CacheAlgorithm       string
 	CacheMaxSize         int
@@ -546,55 +547,20 @@ func NewResolver(config Config) (rs Resolvers) {
 		return
 	}
 
-	r := &Resolver{
-		ipv6:          config.IPv6,
-		main:          cacheTransform(config.Main),
-		cache:         config.newCache(),
-		searchDomains: config.SearchDomains,
-	}
-	r.defaultResolver = defaultResolver
-	rs.Resolver = r
-
-	if len(config.ProxyServer) != 0 {
-		rs.ProxyResolver = &Resolver{
-			ipv6:          config.IPv6,
-			main:          cacheTransform(config.ProxyServer),
-			cache:         config.newCache(),
-			searchDomains: config.SearchDomains,
-		}
-	}
-
-	if len(config.DirectServer) != 0 {
-		rs.DirectResolver = &Resolver{
-			ipv6:          config.IPv6,
-			main:          cacheTransform(config.DirectServer),
-			cache:         config.newCache(),
-			searchDomains: config.SearchDomains,
-		}
-	}
-
-	if len(config.Fallback) != 0 {
-		r.fallback = cacheTransform(config.Fallback)
-		r.fallbackIPFilters = config.FallbackIPFilter
-		r.fallbackDomainFilters = config.FallbackDomainFilter
-	}
-
-	if len(config.Policy) != 0 {
-		r.policy = make([]dnsPolicy, 0)
-
+	makePolicy := func(policies []Policy) (dnsPolicies []dnsPolicy) {
 		var triePolicy *trie.DomainTrie[[]dnsClient]
 		insertPolicy := func(policy dnsPolicy) {
 			if triePolicy != nil {
 				triePolicy.Optimize()
-				r.policy = append(r.policy, domainTriePolicy{triePolicy})
+				dnsPolicies = append(dnsPolicies, domainTriePolicy{triePolicy})
 				triePolicy = nil
 			}
 			if policy != nil {
-				r.policy = append(r.policy, policy)
+				dnsPolicies = append(dnsPolicies, policy)
 			}
 		}
 
-		for _, policy := range config.Policy {
+		for _, policy := range policies {
 			if policy.Matcher != nil {
 				insertPolicy(domainMatcherPolicy{matcher: policy.Matcher, dnsClients: cacheTransform(policy.NameServers)})
 			} else {
@@ -605,10 +571,45 @@ func NewResolver(config Config) (rs Resolvers) {
 			}
 		}
 		insertPolicy(nil)
+		return
+	}
 
-		if rs.DirectResolver != nil && config.DirectFollowPolicy {
+	r := &Resolver{
+		ipv6:          config.IPv6,
+		main:          cacheTransform(config.Main),
+		cache:         config.newCache(),
+		searchDomains: config.SearchDomains,
+		policy:        makePolicy(config.Policy),
+	}
+	r.defaultResolver = defaultResolver
+	rs.Resolver = r
+
+	if len(config.ProxyServer) != 0 {
+		rs.ProxyResolver = &Resolver{
+			ipv6:          config.IPv6,
+			main:          cacheTransform(config.ProxyServer),
+			cache:         config.newCache(),
+			searchDomains: config.SearchDomains,
+			policy:        makePolicy(config.ProxyServerPolicy),
+		}
+	}
+
+	if len(config.DirectServer) != 0 {
+		rs.DirectResolver = &Resolver{
+			ipv6:          config.IPv6,
+			main:          cacheTransform(config.DirectServer),
+			cache:         config.newCache(),
+			searchDomains: config.SearchDomains,
+		}
+		if config.DirectFollowPolicy {
 			rs.DirectResolver.policy = r.policy
 		}
+	}
+
+	if len(config.Fallback) != 0 {
+		r.fallback = cacheTransform(config.Fallback)
+		r.fallbackIPFilters = config.FallbackIPFilter
+		r.fallbackDomainFilters = config.FallbackDomainFilter
 	}
 
 	return
