@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/metacubex/mihomo/transport/sudoku/crypto"
@@ -192,19 +191,8 @@ func ClientAEADSeed(key string) string {
 	return key
 }
 
-type ClientHandshakeOptions struct {
-	// HTTPMaskStrategy controls how the client generates the HTTP mask header when DisableHTTPMask=false.
-	// Supported: ""/"random" (default), "post", "websocket".
-	HTTPMaskStrategy string
-}
-
 // ClientHandshake performs the client-side Sudoku handshake (without sending target address).
 func ClientHandshake(rawConn net.Conn, cfg *ProtocolConfig) (net.Conn, error) {
-	return ClientHandshakeWithOptions(rawConn, cfg, ClientHandshakeOptions{})
-}
-
-// ClientHandshakeWithOptions performs the client-side Sudoku handshake (without sending target address).
-func ClientHandshakeWithOptions(rawConn net.Conn, cfg *ProtocolConfig, opt ClientHandshakeOptions) (net.Conn, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -213,7 +201,7 @@ func ClientHandshakeWithOptions(rawConn net.Conn, cfg *ProtocolConfig, opt Clien
 	}
 
 	if !cfg.DisableHTTPMask {
-		if err := WriteHTTPMaskHeader(rawConn, cfg.ServerAddress, cfg.HTTPMaskPathRoot, opt.HTTPMaskStrategy); err != nil {
+		if err := httpmask.WriteRandomRequestHeaderWithPathRoot(rawConn, cfg.ServerAddress, cfg.HTTPMaskPathRoot); err != nil {
 			return nil, fmt.Errorf("write http mask failed: %w", err)
 		}
 	}
@@ -361,18 +349,6 @@ func GenKeyPair() (privateKey, publicKey string, err error) {
 	privateKey = availablePrivateKey            // Available Private Key for client
 	publicKey = crypto.EncodePoint(pair.Public) // Master Public Key for server
 	return
-}
-
-func normalizeHTTPMaskStrategy(strategy string) string {
-	s := strings.TrimSpace(strings.ToLower(strategy))
-	switch s {
-	case "", "random":
-		return "random"
-	case "ws":
-		return "websocket"
-	default:
-		return s
-	}
 }
 
 func userHashFromHandshake(handshakeBuf []byte) string {
