@@ -794,6 +794,12 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 		[]P.ProxyProvider{pd},
 	)
 	proxies["GLOBAL"] = adapter.NewProxy(global)
+
+	// validate dialer-proxy references
+	if err := validateDialerProxies(proxies); err != nil {
+		return nil, nil, err
+	}
+
 	return proxies, providersMap, nil
 }
 
