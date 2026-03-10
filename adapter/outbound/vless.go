@@ -33,9 +33,8 @@ type Vless struct {
 	encryption *encryption.ClientInstance
 
 	// for gun mux
-	gunTLSConfig *vmess.TLSConfig
 	gunConfig    *gun.Config
-	transport    *gun.TransportWrap
+	gunTransport *gun.TransportWrap
 
 	realityConfig *tlsC.RealityConfig
 	echConfig     *ech.Config
@@ -151,7 +150,7 @@ func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 
 		c, err = vmess.StreamH2Conn(ctx, c, h2Opts)
 	case "grpc":
-		c, err = gun.StreamGunWithConn(c, v.gunTLSConfig, v.gunConfig)
+		break // already handle in gun transport
 	default:
 		// default tcp network
 		// handle TLS
@@ -234,23 +233,11 @@ func (v *Vless) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 func (v *Vless) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
 	var c net.Conn
 	// gun transport
-	if v.transport != nil {
-		c, err = gun.StreamGunWithTransport(v.transport, v.gunConfig)
-		if err != nil {
-			return nil, err
-		}
-		defer func(c net.Conn) {
-			safeConnClose(c, err)
-		}(c)
-
-		c, err = v.streamConnContext(ctx, c, metadata)
-		if err != nil {
-			return nil, err
-		}
-
-		return NewConn(c, v), nil
+	if v.gunTransport != nil {
+		c, err = gun.StreamGunWithTransport(v.gunTransport, v.gunConfig)
+	} else {
+		c, err = v.dialer.DialContext(ctx, "tcp", v.addr)
 	}
-	c, err = v.dialer.DialContext(ctx, "tcp", v.addr)
 	if err != nil {
 		return nil, fmt.Errorf("%s connect error: %s", v.addr, err.Error())
 	}
@@ -272,28 +259,11 @@ func (v *Vless) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (
 	}
 	var c net.Conn
 	// gun transport
-	if v.transport != nil {
-		c, err = gun.StreamGunWithTransport(v.transport, v.gunConfig)
-		if err != nil {
-			return nil, err
-		}
-		defer func(c net.Conn) {
-			safeConnClose(c, err)
-		}(c)
-
-		c, err = v.streamConnContext(ctx, c, metadata)
-		if err != nil {
-			return nil, fmt.Errorf("new vless client error: %v", err)
-		}
-
-		return v.ListenPacketOnStreamConn(ctx, c, metadata)
+	if v.gunTransport != nil {
+		c, err = gun.StreamGunWithTransport(v.gunTransport, v.gunConfig)
+	} else {
+		c, err = v.dialer.DialContext(ctx, "tcp", v.addr)
 	}
-
-	if err = v.ResolveUDP(ctx, metadata); err != nil {
-		return nil, err
-	}
-
-	c, err = v.dialer.DialContext(ctx, "tcp", v.addr)
 	if err != nil {
 		return nil, fmt.Errorf("%s connect error: %s", v.addr, err.Error())
 	}
@@ -348,8 +318,8 @@ func (v *Vless) ProxyInfo() C.ProxyInfo {
 
 // Close implements C.ProxyAdapter
 func (v *Vless) Close() error {
-	if v.transport != nil {
-		return v.transport.Close()
+	if v.gunTransport != nil {
+		return v.gunTransport.Close()
 	}
 	return nil
 }
@@ -487,10 +457,9 @@ func NewVless(option VlessOption) (*Vless, error) {
 			}
 		}
 
-		v.gunTLSConfig = tlsConfig
 		v.gunConfig = gunConfig
 
-		v.transport = gun.NewHTTP2Client(dialFn, tlsConfig)
+		v.gunTransport = gun.NewHTTP2Client(dialFn, tlsConfig)
 	}
 
 	return v, nil
