@@ -160,6 +160,28 @@ func TestStructure_DoubleNest(t *testing.T) {
 	assert.Equal(t, s.Bar.BazOptional, goal)
 }
 
+func TestStructure_Remain(t *testing.T) {
+	rawMap := map[string]any{
+		"foo":   1,
+		"bar":   "test",
+		"extra": false,
+	}
+
+	goal := &Baz{
+		Foo: 1,
+		Bar: "test",
+	}
+
+	s := &struct {
+		Baz
+		Remain map[string]any `test:",remain"`
+	}{}
+	err := decoder.Decode(rawMap, s)
+	assert.Nil(t, err)
+	assert.Equal(t, *goal, s.Baz)
+	assert.Equal(t, map[string]any{"extra": false}, s.Remain)
+}
+
 func TestStructure_SliceNilValue(t *testing.T) {
 	rawMap := map[string]any{
 		"foo": 1,

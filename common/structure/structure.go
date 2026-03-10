@@ -421,6 +421,11 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 		field reflect.StructField
 		val   reflect.Value
 	}
+
+	// remainField is set to a valid field set with the "remain" tag if
+	// we are keeping track of remaining values.
+	var remainField *field
+
 	var fields []field
 	for len(structs) > 0 {
 		structVal := structs[0]
@@ -438,12 +443,18 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 
 			// If "squash" is specified in the tag, we squash the field down.
 			squash := fieldVal.Kind() == reflect.Struct && fieldType.Anonymous
+			remain := false
 
 			// We always parse the tags cause we're looking for other tags too
 			tagParts := strings.Split(fieldType.Tag.Get(d.option.TagName), ",")
 			for _, tag := range tagParts[1:] {
 				if tag == "squash" {
 					squash = true
+					break
+				}
+
+				if tag == "remain" {
+					remain = true
 					break
 				}
 			}
@@ -458,8 +469,13 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 				continue
 			}
 
-			// Normal struct field, store it away
-			fields = append(fields, field{fieldType, fieldVal})
+			// Build our field
+			if remain {
+				remainField = &field{fieldType, fieldVal}
+			} else {
+				// Normal struct field, store it away
+				fields = append(fields, field{fieldType, fieldVal})
+			}
 		}
 	}
 
@@ -543,6 +559,25 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 		if err := d.decode(fieldName, rawMapVal.Interface(), fieldValue); err != nil {
 			errors = append(errors, err.Error())
 		}
+	}
+
+	// If we have a "remain"-tagged field and we have unused keys then
+	// we put the unused keys directly into the remain field.
+	if remainField != nil && len(dataValKeysUnused) > 0 {
+		// Build a map of only the unused values
+		remain := map[interface{}]interface{}{}
+		for key := range dataValKeysUnused {
+			remain[key] = dataVal.MapIndex(reflect.ValueOf(key)).Interface()
+		}
+
+		// Decode it as-if we were just decoding this map onto our map.
+		if err := d.decodeMap(name, remain, remainField.val); err != nil {
+			errors = append(errors, err.Error())
+		}
+
+		// Set the map to nil so we have none so that the next check will
+		// not error (ErrorUnused)
+		dataValKeysUnused = nil
 	}
 
 	if len(targetValKeysUnused) > 0 {
