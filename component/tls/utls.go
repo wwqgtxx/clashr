@@ -13,6 +13,7 @@ import (
 	"github.com/metacubex/tls"
 	utls "github.com/metacubex/utls"
 	"github.com/mroth/weightedrand/v2"
+	"golang.org/x/exp/slices"
 )
 
 type Conn = utls.Conn
@@ -271,6 +272,32 @@ func BuildWebsocketHandshakeState(c *UConn) error {
 	}
 	if !hasALPNExtension { // Append extension if doesn't exists
 		c.Extensions = append(c.Extensions, &utls.ALPNExtension{AlpnProtocols: []string{"http/1.1"}})
+	}
+	// Rebuild the client hello
+	if err := c.BuildHandshakeState(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func BuildRemovedX25519MLKEM768HandshakeState(c *UConn) error {
+	// Build the handshake state. This will apply every variable of the TLS of the
+	// fingerprint in the UConn
+	if err := c.BuildHandshakeState(); err != nil {
+		return err
+	}
+	// Iterate over extensions and check
+	for _, extension := range c.Extensions {
+		if ce, ok := extension.(*utls.SupportedCurvesExtension); ok {
+			ce.Curves = slices.DeleteFunc(ce.Curves, func(curveID utls.CurveID) bool {
+				return curveID == utls.X25519MLKEM768
+			})
+		}
+		if ks, ok := extension.(*utls.KeyShareExtension); ok {
+			ks.KeyShares = slices.DeleteFunc(ks.KeyShares, func(share utls.KeyShare) bool {
+				return share.Group == utls.X25519MLKEM768
+			})
+		}
 	}
 	// Rebuild the client hello
 	if err := c.BuildHandshakeState(); err != nil {

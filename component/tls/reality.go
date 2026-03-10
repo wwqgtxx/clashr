@@ -49,15 +49,18 @@ func GetRealityConn(ctx context.Context, conn net.Conn, fingerprint UClientHello
 			VerifyPeerCertificate:  verifier.VerifyPeerCertificate,
 		}
 
-		if !realityConfig.SupportX25519MLKEM768 && fingerprint == HelloChrome_Auto {
-			fingerprint = HelloChrome_120 // old reality server doesn't work with X25519MLKEM768
-		}
-
 		uConn := utls.UClient(conn, uConfig, fingerprint)
 		verifier.UConn = uConn
 		err := uConn.BuildHandshakeState()
 		if err != nil {
 			return nil, err
+		}
+
+		if !realityConfig.SupportX25519MLKEM768 { // for X25519MLKEM768 does not work properly with the old reality server
+			err = BuildRemovedX25519MLKEM768HandshakeState(uConn)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		hello := uConn.HandshakeState.Hello
