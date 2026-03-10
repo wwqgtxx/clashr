@@ -19,10 +19,10 @@ var (
 
 type healthCheckSchema struct {
 	Enable   bool   `provider:"enable"`
-	URL      string `provider:"url"`
-	Interval int    `provider:"interval"`
+	URL      string `provider:"url,omitempty"`
+	Interval int    `provider:"interval,omitempty"`
 	Lazy     bool   `provider:"lazy,omitempty"`
-	Type     string `provider:"type"`
+	Type     string `provider:"type,omitempty"`
 }
 
 type proxyProviderSchema struct {
