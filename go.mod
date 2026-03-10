@@ -114,3 +114,6 @@ require (
 	golang.org/x/time v0.10.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 )
+
+// for https://github.com/golang/protobuf/issues/1704
+replace google.golang.org/protobuf => github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686
