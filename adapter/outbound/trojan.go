@@ -27,7 +27,7 @@ type Trojan struct {
 	hexPassword [trojan.KeyLength]byte
 
 	// for gun mux
-	gunTLSConfig *tls.Config
+	gunTLSConfig *vmess.TLSConfig
 	gunConfig    *gun.Config
 	transport    *gun.TransportWrap
 
@@ -118,7 +118,7 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 
 		c, err = vmess.StreamWebsocketConn(ctx, c, wsOpts)
 	case "grpc":
-		c, err = gun.StreamGunWithConn(c, t.gunTLSConfig, t.gunConfig, t.echConfig, t.realityConfig)
+		c, err = gun.StreamGunWithConn(c, t.gunTLSConfig, t.gunConfig)
 	default:
 		// default tcp network
 		// handle TLS
@@ -336,29 +336,25 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 			return c, nil
 		}
 
-		tlsConfig, err := ca.GetTLSConfig(ca.Option{
-			TLSConfig: &tls.Config{
-				NextProtos:         option.ALPN,
-				MinVersion:         tls.VersionTLS12,
-				InsecureSkipVerify: option.SkipCertVerify,
-				ServerName:         option.SNI,
-			},
-			Fingerprint: option.Fingerprint,
-			Certificate: option.Certificate,
-			PrivateKey:  option.PrivateKey,
-		})
-		if err != nil {
-			return nil, err
+		tlsConfig := &vmess.TLSConfig{
+			Host:              option.SNI,
+			SkipCertVerify:    option.SkipCertVerify,
+			FingerPrint:       option.Fingerprint,
+			Certificate:       option.Certificate,
+			PrivateKey:        option.PrivateKey,
+			ClientFingerprint: option.ClientFingerprint,
+			NextProtos:        []string{"h2"},
+			ECH:               t.echConfig,
+			Reality:           t.realityConfig,
 		}
 
-		t.transport = gun.NewHTTP2Client(dialFn, tlsConfig, option.ClientFingerprint, t.echConfig, t.realityConfig)
+		t.transport = gun.NewHTTP2Client(dialFn, tlsConfig)
 
 		t.gunTLSConfig = tlsConfig
 		t.gunConfig = &gun.Config{
-			ServiceName:       option.GrpcOpts.GrpcServiceName,
-			UserAgent:         option.GrpcOpts.GrpcUserAgent,
-			Host:              option.SNI,
-			ClientFingerprint: option.ClientFingerprint,
+			ServiceName: option.GrpcOpts.GrpcServiceName,
+			UserAgent:   option.GrpcOpts.GrpcUserAgent,
+			Host:        option.SNI,
 		}
 	}
 
