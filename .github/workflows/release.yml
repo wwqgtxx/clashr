@@ -24,23 +24,23 @@ jobs:
         uses: actions/setup-go@v6
         with:
           check-latest: true
-          go-version: "1.25"
+          go-version: "1.26"
 
-      # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
-      # this patch file only works on golang1.25.x
-      # that means after golang1.26 release it must be changed
-      # see: https://github.com/MetaCubeX/go/commits/release-branch.go1.25/
+      # this patch file only works on golang1.26.x
+      # that means after golang1.27 release it must be changed
+      # see: https://github.com/MetaCubeX/go/commits/release-branch.go1.26/
       # revert:
       # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
       # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
       # 48042aa09c2f878c4faa576948b07fe625c4707a: "syscall: remove Windows 7 console handle workaround"
       # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
+      # f0894a00f4b756d4b9b4078af2e686b359493583: "os: remove 5ms sleep on Windows in (*Process).Wait"
       # sepical fix:
       # - os.RemoveAll not working on Windows7
-      - name: Revert Golang1.25 commit for Windows7/8
+      - name: Revert Golang1.26 commit for Windows7/8
         run: |
           cd $(go env GOROOT)
-          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/go1.25.patch
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/go1.26.patch
 
       - name: Set variables
         run: echo "VERSION=$(git describe --tags)" >> $GITHUB_ENV
