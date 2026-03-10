@@ -46,7 +46,7 @@ func GetRealityConn(ctx context.Context, conn net.Conn, fingerprint UClientHello
 			ServerName:             serverName,
 			InsecureSkipVerify:     true,
 			SessionTicketsDisabled: true,
-			VerifyPeerCertificate:  verifier.VerifyPeerCertificate,
+			VerifyConnection:       verifier.VerifyConnection,
 		}
 
 		uConn := utls.UClient(conn, uConfig, fingerprint)
@@ -164,13 +164,9 @@ type realityVerifier struct {
 	verified   bool
 }
 
-//var pOffset = utils.MustOK(reflect.TypeOf((*utls.Conn)(nil)).Elem().FieldByName("peerCertificates")).Offset
-
-func (c *realityVerifier) VerifyPeerCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func (c *realityVerifier) VerifyConnection(state utls.ConnectionState) error {
 	log.Debugln("REALITY localAddr: %v is using X25519MLKEM768 for TLS' communication: %v", c.RemoteAddr(), c.HandshakeState.ServerHello.ServerShare.Group == utls.X25519MLKEM768)
-	//p, _ := reflect.TypeOf(c.Conn).Elem().FieldByName("peerCertificates")
-	//certs := *(*[]*x509.Certificate)(unsafe.Add(unsafe.Pointer(c.Conn), pOffset))
-	certs := c.Conn.PeerCertificates()
+	certs := state.PeerCertificates
 	if pub, ok := certs[0].PublicKey.(ed25519.PublicKey); ok {
 		h := hmac.New(sha512.New, c.authKey)
 		h.Write(pub)
