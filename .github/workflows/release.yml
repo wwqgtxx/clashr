@@ -26,12 +26,19 @@ jobs:
           check-latest: true
           go-version: "1.26"
 
-      # TODO: remove after CL747663 merged, see: https://github.com/golang/go/issues/77731
-      - name: Apply CL747663 for Golang1.26
+        # TODO: remove after issue77731 merged, see: https://github.com/golang/go/issues/77731
+      - name: Apply issue77731 for Golang1.26
         if: ${{ matrix.jobs.goversion == '' }}
         run: |
           cd $(go env GOROOT)
-          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/cl747663.patch
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/issue77731.patch
+
+        # TODO: remove after issue77975 fixed, see: https://github.com/golang/go/issues/77975
+      - name: Fix issue77975 for Golang1.26
+        if: ${{ matrix.jobs.goversion == '' }}
+        run: |
+          cd $(go env GOROOT)
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch/issue77975.patch
 
       # this patch file only works on golang1.26.x
       # that means after golang1.27 release it must be changed
