@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -38,58 +39,7 @@ func (d *Decoder) Decode(src map[string]any, dst any) error {
 	if reflect.TypeOf(dst).Kind() != reflect.Ptr {
 		return fmt.Errorf("decode must recive a ptr struct")
 	}
-	t := reflect.TypeOf(dst).Elem()
-	v := reflect.ValueOf(dst).Elem()
-	for idx := 0; idx < v.NumField(); idx++ {
-		field := t.Field(idx)
-		if field.Anonymous {
-			if err := d.decodeStruct(field.Name, src, v.Field(idx)); err != nil {
-				return err
-			}
-			continue
-		}
-
-		tag := field.Tag.Get(d.option.TagName)
-		key, omitKey, found := strings.Cut(tag, ",")
-		omitempty := found && omitKey == "omitempty"
-
-		// As a special case, if the field tag is "-", the field is always omitted.
-		// Note that a field with name "-" can still be generated using the tag "-,".
-		if key == "-" {
-			continue
-		}
-
-		value, ok := src[key]
-		if !ok {
-			if d.option.KeyReplacer != nil {
-				key = d.option.KeyReplacer.Replace(key)
-			}
-
-			for _strKey := range src {
-				strKey := _strKey
-				if d.option.KeyReplacer != nil {
-					strKey = d.option.KeyReplacer.Replace(strKey)
-				}
-				if strings.EqualFold(key, strKey) {
-					value = src[_strKey]
-					ok = true
-					break
-				}
-			}
-		}
-		if !ok || value == nil {
-			if omitempty {
-				continue
-			}
-			return fmt.Errorf("key '%s' missing", key)
-		}
-
-		err := d.decode(key, value, v.Field(idx))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return d.decode("", src, reflect.ValueOf(dst).Elem())
 }
 
 // isNil returns true if the input is nil or a typed nil pointer.
@@ -456,6 +406,7 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 		dataValKeysUnused[dataValKey.Interface()] = struct{}{}
 	}
 
+	targetValKeysUnused := make(map[any]struct{})
 	errors := make([]string, 0)
 
 	// This slice will keep track of all the structs we'll be decoding.
@@ -479,10 +430,16 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 
 		for i := 0; i < structType.NumField(); i++ {
 			fieldType := structType.Field(i)
-			fieldKind := fieldType.Type.Kind()
+			fieldVal := structVal.Field(i)
+			if fieldVal.Kind() == reflect.Ptr && fieldVal.Elem().Kind() == reflect.Struct {
+				// Handle embedded struct pointers as embedded structs.
+				fieldVal = fieldVal.Elem()
+			}
 
 			// If "squash" is specified in the tag, we squash the field down.
-			squash := false
+			squash := fieldVal.Kind() == reflect.Struct && fieldType.Anonymous
+
+			// We always parse the tags cause we're looking for other tags too
 			tagParts := strings.Split(fieldType.Tag.Get(d.option.TagName), ",")
 			for _, tag := range tagParts[1:] {
 				if tag == "squash" {
@@ -492,17 +449,17 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 			}
 
 			if squash {
-				if fieldKind != reflect.Struct {
+				if fieldVal.Kind() != reflect.Struct {
 					errors = append(errors,
-						fmt.Errorf("%s: unsupported type for squash: %s", fieldType.Name, fieldKind).Error())
+						fmt.Errorf("%s: unsupported type for squash: %s", fieldType.Name, fieldVal.Kind()).Error())
 				} else {
-					structs = append(structs, structVal.FieldByName(fieldType.Name))
+					structs = append(structs, fieldVal)
 				}
 				continue
 			}
 
 			// Normal struct field, store it away
-			fields = append(fields, field{fieldType, structVal.Field(i)})
+			fields = append(fields, field{fieldType, fieldVal})
 		}
 	}
 
@@ -511,14 +468,21 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 		field, fieldValue := f.field, f.val
 		fieldName := field.Name
 
-		tagValue := field.Tag.Get(d.option.TagName)
-		tagValue = strings.SplitN(tagValue, ",", 2)[0]
+		tagParts := strings.Split(field.Tag.Get(d.option.TagName), ",")
+		tagValue := tagParts[0]
 		if tagValue != "" {
 			fieldName = tagValue
 		}
 
 		if tagValue == "-" {
 			continue
+		}
+
+		omitempty := false
+		for _, tag := range tagParts[1:] {
+			if tag == "omitempty" {
+				omitempty = true
+			}
 		}
 
 		rawMapKey := reflect.ValueOf(fieldName)
@@ -548,7 +512,10 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 
 			if !rawMapVal.IsValid() {
 				// There was no matching key in the map for the value in
-				// the struct. Just ignore.
+				// the struct. Remember it for potential errors and metadata.
+				if !omitempty {
+					targetValKeysUnused[fieldName] = struct{}{}
+				}
 				continue
 			}
 		}
@@ -570,12 +537,23 @@ func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) e
 		// If the name is empty string, then we're at the root, and we
 		// don't dot-join the fields.
 		if name != "" {
-			fieldName = fmt.Sprintf("%s.%s", name, fieldName)
+			fieldName = name + "." + fieldName
 		}
 
 		if err := d.decode(fieldName, rawMapVal.Interface(), fieldValue); err != nil {
 			errors = append(errors, err.Error())
 		}
+	}
+
+	if len(targetValKeysUnused) > 0 {
+		keys := make([]string, 0, len(targetValKeysUnused))
+		for rawKey := range targetValKeysUnused {
+			keys = append(keys, rawKey.(string))
+		}
+		sort.Strings(keys)
+
+		err := fmt.Errorf("'%s' has unset fields: %s", name, strings.Join(keys, ", "))
+		errors = append(errors, err.Error())
 	}
 
 	if len(errors) > 0 {
