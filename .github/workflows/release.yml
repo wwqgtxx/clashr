@@ -13,8 +13,8 @@ jobs:
           - { target: "linux-arm64 linux-mips64 linux-mips64le", id: "3" }
           - { target: "linux-mips-softfloat linux-mips-hardfloat linux-mipsle-softfloat linux-mipsle-hardfloat", id: "4" }
           - { target: "freebsd-386 freebsd-amd64 freebsd-amd64-v3 freebsd-arm64", id: "5" }
-          - { target: "windows-amd64 windows-amd64-v3 windows-386", id: "6" }
-          - { target: "windows-arm64 windows-armv7", id: "7" }
+          - { target: "windows-amd64 windows-amd64-v3", id: "6" }
+          - { target: "windows-arm64 windows-386", id: "7" }
           - { target: "darwin-amd64 darwin-amd64-v3 darwin-arm64", id: "8" }
     steps:
       - name: Check out code into the Go module directory
