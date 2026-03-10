@@ -78,9 +78,6 @@ var randomFingerprint = once.OnceValue(func() UClientHelloID {
 	return fingerprint
 })
 
-var HelloChrome_Auto = utls.HelloChrome_Auto
-var HelloChrome_120 = utls.HelloChrome_120 // special fingerprint for some old protocols doesn't work with HelloChrome_Auto
-
 var fingerprints = map[string]UClientHelloID{
 	"chrome":  utls.HelloChrome_Auto,
 	"firefox": utls.HelloFirefox_Auto,
@@ -91,6 +88,11 @@ var fingerprints = map[string]UClientHelloID{
 	"360":     utls.Hello360_Auto,
 	"qq":      utls.HelloQQ_Auto,
 	"random":  {},
+
+	// classical fingerprints without X25519MLKEM768
+	"chrome120":  utls.HelloChrome_120,
+	"firefox120": utls.HelloFirefox_120,
+	"safari16":   utls.HelloSafari_16_0,
 
 	// deprecated fingerprints should not be used
 	"chrome_psk":                 utls.HelloChrome_100_PSK,
