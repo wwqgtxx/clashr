@@ -131,7 +131,7 @@ func (c *Client) resetHealthCheckTimer() {
 	c.healthCheckTimer.Reset(DefaultHealthCheckTimeout)
 }
 
-func (c *Client) dial(ctx context.Context, request *http.Request, conn *httpConn, pipeReader *io.PipeReader, pipeWriter *io.PipeWriter) {
+func (c *Client) dial(request *http.Request, conn *httpConn, pipeReader *io.PipeReader, pipeWriter *io.PipeWriter) {
 	c.startOnce.Do(c.start)
 	trace := &httptrace.ClientTrace{
 		GotConn: func(connInfo httptrace.GotConnInfo) {
@@ -139,6 +139,9 @@ func (c *Client) dial(ctx context.Context, request *http.Request, conn *httpConn
 			conn.SetRemoteAddr(connInfo.Conn.RemoteAddr())
 		},
 	}
+	ctx, cancel := context.WithCancel(c.ctx)               // requestCtx must alive during conn not closed
+	timeout := time.AfterFunc(C.DefaultTCPTimeout, cancel) // only cancel when RoundTrip timeout
+	defer timeout.Stop()                                   // RoundTrip already returned, stop the timer
 	request = request.WithContext(httptrace.WithClientTrace(ctx, trace))
 	response, err := c.roundTripper.RoundTrip(request)
 	if err != nil {
@@ -177,7 +180,7 @@ func (c *Client) Dial(ctx context.Context, host string) (net.Conn, error) {
 			created: make(chan struct{}),
 		},
 	}
-	go c.dial(ctx, request, &conn.httpConn, pipeReader, pipeWriter)
+	go c.dial(request, &conn.httpConn, pipeReader, pipeWriter)
 	return conn, nil
 }
 
@@ -203,7 +206,7 @@ func (c *Client) ListenPacket(ctx context.Context) (net.PacketConn, error) {
 			},
 		},
 	}
-	go c.dial(ctx, request, &conn.httpConn, pipeReader, pipeWriter)
+	go c.dial(request, &conn.httpConn, pipeReader, pipeWriter)
 	return conn, nil
 }
 
@@ -227,7 +230,7 @@ func (c *Client) ListenICMP(ctx context.Context) (*IcmpConn, error) {
 			created: make(chan struct{}),
 		},
 	}
-	go c.dial(ctx, request, &conn.httpConn, pipeReader, pipeWriter)
+	go c.dial(request, &conn.httpConn, pipeReader, pipeWriter)
 	return conn, nil
 }
 
