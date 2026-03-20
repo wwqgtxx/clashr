@@ -21,6 +21,7 @@ require (
 	github.com/metacubex/fswatch v0.1.1
 	github.com/metacubex/http v0.1.0
 	github.com/metacubex/kcp-go v0.0.0-20260105040817-550693377604
+	github.com/metacubex/mhurl v0.1.0
 	github.com/metacubex/mlkem v0.1.0
 	github.com/metacubex/quic-go v0.59.1-0.20260213014310-4df8f0de5b56
 	github.com/metacubex/randv2 v0.2.0
