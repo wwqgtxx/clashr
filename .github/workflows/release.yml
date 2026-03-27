@@ -68,7 +68,10 @@ jobs:
       - name: Get dependencies, run test
         if: ${{ matrix.job.id=='1' }}
         run: |
+          export SKIP_CONCURRENT_TEST=1
           go test ./...
+          echo "---test with_gvisor---"
+          go test ./... -tags "with_gvisor" -count=1
 
       - name: Update CA
         run: |
