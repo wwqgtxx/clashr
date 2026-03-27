@@ -32,8 +32,8 @@ jobs:
       - name: Verify Go env
         run: go env
 
-        # TODO: remove after issue77731 merged, see: https://github.com/golang/go/issues/77731
-      - name: Apply issue77731 for Golang1.26
+        # TODO: remove after issue77731 fixed, see: https://github.com/golang/go/issues/77731
+      - name: Fix issue77731 for Golang1.26
         if: ${{ matrix.jobs.goversion == '' }}
         run: |
           cd $(go env GOROOT)
