@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/metacubex/mihomo/common/contextutils"
 	"github.com/metacubex/mihomo/common/httputils"
@@ -22,32 +21,22 @@ import (
 type DialRawFunc func(ctx context.Context) (net.Conn, error)
 type WrapTLSFunc func(ctx context.Context, conn net.Conn, isH2 bool) (net.Conn, error)
 
-type PacketUpConn struct {
+type PacketUpWriter struct {
 	ctx       context.Context
 	cfg       *Config
-	host      string
 	sessionID string
 	transport http.RoundTripper
 	writeMu   sync.Mutex
 	seq       uint64
-	reader    io.ReadCloser
-	httputils.NetAddr
-
-	// deadlines
-	deadline *time.Timer
 }
 
-func (c *PacketUpConn) Read(b []byte) (int, error) {
-	return c.reader.Read(b)
-}
-
-func (c *PacketUpConn) Write(b []byte) (int, error) {
+func (c *PacketUpWriter) Write(b []byte) (int, error) {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.host,
+		Host:   c.cfg.Host,
 		Path:   c.cfg.NormalizedPath(),
 	}
 
@@ -62,7 +51,7 @@ func (c *PacketUpConn) Write(b []byte) (int, error) {
 	if err := c.cfg.FillPacketRequest(req, c.sessionID, seqStr, b); err != nil {
 		return 0, err
 	}
-	req.Host = c.host
+	req.Host = c.cfg.Host
 
 	resp, err := c.transport.RoundTrip(req)
 	if err != nil {
@@ -78,34 +67,8 @@ func (c *PacketUpConn) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (c *PacketUpConn) Close() error {
-	var err error
-	if c.reader != nil {
-		err = c.reader.Close()
-	}
+func (c *PacketUpWriter) Close() error {
 	httputils.CloseTransport(c.transport)
-	return err
-}
-
-func (c *PacketUpConn) SetReadDeadline(t time.Time) error  { return c.SetDeadline(t) }
-func (c *PacketUpConn) SetWriteDeadline(t time.Time) error { return c.SetDeadline(t) }
-
-func (c *PacketUpConn) SetDeadline(t time.Time) error {
-	if t.IsZero() {
-		if c.deadline != nil {
-			c.deadline.Stop()
-			c.deadline = nil
-		}
-		return nil
-	}
-	d := time.Until(t)
-	if c.deadline != nil {
-		c.deadline.Reset(d)
-		return nil
-	}
-	c.deadline = time.AfterFunc(d, func() {
-		c.Close()
-	})
 	return nil
 }
 
@@ -209,16 +172,17 @@ func DialPacketUp(
 		Path:   cfg.NormalizedPath(),
 	}
 
-	conn := &PacketUpConn{
-		ctx:       contextutils.WithoutCancel(ctx),
+	ctx = contextutils.WithoutCancel(ctx)
+	writer := &PacketUpWriter{
+		ctx:       ctx,
 		cfg:       cfg,
-		host:      cfg.Host,
 		sessionID: sessionID,
 		transport: transport,
 		seq:       0,
 	}
+	conn := &Conn{writer: writer}
 
-	req, err := http.NewRequestWithContext(httputils.NewAddrContext(&conn.NetAddr, conn.ctx), http.MethodGet, downloadURL.String(), nil)
+	req, err := http.NewRequestWithContext(httputils.NewAddrContext(&conn.NetAddr, ctx), http.MethodGet, downloadURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
