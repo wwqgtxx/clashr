@@ -292,21 +292,6 @@ func (v *Vless) dialXHTTPConn(ctx context.Context) (net.Conn, error) {
 
 // DialContext implements C.ProxyAdapter
 func (v *Vless) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
-	if v.option.Network == "xhttp" {
-		c, err := v.dialXHTTPConn(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("%s connect error: %s", v.addr, err.Error())
-		}
-
-		c, err = v.streamConnContext(ctx, c, metadata)
-		if err != nil {
-			safeConnClose(c, err)
-			return nil, fmt.Errorf("%s connect error: %s", v.addr, err.Error())
-		}
-
-		return NewConn(c, v), nil
-	}
-
 	var c net.Conn
 	switch v.option.Network {
 	case "xhttp":
