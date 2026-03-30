@@ -112,20 +112,13 @@ func (c *PacketUpConn) SetDeadline(t time.Time) error {
 
 func DialStreamOne(
 	ctx context.Context,
-	address string,
-	port int,
 	cfg *Config,
 	dialRaw DialRawFunc,
 	wrapTLS WrapTLSFunc,
 ) (net.Conn, error) {
-	host := cfg.Host
-	if host == "" {
-		host = address
-	}
-
 	requestURL := url.URL{
 		Scheme: "https",
-		Host:   host,
+		Host:   cfg.Host,
 		Path:   cfg.NormalizedPath(),
 	}
 
@@ -163,7 +156,7 @@ func DialStreamOne(
 		_ = pw.Close()
 		return nil, err
 	}
-	req.Host = host
+	req.Host = cfg.Host
 
 	if err := cfg.FillStreamRequest(req); err != nil {
 		_ = pr.Close()
@@ -197,17 +190,10 @@ func DialStreamOne(
 
 func DialPacketUp(
 	ctx context.Context,
-	address string,
-	port int,
 	cfg *Config,
 	dialRaw DialRawFunc,
 	wrapTLS WrapTLSFunc,
 ) (net.Conn, error) {
-	host := cfg.Host
-	if host == "" {
-		host = address
-	}
-
 	transport := &http.Http2Transport{
 		DialTLSContext: func(ctx context.Context, network string, addr string, _ *tls.Config) (net.Conn, error) {
 			raw, err := dialRaw(ctx)
@@ -227,14 +213,14 @@ func DialPacketUp(
 
 	downloadURL := url.URL{
 		Scheme: "https",
-		Host:   host,
+		Host:   cfg.Host,
 		Path:   cfg.NormalizedPath(),
 	}
 
 	conn := &PacketUpConn{
 		ctx:       contextutils.WithoutCancel(ctx),
 		cfg:       cfg,
-		host:      host,
+		host:      cfg.Host,
 		sessionID: sessionID,
 		transport: transport,
 		seq:       0,
@@ -254,7 +240,7 @@ func DialPacketUp(
 	if err := cfg.FillDownloadRequest(req, sessionID); err != nil {
 		return nil, err
 	}
-	req.Host = host
+	req.Host = cfg.Host
 
 	resp, err := transport.RoundTrip(req)
 	if err != nil {
