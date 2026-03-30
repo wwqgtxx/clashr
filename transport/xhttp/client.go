@@ -26,11 +26,9 @@ type WrapTLSFunc func(ctx context.Context, conn net.Conn, isH2 bool) (net.Conn, 
 type PacketUpConn struct {
 	ctx       context.Context
 	cfg       *Config
-	address   string
-	port      int
 	host      string
 	sessionID string
-	client    *http.Client
+	transport http.RoundTripper
 	writeMu   sync.Mutex
 	seq       uint64
 	reader    io.ReadCloser
@@ -67,7 +65,7 @@ func (c *PacketUpConn) Write(b []byte) (int, error) {
 	}
 	req.Host = c.host
 
-	resp, err := c.client.Do(req)
+	resp, err := c.transport.RoundTrip(req)
 	if err != nil {
 		return 0, err
 	}
@@ -82,10 +80,12 @@ func (c *PacketUpConn) Write(b []byte) (int, error) {
 }
 
 func (c *PacketUpConn) Close() error {
+	var err error
 	if c.reader != nil {
-		return c.reader.Close()
+		err = c.reader.Close()
 	}
-	return nil
+	forceCloseAllConnections(c.transport)
+	return err
 }
 
 func (c *PacketUpConn) SetReadDeadline(t time.Time) error  { return c.SetDeadline(t) }
@@ -144,10 +144,6 @@ func DialStreamOne(
 		},
 	}
 
-	client := &http.Client{
-		Transport: transport,
-	}
-
 	pr, pw := io.Pipe()
 
 	conn := &Conn{
@@ -175,34 +171,25 @@ func DialStreamOne(
 		return nil, err
 	}
 
-	type respResult struct {
-		resp *http.Response
-		err  error
-	}
-
-	respCh := make(chan respResult, 1)
-
-	go func() {
-		resp, err := client.Do(req)
-		respCh <- respResult{resp: resp, err: err}
-	}()
-
-	result := <-respCh
-	if result.err != nil {
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
 		_ = pr.Close()
 		_ = pw.Close()
-		return nil, result.err
+		forceCloseAllConnections(transport)
+		return nil, err
 	}
-	if result.resp.StatusCode < 200 || result.resp.StatusCode >= 300 {
-		_ = result.resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		_ = resp.Body.Close()
 		_ = pr.Close()
 		_ = pw.Close()
-		return nil, fmt.Errorf("xhttp stream-one bad status: %s", result.resp.Status)
+		forceCloseAllConnections(transport)
+		return nil, fmt.Errorf("xhttp stream-one bad status: %s", resp.Status)
 	}
-	conn.reader = result.resp.Body
+	conn.reader = resp.Body
 	conn.onClose = func() {
-		_ = result.resp.Body.Close()
+		_ = resp.Body.Close()
 		_ = pr.Close()
+		forceCloseAllConnections(transport)
 	}
 
 	return conn, nil
@@ -236,8 +223,6 @@ func DialPacketUp(
 		},
 	}
 
-	client := &http.Client{Transport: transport}
-
 	sessionID := newSessionID()
 
 	downloadURL := url.URL{
@@ -249,11 +234,9 @@ func DialPacketUp(
 	conn := &PacketUpConn{
 		ctx:       contextutils.WithoutCancel(ctx),
 		cfg:       cfg,
-		address:   address,
-		port:      port,
 		host:      host,
 		sessionID: sessionID,
-		client:    client,
+		transport: transport,
 		seq:       0,
 	}
 
@@ -273,12 +256,13 @@ func DialPacketUp(
 	}
 	req.Host = host
 
-	resp, err := client.Do(req)
+	resp, err := transport.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
+		forceCloseAllConnections(transport)
 		return nil, fmt.Errorf("xhttp packet-up download bad status: %s", resp.Status)
 	}
 	conn.reader = resp.Body
