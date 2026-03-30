@@ -17,13 +17,13 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/buf"
+	"github.com/metacubex/mihomo/common/httputils"
 	"github.com/metacubex/mihomo/common/pool"
 	tlsC "github.com/metacubex/mihomo/component/tls"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/vmess"
 
 	"github.com/metacubex/http"
-	"github.com/metacubex/http/httptrace"
 	"github.com/metacubex/tls"
 )
 
@@ -40,10 +40,10 @@ var defaultHeader = http.Header{
 type DialFn = func(ctx context.Context, network, addr string) (net.Conn, error)
 
 type Conn struct {
-	initFn func() (io.ReadCloser, NetAddr, error)
+	initFn func(addr *httputils.NetAddr) (io.ReadCloser, error)
 	writer io.Writer // writer must not nil
 	closer io.Closer
-	NetAddr
+	httputils.NetAddr
 
 	initOnce sync.Once
 	initErr  error
@@ -66,7 +66,7 @@ type Config struct {
 }
 
 func (g *Conn) initReader() {
-	reader, addr, err := g.initFn()
+	reader, err := g.initFn(&g.NetAddr)
 	if err != nil {
 		g.initErr = err
 		if closer, ok := g.writer.(io.Closer); ok {
@@ -74,7 +74,6 @@ func (g *Conn) initReader() {
 		}
 		return
 	}
-	g.NetAddr = addr
 
 	g.closeMutex.Lock()
 	defer g.closeMutex.Unlock()
@@ -247,6 +246,22 @@ func (g *Conn) SetDeadline(t time.Time) error {
 	return nil
 }
 
+type Transport struct {
+	transport *http.Http2Transport
+	cfg       *Config
+	ctx       context.Context
+	cancel    context.CancelFunc
+	closeOnce sync.Once
+}
+
+func (t *Transport) Close() error {
+	t.closeOnce.Do(func() {
+		t.cancel()
+		httputils.CloseTransport(t.transport)
+	})
+	return nil
+}
+
 func NewTransport(dialFn DialFn, tlsConfig *vmess.TLSConfig, gunCfg *Config) *Transport {
 	dialFunc := func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
 		ctx, cancel := context.WithTimeout(ctx, C.DefaultTLSTimeout)
@@ -343,21 +358,14 @@ func (t *Transport) Dial() (net.Conn, error) {
 	initStarted := make(chan struct{})
 
 	conn := &Conn{
-		initFn: func() (io.ReadCloser, NetAddr, error) {
+		initFn: func(addr *httputils.NetAddr) (io.ReadCloser, error) {
 			close(initStarted)
-			nAddr := NetAddr{}
-			trace := &httptrace.ClientTrace{
-				GotConn: func(connInfo httptrace.GotConnInfo) {
-					nAddr.SetLocalAddr(connInfo.Conn.LocalAddr())
-					nAddr.SetRemoteAddr(connInfo.Conn.RemoteAddr())
-				},
-			}
-			request = request.WithContext(httptrace.WithClientTrace(request.Context(), trace))
+			request = request.WithContext(httputils.NewAddrContext(addr, request.Context()))
 			response, err := t.transport.RoundTrip(request)
 			if err != nil {
-				return nil, nAddr, err
+				return nil, err
 			}
-			return response.Body, nAddr, nil
+			return response.Body, nil
 		},
 		writer: writer,
 	}

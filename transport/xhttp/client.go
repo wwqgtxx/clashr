@@ -13,10 +13,9 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/contextutils"
-	"github.com/metacubex/mihomo/transport/gun"
+	"github.com/metacubex/mihomo/common/httputils"
 
 	"github.com/metacubex/http"
-	"github.com/metacubex/http/httptrace"
 	"github.com/metacubex/tls"
 )
 
@@ -32,7 +31,7 @@ type PacketUpConn struct {
 	writeMu   sync.Mutex
 	seq       uint64
 	reader    io.ReadCloser
-	gun.NetAddr
+	httputils.NetAddr
 
 	// deadlines
 	deadline *time.Timer
@@ -84,7 +83,7 @@ func (c *PacketUpConn) Close() error {
 	if c.reader != nil {
 		err = c.reader.Close()
 	}
-	forceCloseAllConnections(c.transport)
+	httputils.CloseTransport(c.transport)
 	return err
 }
 
@@ -143,14 +142,7 @@ func DialStreamOne(
 		writer: pw,
 	}
 
-	trace := &httptrace.ClientTrace{
-		GotConn: func(connInfo httptrace.GotConnInfo) {
-			conn.SetLocalAddr(connInfo.Conn.LocalAddr())
-			conn.SetRemoteAddr(connInfo.Conn.RemoteAddr())
-		},
-	}
-
-	req, err := http.NewRequestWithContext(httptrace.WithClientTrace(contextutils.WithoutCancel(ctx), trace), http.MethodPost, requestURL.String(), pr)
+	req, err := http.NewRequestWithContext(httputils.NewAddrContext(&conn.NetAddr, contextutils.WithoutCancel(ctx)), http.MethodPost, requestURL.String(), pr)
 	if err != nil {
 		_ = pr.Close()
 		_ = pw.Close()
@@ -168,21 +160,21 @@ func DialStreamOne(
 	if err != nil {
 		_ = pr.Close()
 		_ = pw.Close()
-		forceCloseAllConnections(transport)
+		httputils.CloseTransport(transport)
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		_ = resp.Body.Close()
 		_ = pr.Close()
 		_ = pw.Close()
-		forceCloseAllConnections(transport)
+		httputils.CloseTransport(transport)
 		return nil, fmt.Errorf("xhttp stream-one bad status: %s", resp.Status)
 	}
 	conn.reader = resp.Body
 	conn.onClose = func() {
 		_ = resp.Body.Close()
 		_ = pr.Close()
-		forceCloseAllConnections(transport)
+		httputils.CloseTransport(transport)
 	}
 
 	return conn, nil
@@ -226,14 +218,7 @@ func DialPacketUp(
 		seq:       0,
 	}
 
-	trace := &httptrace.ClientTrace{
-		GotConn: func(connInfo httptrace.GotConnInfo) {
-			conn.SetLocalAddr(connInfo.Conn.LocalAddr())
-			conn.SetRemoteAddr(connInfo.Conn.RemoteAddr())
-		},
-	}
-
-	req, err := http.NewRequestWithContext(httptrace.WithClientTrace(conn.ctx, trace), http.MethodGet, downloadURL.String(), nil)
+	req, err := http.NewRequestWithContext(httputils.NewAddrContext(&conn.NetAddr, conn.ctx), http.MethodGet, downloadURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +233,7 @@ func DialPacketUp(
 	}
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
-		forceCloseAllConnections(transport)
+		httputils.CloseTransport(transport)
 		return nil, fmt.Errorf("xhttp packet-up download bad status: %s", resp.Status)
 	}
 	conn.reader = resp.Body
