@@ -152,8 +152,10 @@ func (g *Conn) Write(b []byte) (n int, err error) {
 	buf.Write(b)
 
 	_, err = g.writer.Write(buf.Bytes())
-	if err == io.ErrClosedPipe && g.initErr != nil {
-		err = g.initErr
+	if err == io.ErrClosedPipe {
+		if initErr := g.Init(); initErr != nil {
+			err = initErr
+		}
 	}
 
 	if flusher, ok := g.writer.(http.Flusher); ok {
@@ -175,8 +177,10 @@ func (g *Conn) WriteBuffer(buffer *buf.Buffer) error {
 	binary.PutUvarint(header[6:], uint64(dataLen))
 	_, err := g.writer.Write(buffer.Bytes())
 
-	if err == io.ErrClosedPipe && g.initErr != nil {
-		err = g.initErr
+	if err == io.ErrClosedPipe {
+		if initErr := g.Init(); initErr != nil {
+			err = initErr
+		}
 	}
 
 	if flusher, ok := g.writer.(http.Flusher); ok {
@@ -191,10 +195,6 @@ func (g *Conn) FrontHeadroom() int {
 }
 
 func (g *Conn) Close() error {
-	g.initOnce.Do(func() { // if initReader not called, it should not be run anymore
-		g.initErr = net.ErrClosed
-	})
-
 	g.closeMutex.Lock()
 	defer g.closeMutex.Unlock()
 	if g.closed {
@@ -340,9 +340,11 @@ func (t *Transport) Dial() (net.Conn, error) {
 		Header:     header,
 	}
 	request = request.WithContext(t.ctx)
+	initStarted := make(chan struct{})
 
 	conn := &Conn{
 		initFn: func() (io.ReadCloser, NetAddr, error) {
+			close(initStarted)
 			nAddr := NetAddr{}
 			trace := &httptrace.ClientTrace{
 				GotConn: func(connInfo httptrace.GotConnInfo) {
@@ -361,6 +363,11 @@ func (t *Transport) Dial() (net.Conn, error) {
 	}
 
 	go conn.Init()
+
+	// ensure conn.initOnce.Do has been called before return
+	// prevent the race caused by the return side immediately calling conn.Close
+	<-initStarted
+
 	return conn, nil
 }
 
