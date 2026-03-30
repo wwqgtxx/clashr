@@ -118,13 +118,13 @@ jobs:
           pattern: bin-*
           merge-multiple: true
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
+        uses: actions/upload-artifact/merge@v7
         with:
           name: bin
           pattern: bin-*
           delete-merged: true
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: bin/*
