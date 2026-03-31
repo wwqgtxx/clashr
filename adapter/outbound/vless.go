@@ -241,7 +241,7 @@ func (v *Vless) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 	return conn, nil
 }
 
-func (v *Vless) dialXHTTPConn(ctx context.Context) (net.Conn, error) {
+func (v *Vless) dialXHTTPConn() (net.Conn, error) {
 	requestHost := v.option.XHTTPOpts.Host
 	if requestHost == "" {
 		if v.option.ServerName != "" {
@@ -261,30 +261,20 @@ func (v *Vless) dialXHTTPConn(ctx context.Context) (net.Conn, error) {
 	}
 
 	mode := cfg.EffectiveMode(v.realityConfig != nil)
+	transport := xhttp.NewTransport(
+		func(ctx context.Context) (net.Conn, error) {
+			return v.dialer.DialContext(ctx, "tcp", v.addr)
+		},
+		func(ctx context.Context, raw net.Conn, isH2 bool) (net.Conn, error) {
+			return v.streamTLSConn(ctx, raw, isH2)
+		},
+	)
 
 	switch mode {
 	case "stream-one":
-		return xhttp.DialStreamOne(
-			ctx,
-			cfg,
-			func(ctx context.Context) (net.Conn, error) {
-				return v.dialer.DialContext(ctx, "tcp", v.addr)
-			},
-			func(ctx context.Context, raw net.Conn, isH2 bool) (net.Conn, error) {
-				return v.streamTLSConn(ctx, raw, isH2)
-			},
-		)
+		return xhttp.DialStreamOne(cfg, transport)
 	case "packet-up":
-		return xhttp.DialPacketUp(
-			ctx,
-			cfg,
-			func(ctx context.Context) (net.Conn, error) {
-				return v.dialer.DialContext(ctx, "tcp", v.addr)
-			},
-			func(ctx context.Context, raw net.Conn, isH2 bool) (net.Conn, error) {
-				return v.streamTLSConn(ctx, raw, isH2)
-			},
-		)
+		return xhttp.DialPacketUp(cfg, transport)
 	default:
 		return nil, fmt.Errorf("xhttp mode %s is not implemented yet", mode)
 	}
@@ -293,7 +283,7 @@ func (v *Vless) dialXHTTPConn(ctx context.Context) (net.Conn, error) {
 func (v *Vless) dialContext(ctx context.Context) (c net.Conn, err error) {
 	switch v.option.Network {
 	case "xhttp":
-		return v.dialXHTTPConn(ctx)
+		return v.dialXHTTPConn()
 	case "grpc": // gun transport
 		return v.gunTransport.Dial()
 	default:
