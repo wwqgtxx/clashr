@@ -103,7 +103,7 @@ func (g *Conn) read(b []byte) (n int, err error) {
 			size = len(b)
 		}
 
-		n, err = io.ReadFull(g.reader, b[:size])
+		n, err = g.reader.Read(b[:size])
 		g.remain -= n
 		return
 	}
