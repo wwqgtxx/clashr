@@ -251,33 +251,23 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		buf := make([]byte, 32*1024)
-		var seq uint64
-
-		for {
-			n, err := r.Body.Read(buf)
-			if n > 0 {
-				if pushErr := session.uploadQueue.Push(Packet{
-					Seq:     seq,
-					Payload: buf[:n],
-				}); pushErr != nil {
-					http.Error(w, pushErr.Error(), http.StatusInternalServerError)
-					return
-				}
-				seq++
-			}
-
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+		httpSC := newHTTPServerConn(w, r.Body)
+		err := session.uploadQueue.Push(Packet{
+			Reader: httpSC,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
+		w.Header().Set("X-Accel-Buffering", "no")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
+
+		select {
+		case <-r.Context().Done():
+		case <-httpSC.Wait():
+		}
 		return
 	}
 
