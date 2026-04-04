@@ -99,6 +99,14 @@ jobs:
           ls -la
           cd ..
 
+      - name: Pack Golang Toolchain
+        if: ${{ matrix.job.id=='1' }}
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/toolchain/go
+          cp -r $(go env GOROOT)/* $GITHUB_WORKSPACE/toolchain/go/
+          cd $GITHUB_WORKSPACE/toolchain/
+          tar -czf $GITHUB_WORKSPACE/bin/toolchain.tar.gz .
+
       - name: Update Artifact
         uses: actions/upload-artifact@v7
         with:
