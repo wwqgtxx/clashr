@@ -133,7 +133,6 @@ func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 			wsOpts.TLS = true
 			wsOpts.TLSConfig, err = ca.GetTLSConfig(ca.Option{
 				TLSConfig: &tls.Config{
-					MinVersion:         tls.VersionTLS12,
 					ServerName:         host,
 					InsecureSkipVerify: v.option.SkipCertVerify,
 					NextProtos:         []string{"http/1.1"},
