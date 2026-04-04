@@ -12,14 +12,16 @@ import (
 )
 
 type Config struct {
-	Host           string
-	Path           string
-	Mode           string
-	Headers        map[string]string
-	NoGRPCHeader   bool
-	XPaddingBytes  string
-	ReuseConfig    *ReuseConfig
-	DownloadConfig *Config
+	Host                 string
+	Path                 string
+	Mode                 string
+	Headers              map[string]string
+	NoGRPCHeader         bool
+	XPaddingBytes        string
+	NoSSEHeader          bool   // server only
+	ScStreamUpServerSecs string // server only
+	ReuseConfig          *ReuseConfig
+	DownloadConfig       *Config
 }
 
 type ReuseConfig struct {
@@ -113,6 +115,31 @@ func (c *Config) RandomPadding() (string, error) {
 	}
 
 	return strings.Repeat("X", n), nil
+}
+
+func (c *Config) GetNormalizedScStreamUpServerSecs() (int, error) {
+	scStreamUpServerSecs := c.ScStreamUpServerSecs
+	if scStreamUpServerSecs == "" {
+		scStreamUpServerSecs = "20-80"
+	}
+
+	minVal, maxVal, err := parseRange(scStreamUpServerSecs)
+	if err != nil {
+		return 0, err
+	}
+	if minVal < 0 || maxVal < minVal {
+		return 0, fmt.Errorf("invalid sc-stream-up-server-secs range: %s", scStreamUpServerSecs)
+	}
+	if maxVal == 0 {
+		return 0, nil
+	}
+
+	n := minVal
+	if maxVal > minVal {
+		n = minVal + rand.Intn(maxVal-minVal+1)
+	}
+
+	return n, nil
 }
 
 func parseRange(s string) (int, int, error) {
