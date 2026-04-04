@@ -106,6 +106,13 @@ jobs:
           cp -r $(go env GOROOT)/* $GITHUB_WORKSPACE/toolchain/go/
           cd $GITHUB_WORKSPACE/toolchain/
           tar -czf $GITHUB_WORKSPACE/bin/toolchain.tar.gz .
+          rm -rf $GITHUB_WORKSPACE/toolchain
+
+      - name: Pack GoMod Vendor
+        if: ${{ matrix.job.id=='1' }}
+        run: |
+          go mod vendor
+          tar -czf $GITHUB_WORKSPACE/bin/vendor.tar.gz vendor
 
       - name: Update Artifact
         uses: actions/upload-artifact@v7
