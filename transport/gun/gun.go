@@ -112,6 +112,9 @@ func (g *Conn) read(b []byte) (n int, err error) {
 	var discard [6]byte
 	_, err = io.ReadFull(g.reader, discard[:])
 	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			err = io.EOF
+		}
 		return 0, err
 	}
 
