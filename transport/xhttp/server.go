@@ -371,7 +371,13 @@ func (h *requestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		body, err := io.ReadAll(r.Body)
+		scMaxEachPostBytes := int64(h.config.GetNormalizedScMaxEachPostBytes())
+		if r.ContentLength > scMaxEachPostBytes {
+			http.Error(w, "body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		body, err := io.ReadAll(io.LimitReader(r.Body, scMaxEachPostBytes+1))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
