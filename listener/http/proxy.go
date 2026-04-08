@@ -129,7 +129,10 @@ func HandleConn(c net.Conn, tunnel C.Tunnel, store auth.AuthStore, additions ...
 		}
 
 		if !keepAlive {
-			resp.Close = true
+			resp.Close = true // close connection if keep-alive is not set
+		}
+		if keepAlive && resp.ContentLength > 0 {
+			resp.Close = false // don't need to close connection if content length is positive numbers
 		}
 
 		if !resp.Close {
