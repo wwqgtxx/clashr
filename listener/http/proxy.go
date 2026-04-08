@@ -43,11 +43,10 @@ func HandleConn(c net.Conn, tunnel C.Tunnel, store auth.AuthStore, additions ...
 	conn := N.NewBufferedConn(c)
 
 	authenticator := store.Authenticator()
-	keepAlive := true
 	trusted := authenticator == nil // disable authenticate if lru is nil
 	lastUser := ""
 
-	for keepAlive {
+	for {
 		peekMutex.Lock()
 		request, err := ReadRequest(conn.Reader())
 		peekMutex.Unlock()
@@ -57,7 +56,7 @@ func HandleConn(c net.Conn, tunnel C.Tunnel, store auth.AuthStore, additions ...
 
 		request.RemoteAddr = conn.RemoteAddr().String()
 
-		keepAlive = strings.TrimSpace(strings.ToLower(request.Header.Get("Proxy-Connection"))) == "keep-alive"
+		keepAlive := strings.TrimSpace(strings.ToLower(request.Header.Get("Proxy-Connection"))) == "keep-alive"
 
 		resp, user := authenticate(request, authenticator) // always call authenticate function to get user
 		if resp == nil {
@@ -129,16 +128,18 @@ func HandleConn(c net.Conn, tunnel C.Tunnel, store auth.AuthStore, additions ...
 			removeHopByHopHeaders(resp.Header)
 		}
 
-		if keepAlive {
+		if !keepAlive {
+			resp.Close = true
+		}
+
+		if !resp.Close {
 			resp.Header.Set("Proxy-Connection", "keep-alive")
 			resp.Header.Set("Connection", "keep-alive")
 			resp.Header.Set("Keep-Alive", "timeout=4")
 		}
 
-		resp.Close = !keepAlive
-
 		err = resp.Write(conn)
-		if err != nil {
+		if err != nil || resp.Close {
 			break // close connection
 		}
 	}
