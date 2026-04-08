@@ -59,11 +59,10 @@ func HandleConn(c net.Conn, tunnel C.Tunnel, store auth.AuthStore, additions ...
 
 		keepAlive = strings.TrimSpace(strings.ToLower(request.Header.Get("Proxy-Connection"))) == "keep-alive"
 
-		var resp *http.Response
-
-		var user string
-		resp, user = authenticate(request, authenticator) // always call authenticate function to get user
-		trusted = trusted || resp == nil
+		resp, user := authenticate(request, authenticator) // always call authenticate function to get user
+		if resp == nil {
+			trusted = true
+		}
 		additions[inUserIdx] = inbound.WithInUser(user)
 
 		if trusted {
