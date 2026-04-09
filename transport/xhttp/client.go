@@ -11,15 +11,19 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/metacubex/mihomo/common/httputils"
 
 	"github.com/metacubex/http"
+	"github.com/metacubex/quic-go"
+	"github.com/metacubex/quic-go/http3"
 	"github.com/metacubex/tls"
 )
 
 type DialRawFunc func(ctx context.Context) (net.Conn, error)
 type WrapTLSFunc func(ctx context.Context, conn net.Conn, isH2 bool) (net.Conn, error)
+type DialQUICFunc func(ctx context.Context, cfg *quic.Config) (*quic.Conn, error)
 
 type TransportMaker func() http.RoundTripper
 
@@ -96,7 +100,18 @@ func (c *PacketUpWriter) Close() error {
 	return nil
 }
 
-func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, alpn []string) http.RoundTripper {
+func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, dialQUIC DialQUICFunc, alpn []string) http.RoundTripper {
+	if len(alpn) == 1 && alpn[0] == "h3" { // `alpn: [h3]` means using h3 mode
+		return &http3.Transport{
+			QUICConfig: &quic.Config{
+				MaxIncomingStreams: -1, // don't allow the server to create bidirectional streams
+				KeepAlivePeriod:    10 * time.Second,
+			},
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+				return dialQUIC(ctx, cfg)
+			},
+		}
+	}
 	return &http.Http2Transport{
 		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
 			raw, err := dialRaw(ctx)

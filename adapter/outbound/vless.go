@@ -21,6 +21,7 @@ import (
 	"github.com/metacubex/mihomo/transport/xhttp"
 
 	"github.com/metacubex/http"
+	"github.com/metacubex/quic-go"
 	vmessSing "github.com/metacubex/sing-vmess"
 	"github.com/metacubex/sing-vmess/packetaddr"
 	M "github.com/metacubex/sing/common/metadata"
@@ -555,6 +556,52 @@ func NewVless(option VlessOption) (*Vless, error) {
 				func(ctx context.Context, raw net.Conn, isH2 bool) (net.Conn, error) {
 					return v.streamTLSConn(ctx, raw, isH2)
 				},
+				func(ctx context.Context, cfg *quic.Config) (*quic.Conn, error) {
+					host, _, _ := net.SplitHostPort(v.addr)
+					tlsOpts := &vmess.TLSConfig{
+						Host:              host,
+						SkipCertVerify:    v.option.SkipCertVerify,
+						FingerPrint:       v.option.Fingerprint,
+						Certificate:       v.option.Certificate,
+						PrivateKey:        v.option.PrivateKey,
+						ClientFingerprint: v.option.ClientFingerprint,
+						ECH:               v.echConfig,
+						Reality:           v.realityConfig,
+						NextProtos:        []string{"h3"},
+					}
+					if v.option.ServerName != "" {
+						tlsOpts.Host = v.option.ServerName
+					}
+					if !v.option.TLS {
+						return nil, errors.New("xhttp HTTP/3 requires TLS")
+					}
+					if v.realityConfig != nil {
+						return nil, errors.New("xhttp HTTP/3 does not support reality")
+					}
+					tlsConfig, err := tlsOpts.ToStdConfig()
+					if err != nil {
+						return nil, err
+					}
+
+					udpAddr, err := resolveUDPAddr(ctx, "udp", v.addr, v.prefer)
+					if err != nil {
+						return nil, err
+					}
+					err = v.echConfig.ClientHandle(ctx, tlsConfig)
+					if err != nil {
+						return nil, err
+					}
+					packetConn, err := v.dialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
+					if err != nil {
+						return nil, err
+					}
+					quicConn, err := quic.DialEarly(ctx, packetConn, udpAddr, tlsConfig, cfg)
+					if err != nil {
+						_ = packetConn.Close()
+						return nil, err
+					}
+					return quicConn, nil
+				},
 				v.option.ALPN,
 			)
 		}
@@ -656,6 +703,52 @@ func NewVless(option VlessOption) (*Vless, error) {
 						}
 
 						return conn, nil
+					},
+					func(ctx context.Context, cfg *quic.Config) (*quic.Conn, error) {
+						host, _, _ := net.SplitHostPort(downloadAddr)
+						tlsOpts := &vmess.TLSConfig{
+							Host:              host,
+							SkipCertVerify:    downloadSkipCertVerify,
+							FingerPrint:       downloadFingerprint,
+							Certificate:       downloadCertificate,
+							PrivateKey:        downloadPrivateKey,
+							ClientFingerprint: downloadClientFingerprint,
+							ECH:               downloadEchConfig,
+							Reality:           downloadRealityCfg,
+							NextProtos:        []string{"h3"},
+						}
+						if downloadServerName != "" {
+							tlsOpts.Host = downloadServerName
+						}
+						if !downloadTLS {
+							return nil, errors.New("xhttp HTTP/3 requires TLS")
+						}
+						if downloadRealityCfg != nil {
+							return nil, errors.New("xhttp HTTP/3 does not support reality")
+						}
+						tlsConfig, err := tlsOpts.ToStdConfig()
+						if err != nil {
+							return nil, err
+						}
+
+						udpAddr, err := resolveUDPAddr(ctx, "udp", downloadAddr, v.prefer)
+						if err != nil {
+							return nil, err
+						}
+						err = downloadEchConfig.ClientHandle(ctx, tlsConfig)
+						if err != nil {
+							return nil, err
+						}
+						packetConn, err := v.dialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
+						if err != nil {
+							return nil, err
+						}
+						quicConn, err := quic.DialEarly(ctx, packetConn, udpAddr, tlsConfig, cfg)
+						if err != nil {
+							_ = packetConn.Close()
+							return nil, err
+						}
+						return quicConn, nil
 					},
 					downloadALPN,
 				)
