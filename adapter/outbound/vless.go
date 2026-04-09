@@ -89,8 +89,8 @@ type XHTTPOptions struct {
 }
 
 type XHTTPReuseSettings struct {
-	MaxConnections   string `proxy:"max-connections,omitempty"`
 	MaxConcurrency   string `proxy:"max-concurrency,omitempty"`
+	MaxConnections   string `proxy:"max-connections,omitempty"`
 	CMaxReuseTimes   string `proxy:"c-max-reuse-times,omitempty"`
 	HMaxRequestTimes string `proxy:"h-max-request-times,omitempty"`
 	HMaxReusableSecs string `proxy:"h-max-reusable-secs,omitempty"`
@@ -529,8 +529,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 		var reuseCfg *xhttp.ReuseConfig
 		if option.XHTTPOpts.ReuseSettings != nil {
 			reuseCfg = &xhttp.ReuseConfig{
-				MaxConnections:   option.XHTTPOpts.ReuseSettings.MaxConnections,
 				MaxConcurrency:   option.XHTTPOpts.ReuseSettings.MaxConcurrency,
+				MaxConnections:   option.XHTTPOpts.ReuseSettings.MaxConnections,
 				CMaxReuseTimes:   option.XHTTPOpts.ReuseSettings.CMaxReuseTimes,
 				HMaxRequestTimes: option.XHTTPOpts.ReuseSettings.HMaxRequestTimes,
 				HMaxReusableSecs: option.XHTTPOpts.ReuseSettings.HMaxReusableSecs,
@@ -651,8 +651,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 			downloadReuseCfg := reuseCfg
 			if ds.ReuseSettings != nil {
 				downloadReuseCfg = &xhttp.ReuseConfig{
-					MaxConnections:   ds.ReuseSettings.MaxConnections,
 					MaxConcurrency:   ds.ReuseSettings.MaxConcurrency,
+					MaxConnections:   ds.ReuseSettings.MaxConnections,
 					CMaxReuseTimes:   ds.ReuseSettings.CMaxReuseTimes,
 					HMaxRequestTimes: ds.ReuseSettings.HMaxRequestTimes,
 					HMaxReusableSecs: ds.ReuseSettings.HMaxReusableSecs,
