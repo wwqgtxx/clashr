@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/metacubex/mihomo/common/convert"
 	N "github.com/metacubex/mihomo/common/net"
@@ -94,6 +95,7 @@ type XHTTPReuseSettings struct {
 	CMaxReuseTimes   string `proxy:"c-max-reuse-times,omitempty"`
 	HMaxRequestTimes string `proxy:"h-max-request-times,omitempty"`
 	HMaxReusableSecs string `proxy:"h-max-reusable-secs,omitempty"`
+	HKeepAlivePeriod int    `proxy:"h-keep-alive-period,omitempty"`
 }
 
 type XHTTPDownloadSettings struct {
@@ -526,6 +528,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 			}
 		}
 
+		var hKeepAlivePeriod time.Duration
+
 		var reuseCfg *xhttp.ReuseConfig
 		if option.XHTTPOpts.ReuseSettings != nil {
 			reuseCfg = &xhttp.ReuseConfig{
@@ -535,6 +539,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 				HMaxRequestTimes: option.XHTTPOpts.ReuseSettings.HMaxRequestTimes,
 				HMaxReusableSecs: option.XHTTPOpts.ReuseSettings.HMaxReusableSecs,
 			}
+			hKeepAlivePeriod = time.Duration(option.XHTTPOpts.ReuseSettings.HKeepAlivePeriod) * time.Second
 		}
 
 		cfg := &xhttp.Config{
@@ -603,6 +608,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 					return quicConn, nil
 				},
 				v.option.ALPN,
+				hKeepAlivePeriod,
 			)
 		}
 		var makeDownloadTransport func() http.RoundTripper
@@ -648,6 +654,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 				}
 			}
 
+			downloadHKeepAlivePeriod := hKeepAlivePeriod
+
 			downloadReuseCfg := reuseCfg
 			if ds.ReuseSettings != nil {
 				downloadReuseCfg = &xhttp.ReuseConfig{
@@ -657,6 +665,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 					HMaxRequestTimes: ds.ReuseSettings.HMaxRequestTimes,
 					HMaxReusableSecs: ds.ReuseSettings.HMaxReusableSecs,
 				}
+				downloadHKeepAlivePeriod = time.Duration(ds.ReuseSettings.HKeepAlivePeriod) * time.Second
 			}
 
 			cfg.DownloadConfig = &xhttp.Config{
@@ -751,6 +760,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 						return quicConn, nil
 					},
 					downloadALPN,
+					downloadHKeepAlivePeriod,
 				)
 			}
 		}

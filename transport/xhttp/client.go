@@ -22,6 +22,16 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// ConnIdleTimeout defines the maximum time an idle TCP session can survive in the tunnel,
+// so it should be consistent across HTTP versions and with other transports.
+const ConnIdleTimeout = 300 * time.Second
+
+// QuicgoH3KeepAlivePeriod consistent with quic-go
+const QuicgoH3KeepAlivePeriod = 10 * time.Second
+
+// ChromeH2KeepAlivePeriod consistent with chrome
+const ChromeH2KeepAlivePeriod = 45 * time.Second
+
 type DialRawFunc func(ctx context.Context) (net.Conn, error)
 type WrapTLSFunc func(ctx context.Context, conn net.Conn, isH2 bool) (net.Conn, error)
 type DialQUICFunc func(ctx context.Context, cfg *quic.Config) (*quic.Conn, error)
@@ -101,22 +111,19 @@ func (c *PacketUpWriter) Close() error {
 	return nil
 }
 
-// h1Transport is a wrapper that forces the underlying transport to use HTTP/1.1.
-type h1Transport struct {
-	http.RoundTripper
-}
-
-func (c h1Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.URL.Scheme = "http" // change the scheme to http allow we can make TLS in ourselves Transport.DialContext
-	return c.RoundTripper.RoundTrip(req)
-}
-
-func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, dialQUIC DialQUICFunc, alpn []string) http.RoundTripper {
+func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, dialQUIC DialQUICFunc, alpn []string, keepAlivePeriod time.Duration) http.RoundTripper {
 	if len(alpn) == 1 && alpn[0] == "h3" { // `alpn: [h3]` means using h3 mode
+		if keepAlivePeriod == 0 {
+			keepAlivePeriod = QuicgoH3KeepAlivePeriod
+		}
+		if keepAlivePeriod < 0 {
+			keepAlivePeriod = 0
+		}
 		return &http3.Transport{
 			QUICConfig: &quic.Config{
 				MaxIncomingStreams: -1, // don't allow the server to create bidirectional streams
-				KeepAlivePeriod:    10 * time.Second,
+				KeepAlivePeriod:    keepAlivePeriod,
+				MaxIdleTimeout:     ConnIdleTimeout,
 			},
 			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 				return dialQUIC(ctx, cfg)
@@ -125,25 +132,34 @@ func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, dialQUIC DialQUICFun
 	}
 	if len(alpn) == 1 && alpn[0] == "http/1.1" { // `alpn: [http/1.1]` means using http/1.1 mode
 		w := semaphore.NewWeighted(20) // limit concurrent dialing to avoid WSAECONNREFUSED on Windows
-		return h1Transport{&http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				if err := w.Acquire(ctx, 1); err != nil {
-					return nil, err
-				}
-				defer w.Release(1)
-				raw, err := dialRaw(ctx)
-				if err != nil {
-					return nil, err
-				}
-				wrapped, err := wrapTLS(ctx, raw, false)
-				if err != nil {
-					_ = raw.Close()
-					return nil, err
-				}
-				return wrapped, nil
-			},
+		dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if err := w.Acquire(ctx, 1); err != nil {
+				return nil, err
+			}
+			defer w.Release(1)
+			raw, err := dialRaw(ctx)
+			if err != nil {
+				return nil, err
+			}
+			wrapped, err := wrapTLS(ctx, raw, false)
+			if err != nil {
+				_ = raw.Close()
+				return nil, err
+			}
+			return wrapped, nil
+		}
+		return &http.Transport{
+			DialContext:       dialContext,
+			DialTLSContext:    dialContext,
+			IdleConnTimeout:   ConnIdleTimeout,
 			ForceAttemptHTTP2: false, // only http/1.1
-		}}
+		}
+	}
+	if keepAlivePeriod == 0 {
+		keepAlivePeriod = ChromeH2KeepAlivePeriod
+	}
+	if keepAlivePeriod < 0 {
+		keepAlivePeriod = 0
 	}
 	return &http.Http2Transport{
 		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
@@ -158,6 +174,8 @@ func NewTransport(dialRaw DialRawFunc, wrapTLS WrapTLSFunc, dialQUIC DialQUICFun
 			}
 			return wrapped, nil
 		},
+		IdleConnTimeout: ConnIdleTimeout,
+		ReadIdleTimeout: keepAlivePeriod,
 	}
 }
 
