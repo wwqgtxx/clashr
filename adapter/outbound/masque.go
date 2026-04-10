@@ -268,9 +268,12 @@ func (w *Masque) run(ctx context.Context) error {
 			return err
 		}
 
-		var quicConn *quic.Conn
-		quicConn, err = quic.Dial(ctx, pc, udpAddr, w.tlsConfig, w.quicConfig)
+		transport := quic.Transport{Conn: pc}
+		transport.SetCreatedConn(true) // auto close conn
+		transport.SetSingleUse(true)   // auto close transport
+		quicConn, err := transport.Dial(ctx, udpAddr, w.tlsConfig, w.quicConfig)
 		if err != nil {
+			_ = pc.Close()
 			return err
 		}
 
