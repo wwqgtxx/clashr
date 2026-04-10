@@ -28,7 +28,7 @@ const (
 	ipv6HeaderLen = 40
 )
 
-func ConnectTunnelH2(ctx context.Context, h2Client *http.Client, connectUri string) (IpConn, error) {
+func ConnectTunnelH2(ctx context.Context, h2Transport *http.Http2Transport, connectUri string) (*http.Http2ClientConn, IpConn, error) {
 	additionalHeaders := http.Header{
 		"User-Agent": []string{""},
 	}
@@ -39,26 +39,43 @@ func ConnectTunnelH2(ctx context.Context, h2Client *http.Client, connectUri stri
 	// TODO: support PQC
 	h2Headers.Set("pq-enabled", "false")
 
-	ipConn, rsp, err := dialH2(ctx, h2Client, template, h2Headers)
+	conn, err := h2Transport.DialTLSContext(ctx, "tcp", ":0", nil)
 	if err != nil {
+		return nil, nil, fmt.Errorf("connect-ip: failed to dial: %w", err)
+	}
+
+	cc, err := h2Transport.NewClientConn(conn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connect-ip: failed to create client connection: %w", err)
+	}
+
+	if !cc.ReserveNewRequest() {
+		_ = cc.Close()
+		return nil, nil, fmt.Errorf("connect-ip: failed to reserve client connection: %w", err)
+	}
+
+	ipConn, rsp, err := dialH2(ctx, cc, template, h2Headers)
+	if err != nil {
+		_ = cc.Close()
 		if strings.Contains(err.Error(), "tls: access denied") {
-			return nil, errors.New("login failed! Please double-check if your tls key and cert is enrolled in the Cloudflare Access service")
+			return nil, nil, errors.New("login failed! Please double-check if your tls key and cert is enrolled in the Cloudflare Access service")
 		}
-		return nil, fmt.Errorf("failed to dial connect-ip over HTTP/2: %w", err)
+		return nil, nil, fmt.Errorf("failed to dial connect-ip over HTTP/2: %w", err)
 	}
 
 	if rsp.StatusCode != http.StatusOK {
 		_ = ipConn.Close()
-		return nil, fmt.Errorf("failed to dial connect-ip: %v", rsp.Status)
+		_ = cc.Close()
+		return nil, nil, fmt.Errorf("failed to dial connect-ip: %v", rsp.Status)
 	}
 
-	return ipConn, nil
+	return cc, ipConn, nil
 }
 
 // dialH2 dials a proxied connection over HTTP/2 CONNECT-IP.
 //
 // This transport carries proxied packets inside HTTP capsule DATAGRAM frames.
-func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Template, additionalHeaders http.Header) (*h2IpConn, *http.Response, error) {
+func dialH2(ctx context.Context, rt http.RoundTripper, template *uritemplate.Template, additionalHeaders http.Header) (*h2IpConn, *http.Response, error) {
 	if len(template.Varnames()) > 0 {
 		return nil, nil, errors.New("connect-ip: IP flow forwarding not supported")
 	}
@@ -86,7 +103,7 @@ func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Temp
 	}
 
 	stop := contextutils.AfterFunc(ctx, cancel) // temporarily connect ctx with reqCtx when client.Do
-	rsp, err := client.Do(req)
+	rsp, err := rt.RoundTrip(req)
 	stop() // disconnect ctx with reqCtx after client.Do
 	if err != nil {
 		cancel()

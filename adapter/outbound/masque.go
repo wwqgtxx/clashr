@@ -17,7 +17,6 @@ import (
 
 	"github.com/metacubex/mihomo/common/atomic"
 	"github.com/metacubex/mihomo/common/contextutils"
-	"github.com/metacubex/mihomo/common/httputils"
 	"github.com/metacubex/mihomo/common/pool"
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -171,6 +170,7 @@ func NewMasque(option MasqueOption) (*Masque, error) {
 				}
 				return tls.Client(c, tlsConfig), nil
 			},
+			ReadIdleTimeout: 30 * time.Second,
 		}
 	}
 
@@ -248,11 +248,11 @@ func (w *Masque) run(ctx context.Context) error {
 	}
 
 	var pc net.PacketConn
-	var tr io.Closer
+	var closer io.Closer
 	var ipConn masque.IpConn
 	var err error
 	if w.h2Transport != nil {
-		ipConn, err = masque.ConnectTunnelH2(ctx, &http.Client{Transport: w.h2Transport}, w.uri)
+		closer, ipConn, err = masque.ConnectTunnelH2(ctx, w.h2Transport, w.uri)
 		if err != nil {
 			return err
 		}
@@ -276,7 +276,7 @@ func (w *Masque) run(ctx context.Context) error {
 
 		common.SetCongestionController(quicConn, w.option.CongestionController, w.option.CWND)
 
-		tr, ipConn, err = masque.ConnectTunnel(ctx, quicConn, w.uri)
+		closer, ipConn, err = masque.ConnectTunnel(ctx, quicConn, w.uri)
 		if err != nil {
 			_ = pc.Close()
 			return err
@@ -289,9 +289,7 @@ func (w *Masque) run(ctx context.Context) error {
 	contextutils.AfterFunc(runCtx, func() {
 		w.running.Store(false)
 		_ = ipConn.Close()
-		if tr != nil {
-			_ = tr.Close()
-		}
+		_ = closer.Close()
 		if pc != nil {
 			_ = pc.Close()
 		}
@@ -356,9 +354,6 @@ func (w *Masque) Close() error {
 	w.runCancel()
 	if w.tunDevice != nil {
 		w.tunDevice.Close()
-	}
-	if w.h2Transport != nil {
-		httputils.CloseTransport(w.h2Transport)
 	}
 	return nil
 }
