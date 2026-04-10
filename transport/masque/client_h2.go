@@ -105,11 +105,10 @@ func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Temp
 	stream := &h2DatagramStream{
 		requestBody:  pw,
 		responseBody: rsp.Body,
-		recvBuf:      make([]byte, 0, 4096),
+		cancel:       cancel,
 	}
 	return &h2IpConn{
 		str:       stream,
-		cancel:    cancel,
 		closeChan: make(chan struct{}),
 	}, rsp, nil
 }
@@ -127,8 +126,6 @@ func authorityFromURL(u *url.URL) string {
 
 type h2IpConn struct {
 	str *h2DatagramStream
-
-	cancel context.CancelFunc
 
 	mu sync.Mutex
 
@@ -238,7 +235,6 @@ func (c *h2IpConn) Close() error {
 	}
 	c.mu.Unlock()
 	err := c.str.Close()
-	c.cancel()
 	return err
 }
 
@@ -262,43 +258,40 @@ func calculateIPv4Checksum(header [ipv4HeaderLen]byte) uint16 {
 type h2DatagramStream struct {
 	requestBody  *io.PipeWriter
 	responseBody io.ReadCloser
+	cancel       context.CancelFunc
 
 	readMu  sync.Mutex
 	writeMu sync.Mutex
-	recvBuf []byte
 }
 
 func (s *h2DatagramStream) ReceiveDatagram(_ context.Context) ([]byte, error) {
 	s.readMu.Lock()
 	defer s.readMu.Unlock()
 
+	reader := quicvarint.NewReader(s.responseBody)
 	for {
-		capsuleType, payload, consumed, ok, err := parseCapsule(s.recvBuf)
+		capsuleType, err := quicvarint.Read(reader)
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			s.recvBuf = s.recvBuf[consumed:]
-			if capsuleType != h2DatagramCapsuleType {
-				continue
-			}
-			return payload, nil
+		payloadLen, err := quicvarint.Read(reader)
+		if err != nil {
+			return nil, err
 		}
-
-		buf := make([]byte, 4096)
-		n, readErr := s.responseBody.Read(buf)
-		if n > 0 {
-			s.recvBuf = append(s.recvBuf, buf[:n]...)
+		payload := make([]byte, payloadLen)
+		_, err = io.ReadFull(reader, payload)
+		if err != nil {
+			return nil, err
+		}
+		if capsuleType != h2DatagramCapsuleType {
 			continue
 		}
-		if readErr != nil {
-			return nil, readErr
-		}
+		return payload, nil
 	}
 }
 
 func (s *h2DatagramStream) SendDatagram(data []byte) error {
-	frame := make([]byte, 0, 2*quicvarint.Len(0)+len(data))
+	frame := make([]byte, 0, quicvarint.Len(h2DatagramCapsuleType)+quicvarint.Len(uint64(len(data)))+len(data))
 	frame = quicvarint.Append(frame, h2DatagramCapsuleType)
 	frame = quicvarint.Append(frame, uint64(len(data)))
 	frame = append(frame, data...)
@@ -314,41 +307,7 @@ func (s *h2DatagramStream) SendDatagram(data []byte) error {
 
 func (s *h2DatagramStream) Close() error {
 	_ = s.requestBody.Close()
-	return s.responseBody.Close()
-}
-
-func parseCapsule(buf []byte) (capsuleType uint64, payload []byte, consumed int, ok bool, err error) {
-	capsuleType, typeLen, ok := parseVarint(buf)
-	if !ok {
-		return 0, nil, 0, false, nil
-	}
-	payloadLen, payloadLenLen, ok := parseVarint(buf[typeLen:])
-	if !ok {
-		return 0, nil, 0, false, nil
-	}
-	headerLen := typeLen + payloadLenLen
-	totalLen := headerLen + int(payloadLen)
-	if totalLen < headerLen {
-		return 0, nil, 0, false, errors.New("connect-ip: malformed capsule length")
-	}
-	if len(buf) < totalLen {
-		return 0, nil, 0, false, nil
-	}
-	return capsuleType, buf[headerLen:totalLen], totalLen, true, nil
-}
-
-func parseVarint(buf []byte) (v uint64, n int, ok bool) {
-	if len(buf) == 0 {
-		return 0, 0, false
-	}
-	prefix := buf[0] >> 6
-	n = 1 << prefix
-	if len(buf) < n {
-		return 0, 0, false
-	}
-	v = uint64(buf[0] & 0x3f)
-	for i := 1; i < n; i++ {
-		v = (v << 8) | uint64(buf[i])
-	}
-	return v, n, true
+	err := s.responseBody.Close()
+	s.cancel()
+	return err
 }
