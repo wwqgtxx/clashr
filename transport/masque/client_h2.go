@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/metacubex/mihomo/common/contextutils"
 	"github.com/metacubex/mihomo/log"
 
 	"github.com/metacubex/http"
@@ -67,9 +68,12 @@ func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Temp
 		return nil, nil, fmt.Errorf("connect-ip: failed to parse URI: %w", err)
 	}
 
+	reqCtx, cancel := context.WithCancel(context.Background()) // reqCtx must disconnect from ctx, otherwise ctx would close the entire HTTP/2 connection.
+
 	pr, pw := io.Pipe()
-	req, err := http.NewRequestWithContext(ctx, http.MethodConnect, u.String(), pr)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodConnect, u.String(), pr)
 	if err != nil {
+		cancel()
 		_ = pr.Close()
 		_ = pw.Close()
 		return nil, nil, fmt.Errorf("connect-ip: failed to create request: %w", err)
@@ -81,13 +85,17 @@ func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Temp
 		req.Header[k] = v
 	}
 
+	stop := contextutils.AfterFunc(ctx, cancel) // temporarily connect ctx with reqCtx when client.Do
 	rsp, err := client.Do(req)
+	stop() // disconnect ctx with reqCtx after client.Do
 	if err != nil {
+		cancel()
 		_ = pr.Close()
 		_ = pw.Close()
 		return nil, nil, fmt.Errorf("connect-ip: failed to send request: %w", err)
 	}
 	if rsp.StatusCode < 200 || rsp.StatusCode > 299 {
+		cancel()
 		_ = pr.Close()
 		_ = pw.Close()
 		_ = rsp.Body.Close()
@@ -101,6 +109,7 @@ func dialH2(ctx context.Context, client *http.Client, template *uritemplate.Temp
 	}
 	return &h2IpConn{
 		str:       stream,
+		cancel:    cancel,
 		closeChan: make(chan struct{}),
 	}, rsp, nil
 }
@@ -119,6 +128,8 @@ func authorityFromURL(u *url.URL) string {
 type h2IpConn struct {
 	str *h2DatagramStream
 
+	cancel context.CancelFunc
+
 	mu sync.Mutex
 
 	closeChan chan struct{}
@@ -129,6 +140,11 @@ func (c *h2IpConn) ReadPacket(b []byte) (n int, err error) {
 start:
 	data, err := c.str.ReceiveDatagram(context.Background())
 	if err != nil {
+		defer func() {
+			// There are no errors that can be recovered in h2 mode,
+			// so calling Close allows the outer read loop to exit in the next iteration by returning net.ErrClosed.
+			_ = c.Close()
+		}()
 		select {
 		case <-c.closeChan:
 			return 0, c.closeErr
@@ -222,6 +238,7 @@ func (c *h2IpConn) Close() error {
 	}
 	c.mu.Unlock()
 	err := c.str.Close()
+	c.cancel()
 	return err
 }
 
