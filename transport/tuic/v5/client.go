@@ -21,20 +21,14 @@ import (
 
 	"github.com/metacubex/quic-go"
 	"github.com/metacubex/randv2"
-	"github.com/metacubex/tls"
 )
 
 type ClientOption struct {
-	TlsConfig             *tls.Config
-	QuicConfig            *quic.Config
 	Uuid                  [16]byte
 	Password              string
 	UdpRelayMode          common.UdpRelayMode
-	CongestionController  string
-	ReduceRtt             bool
 	MaxUdpRelayPacketSize int
 	MaxOpenStreams        int64
-	CWND                  int
 }
 
 type clientImpl struct {
@@ -72,21 +66,10 @@ func (t *clientImpl) getQuicConn(ctx context.Context) (*quic.Conn, error) {
 	if t.quicConn != nil {
 		return t.quicConn, nil
 	}
-	transport, addr, err := t.dialFn(ctx)
+	quicConn, err := t.dialFn(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var quicConn *quic.Conn
-	if t.ReduceRtt {
-		quicConn, err = transport.DialEarly(ctx, addr, t.TlsConfig, t.QuicConfig)
-	} else {
-		quicConn, err = transport.Dial(ctx, addr, t.TlsConfig, t.QuicConfig)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	common.SetCongestionController(quicConn, t.CongestionController, t.CWND)
 
 	go func() {
 		_ = t.sendAuthentication(quicConn)
