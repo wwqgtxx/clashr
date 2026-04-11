@@ -7,23 +7,16 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/component/dialer"
-	C "github.com/metacubex/mihomo/constant"
 
 	"github.com/metacubex/quic-go"
 	"github.com/metacubex/tls"
 )
 
-// DialQuicEarly dials a new connection, attempting to use 0-RTT if possible.
-func DialQuicEarly(ctx context.Context, address string, opts []dialer.Option, dialer C.Dialer, tlsConf *tls.Config, conf *quic.Config) (net.PacketConn, *quic.Conn, error) {
-	return dialQuic(ctx, address, opts, dialer, tlsConf, conf, true)
+type PacketDialer interface {
+	ListenPacket(ctx context.Context, network, address string, rAddrPort netip.AddrPort) (net.PacketConn, error)
 }
 
-// DialQuic dials a new connection to a remote host (not using 0-RTT).
-func DialQuic(ctx context.Context, address string, opts []dialer.Option, dialer C.Dialer, tlsConf *tls.Config, conf *quic.Config) (net.PacketConn, *quic.Conn, error) {
-	return dialQuic(ctx, address, opts, dialer, tlsConf, conf, false)
-}
-
-func dialQuic(ctx context.Context, address string, opts []dialer.Option, cDialer C.Dialer, tlsConf *tls.Config, conf *quic.Config, early bool) (net.PacketConn, *quic.Conn, error) {
+func DialQuic(ctx context.Context, address string, opts []dialer.Option, pDialer PacketDialer, tlsConf *tls.Config, conf *quic.Config, early bool) (net.PacketConn, *quic.Conn, error) {
 	d := dialer.NewDialer(
 		dialer.WithOptions(opts...),
 		dialer.WithNetDialer(dialer.NetDialerFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -32,7 +25,7 @@ func dialQuic(ctx context.Context, address string, opts []dialer.Option, cDialer
 				return nil, err
 			}
 			udpAddr := net.UDPAddrFromAddrPort(addrPort)
-			packetConn, err := cDialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
+			packetConn, err := pDialer.ListenPacket(ctx, "udp", "", udpAddr.AddrPort())
 			if err != nil {
 				return nil, err
 			}

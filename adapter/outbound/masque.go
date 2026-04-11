@@ -258,7 +258,7 @@ func (w *Masque) run(ctx context.Context) error {
 		}
 	} else {
 		var quicConn *quic.Conn
-		pc, quicConn, err = common.DialQuic(ctx, w.addr, w.DialOptions(), w.dialer, w.tlsConfig, w.quicConfig)
+		pc, quicConn, err = common.DialQuic(ctx, w.addr, w.DialOptions(), w.dialer, w.tlsConfig, w.quicConfig, false)
 		if err != nil {
 			return err
 		}
