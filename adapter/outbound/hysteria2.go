@@ -11,12 +11,12 @@ import (
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/ca"
-	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 	tuicCommon "github.com/metacubex/mihomo/transport/tuic/common"
 
 	"github.com/metacubex/quic-go"
+	qtls "github.com/metacubex/sing-quic"
 	"github.com/metacubex/sing-quic/hysteria2"
 	M "github.com/metacubex/sing/common/metadata"
 	"github.com/metacubex/tls"
@@ -118,7 +118,6 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 		option: &option,
 	}
 	outbound.dialer = option.NewDialer(outbound.DialOptions())
-	singDialer := proxydialer.NewSingDialer(outbound.dialer)
 
 	var salamanderPassword string
 	if len(option.Obfs) > 0 {
@@ -177,7 +176,6 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 
 	clientOptions := hysteria2.ClientOptions{
 		Context:            context.TODO(),
-		Dialer:             singDialer,
 		Logger:             log.SingLogger,
 		SendBPS:            StringToBps(option.Up),
 		ReceiveBPS:         StringToBps(option.Down),
@@ -188,17 +186,15 @@ func NewHysteria2(option Hysteria2Option) (*Hysteria2, error) {
 		UDPDisabled:        false,
 		CWND:               option.CWND,
 		UdpMTU:             option.UdpMTU,
-		ServerAddress: func(ctx context.Context) (*net.UDPAddr, error) {
-			udpAddr, err := resolveUDPAddr(ctx, "udp", addr, option.IPVersion)
+		ServerAddress:      M.ParseSocksaddr(addr),
+		PacketListener:     outbound.dialer,
+		QuicDialer: qtls.QuicDialerFunc(func(ctx context.Context, addr string, dialer qtls.PacketDialer, tlsCfg *tls.Config, cfg *quic.Config, early bool) (net.PacketConn, *quic.Conn, error) {
+			err = echConfig.ClientHandle(ctx, tlsCfg)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			err = echConfig.ClientHandle(ctx, tlsClientConfig)
-			if err != nil {
-				return nil, err
-			}
-			return udpAddr, nil
-		},
+			return tuicCommon.DialQuic(ctx, addr, outbound.DialOptions(), dialer, tlsCfg, cfg, early)
+		}),
 	}
 
 	var ranges utils.IntRanges[uint16]
