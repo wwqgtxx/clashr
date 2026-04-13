@@ -113,8 +113,8 @@ github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686 h1:PIXmYT2an
 github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686/go.mod h1:eQV7juxFZIdRgjMxtVqP+6BssKoTZQ1RM0fc58BsCZY=
 github.com/metacubex/qpack v0.6.0 h1:YqClGIMOpiRYLjV1qOs483Od08MdPgRnHjt90FuaAKw=
 github.com/metacubex/qpack v0.6.0/go.mod h1:lKGSi7Xk94IMvHGOmxS9eIei3bvIqpOAImEBsaOwTkA=
-github.com/metacubex/quic-go v0.59.1-0.20260413004841-fbd014840823 h1:BXIt9ddABbdvO+SWjU2GIE4OZVKIb+Yxwns0vploDDc=
-github.com/metacubex/quic-go v0.59.1-0.20260413004841-fbd014840823/go.mod h1:oNzMrmylS897M3zSMuapIdwSwfq6F2qW01Z3NhVRJhk=
+github.com/metacubex/quic-go v0.59.1-0.20260413153657-53bb22f2c306 h1:HlGLmLsWJMLSu0CMI9z/BmEnithB4oXM5Rom6/0Qxtg=
+github.com/metacubex/quic-go v0.59.1-0.20260413153657-53bb22f2c306/go.mod h1:oNzMrmylS897M3zSMuapIdwSwfq6F2qW01Z3NhVRJhk=
 github.com/metacubex/randv2 v0.2.0 h1:uP38uBvV2SxYfLj53kuvAjbND4RUDfFJjwr4UigMiLs=
 github.com/metacubex/randv2 v0.2.0/go.mod h1:kFi2SzrQ5WuneuoLLCMkABtiBu6VRrMrWFqSPyj2cxY=
 github.com/metacubex/restls-client-go v0.1.7 h1:eCwiXCTQb5WJu9IlgYvDBA1OgrINv58dEe7hcN5H15k=
