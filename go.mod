@@ -23,7 +23,7 @@ require (
 	github.com/metacubex/kcp-go v0.0.0-20260105040817-550693377604
 	github.com/metacubex/mhurl v0.1.0
 	github.com/metacubex/mlkem v0.1.0
-	github.com/metacubex/quic-go v0.59.1-0.20260213014310-4df8f0de5b56
+	github.com/metacubex/quic-go v0.59.1-0.20260413004841-fbd014840823
 	github.com/metacubex/randv2 v0.2.0
 	github.com/metacubex/restls-client-go v0.1.7
 	github.com/metacubex/sing v0.5.7
