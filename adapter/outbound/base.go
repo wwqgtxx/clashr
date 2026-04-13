@@ -16,6 +16,8 @@ import (
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 type ProxyAdapter interface {
@@ -37,12 +39,48 @@ type Base struct {
 	rmark  int
 	prefer C.DNSPrefer
 	dialer C.Dialer
-	id     string
+	id     uuid.UUID
+}
+
+type BaseOption struct {
+	Name         string
+	Addr         string
+	Type         C.AdapterType
+	ProviderName string
+	UDP          bool
+	XUDP         bool
+	TFO          bool
+	MPTCP        bool
+	Interface    string
+	RoutingMark  int
+	Prefer       C.DNSPrefer
+}
+
+func NewBase(opt BaseOption) *Base {
+	return &Base{
+		name:   opt.Name,
+		addr:   opt.Addr,
+		tp:     opt.Type,
+		pdName: opt.ProviderName,
+		udp:    opt.UDP,
+		xudp:   opt.XUDP,
+		tfo:    opt.TFO,
+		mpTcp:  opt.MPTCP,
+		iface:  opt.Interface,
+		rmark:  opt.RoutingMark,
+		prefer: opt.Prefer,
+		id:     utils.NewUUIDV6(),
+	}
 }
 
 // Name implements C.ProxyAdapter
 func (b *Base) Name() string {
 	return b.name
+}
+
+// Id implements C.ProxyAdapter
+func (b *Base) Id() string {
+	return b.id.String()
 }
 
 // Type implements C.ProxyAdapter
@@ -91,6 +129,7 @@ func (b *Base) IsL3Protocol(metadata *C.Metadata) bool {
 func (b *Base) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
 		"type": b.Type().String(),
+		"id": b.Id(),
 	})
 }
 
@@ -177,30 +216,6 @@ func (b *BasicOption) NewDialer(opts []dialer.Option) C.Dialer {
 		}
 	}
 	return cDialer
-}
-
-type BaseOption struct {
-	Name        string
-	Addr        string
-	Type        C.AdapterType
-	UDP         bool
-	TFO         bool
-	MPTCP       bool
-	Interface   string
-	RoutingMark int
-}
-
-func NewBase(opt BaseOption) *Base {
-	return &Base{
-		name:  opt.Name,
-		addr:  opt.Addr,
-		tp:    opt.Type,
-		udp:   opt.UDP,
-		tfo:   opt.TFO,
-		mpTcp: opt.MPTCP,
-		iface: opt.Interface,
-		rmark: opt.RoutingMark,
-	}
 }
 
 type conn struct {
