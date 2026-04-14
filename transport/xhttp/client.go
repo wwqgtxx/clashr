@@ -218,6 +218,7 @@ func NewClient(cfg *Config, makeTransport TransportMaker, makeDownloadTransport 
 		if err != nil {
 			return nil, err
 		}
+		client.makeTransport = client.uploadManager.GetTransport
 		if cfg.DownloadConfig != nil {
 			if makeDownloadTransport == nil {
 				return nil, fmt.Errorf("xhttp: download manager requires download transport maker")
@@ -226,6 +227,7 @@ func NewClient(cfg *Config, makeTransport TransportMaker, makeDownloadTransport 
 			if err != nil {
 				return nil, err
 			}
+			client.makeDownloadTransport = client.downloadManager.GetTransport
 		}
 	}
 	return client, nil
@@ -268,26 +270,10 @@ type onlyRoundTripper struct {
 }
 
 func (c *Client) getTransport() (uploadTransport http.RoundTripper, downloadTransport http.RoundTripper, err error) {
-	if c.uploadManager == nil {
-		uploadTransport = c.makeTransport()
-		downloadTransport = onlyRoundTripper{uploadTransport}
-		if c.makeDownloadTransport != nil {
-			downloadTransport = c.makeDownloadTransport()
-		}
-	} else {
-		uploadTransport, err = c.uploadManager.GetTransport()
-		if err != nil {
-			return
-		}
-
-		downloadTransport = onlyRoundTripper{uploadTransport}
-		if c.downloadManager != nil {
-			downloadTransport, err = c.downloadManager.GetTransport()
-			if err != nil {
-				httputils.CloseTransport(uploadTransport)
-				return
-			}
-		}
+	uploadTransport = c.makeTransport()
+	downloadTransport = onlyRoundTripper{uploadTransport}
+	if c.makeDownloadTransport != nil {
+		downloadTransport = c.makeDownloadTransport()
 	}
 	return
 }
