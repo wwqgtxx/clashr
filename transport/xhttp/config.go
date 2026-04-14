@@ -21,6 +21,7 @@ type Config struct {
 	NoSSEHeader          bool   // server only
 	ScStreamUpServerSecs string // server only
 	ScMaxEachPostBytes   string
+	ScMinPostsIntervalMs string
 	ReuseConfig          *ReuseConfig
 	DownloadConfig       *Config
 }
@@ -116,6 +117,17 @@ func (c *Config) GetNormalizedScMaxEachPostBytes() (Range, error) {
 	}
 	if r.Max == 0 {
 		return Range{}, fmt.Errorf("invalid sc-max-each-post-bytes: must be greater than zero")
+	}
+	return r, nil
+}
+
+func (c *Config) GetNormalizedScMinPostsIntervalMs() (Range, error) {
+	r, err := ParseRange(c.ScMinPostsIntervalMs, "30")
+	if err != nil {
+		return Range{}, fmt.Errorf("invalid sc-min-posts-interval-ms: %w", err)
+	}
+	if r.Max == 0 {
+		return Range{}, fmt.Errorf("invalid sc-min-posts-interval-ms: must be greater than zero")
 	}
 	return r, nil
 }
