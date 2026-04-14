@@ -20,6 +20,7 @@ type Config struct {
 	XPaddingBytes        string
 	NoSSEHeader          bool   // server only
 	ScStreamUpServerSecs string // server only
+	ScMaxBufferedPosts   string // server only
 	ScMaxEachPostBytes   string
 	ScMinPostsIntervalMs string
 	ReuseConfig          *ReuseConfig
@@ -110,8 +111,19 @@ func (c *Config) GetNormalizedScStreamUpServerSecs() (Range, error) {
 	return r, nil
 }
 
+func (c *Config) GetNormalizedScMaxBufferedPosts() (Range, error) {
+	r, err := ParseRange(c.ScMaxBufferedPosts, "30")
+	if err != nil {
+		return Range{}, fmt.Errorf("invalid sc-max-buffered-posts: %w", err)
+	}
+	if r.Max == 0 {
+		return Range{}, fmt.Errorf("invalid sc-max-buffered-posts: must be greater than zero")
+	}
+	return r, nil
+}
+
 func (c *Config) GetNormalizedScMaxEachPostBytes() (Range, error) {
-	r, err := ParseRange(c.ScStreamUpServerSecs, "1000000")
+	r, err := ParseRange(c.ScMaxEachPostBytes, "1000000")
 	if err != nil {
 		return Range{}, fmt.Errorf("invalid sc-max-each-post-bytes: %w", err)
 	}

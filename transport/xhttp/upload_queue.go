@@ -13,20 +13,22 @@ type Packet struct {
 }
 
 type UploadQueue struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	packets map[uint64][]byte
-	nextSeq uint64
-	buf     []byte
-	closed  bool
-	reader  io.ReadCloser
+	mu         sync.Mutex
+	cond       sync.Cond
+	packets    map[uint64][]byte
+	nextSeq    uint64
+	buf        []byte
+	closed     bool
+	maxPackets int
+	reader     io.ReadCloser
 }
 
-func NewUploadQueue() *UploadQueue {
+func NewUploadQueue(maxPackets int) *UploadQueue {
 	q := &UploadQueue{
-		packets: make(map[uint64][]byte),
+		packets:    make(map[uint64][]byte, maxPackets),
+		maxPackets: maxPackets,
 	}
-	q.cond = sync.NewCond(&q.mu)
+	q.cond = sync.Cond{L: &q.mu}
 	return q
 }
 
@@ -46,6 +48,13 @@ func (q *UploadQueue) Push(p Packet) error {
 		q.reader = p.Reader
 		q.cond.Broadcast()
 		return nil
+	}
+
+	if len(q.packets) > q.maxPackets {
+		// the "reassembly buffer" is too large, and we want to
+		// constrain memory usage somehow. let's tear down the
+		// connection, and hope the application retries.
+		return errors.New("packet queue is too large")
 	}
 
 	q.packets[p.Seq] = p.Payload
