@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -182,9 +183,33 @@ func NewHttpTestTunnel() *TestTunnel {
 		}
 		defer instance.Close()
 
+		var dialNum atomic.Int32
+		var extraConns []net.Conn
+		var extraConnsMu sync.Mutex
+		defer func() {
+			extraConnsMu.Lock()
+			extraConns := append([]net.Conn{}, extraConns...) // clone conn list avoid race condition
+			extraConnsMu.Unlock()
+			for _, conn := range extraConns {
+				_ = conn.Close()
+			}
+		}()
+
 		transport := &http.Transport{
-			DialContext: func(context.Context, string, string) (net.Conn, error) {
-				return instance, nil
+			DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
+				dianNum := dialNum.Add(1)
+				if dianNum == 1 { // first dial, return instance
+					return instance, nil
+				}
+				t.Logf("transport dial time %d more than once in: %s", dianNum, t.Name())
+				conn, err := proxy.DialContext(ctx, metadata)
+				if err != nil {
+					return nil, err
+				}
+				extraConnsMu.Lock()
+				extraConns = append(extraConns, conn)
+				extraConnsMu.Unlock()
+				return conn, nil
 			},
 			//// from http.DefaultTransport
 			//MaxIdleConns:          100,
