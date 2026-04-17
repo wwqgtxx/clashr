@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/metacubex/mihomo/common/httputils"
@@ -351,15 +350,12 @@ func (c *Client) DialStreamOne() (net.Conn, error) {
 	// This breaks the deadlock where CDN buffers response headers until the
 	// server sends body data, but the server waits for our request body,
 	// which can't be sent because we haven't returned the conn yet.
-	gotConn := make(chan struct{})
-	var gotConnOnce sync.Once
-	var tcpConnected atomic.Bool
+	gotConn := make(chan bool, 1)
 
 	addrCtx := httputils.NewAddrContext(&conn.NetAddr, c.ctx)
 	ctx := httptrace.WithClientTrace(addrCtx, &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
-			tcpConnected.Store(true)
-			gotConnOnce.Do(func() { close(gotConn) })
+			gotConn <- true
 		},
 	})
 
@@ -385,21 +381,18 @@ func (c *Client) DialStreamOne() (net.Conn, error) {
 		resp, err := transport.RoundTrip(req)
 		if err != nil {
 			wrc.CloseWithError(err)
-			gotConnOnce.Do(func() { close(gotConn) })
+			close(gotConn)
 			return
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			_ = resp.Body.Close()
 			wrc.CloseWithError(fmt.Errorf("xhttp stream-one bad status: %s", resp.Status))
-			gotConnOnce.Do(func() { close(gotConn) })
 			return
 		}
 		wrc.Set(resp.Body)
 	}()
 
-	<-gotConn
-
-	if !tcpConnected.Load() {
+	if !<-gotConn {
 		// RoundTrip failed before TCP connected (e.g. DNS failure)
 		_ = pr.Close()
 		_ = pw.Close()
@@ -447,15 +440,12 @@ func (c *Client) DialStreamUp() (net.Conn, error) {
 	sessionID := newSessionID()
 
 	// Async download: avoid blocking on CDN response header buffering
-	gotConn := make(chan struct{})
-	var gotConnOnce sync.Once
-	var tcpConnected atomic.Bool
+	gotConn := make(chan bool, 1)
 
 	addrCtx := httputils.NewAddrContext(&conn.NetAddr, c.ctx)
 	downloadCtx := httptrace.WithClientTrace(addrCtx, &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
-			tcpConnected.Store(true)
-			gotConnOnce.Do(func() { close(gotConn) })
+			gotConn <- true
 		},
 	})
 
@@ -503,21 +493,18 @@ func (c *Client) DialStreamUp() (net.Conn, error) {
 		resp, err := downloadTransport.RoundTrip(downloadReq)
 		if err != nil {
 			wrc.CloseWithError(err)
-			gotConnOnce.Do(func() { close(gotConn) })
+			close(gotConn)
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
 			wrc.CloseWithError(fmt.Errorf("xhttp stream-up download bad status: %s", resp.Status))
-			gotConnOnce.Do(func() { close(gotConn) })
 			return
 		}
 		wrc.Set(resp.Body)
 	}()
 
-	<-gotConn
-
-	if !tcpConnected.Load() {
+	if !<-gotConn {
 		_ = pr.Close()
 		_ = pw.Close()
 		httputils.CloseTransport(uploadTransport)
@@ -587,15 +574,12 @@ func (c *Client) DialPacketUp() (net.Conn, error) {
 	conn := &Conn{writer: writer}
 
 	// Async download: avoid blocking on CDN response header buffering
-	gotConn := make(chan struct{})
-	var gotConnOnce sync.Once
-	var tcpConnected atomic.Bool
+	gotConn := make(chan bool, 1)
 
 	addrCtx := httputils.NewAddrContext(&conn.NetAddr, c.ctx)
 	downloadCtx := httptrace.WithClientTrace(addrCtx, &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
-			tcpConnected.Store(true)
-			gotConnOnce.Do(func() { close(gotConn) })
+			gotConn <- true
 		},
 	})
 
@@ -623,21 +607,18 @@ func (c *Client) DialPacketUp() (net.Conn, error) {
 		resp, err := downloadTransport.RoundTrip(downloadReq)
 		if err != nil {
 			wrc.CloseWithError(err)
-			gotConnOnce.Do(func() { close(gotConn) })
+			close(gotConn)
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
 			wrc.CloseWithError(fmt.Errorf("xhttp packet-up download bad status: %s", resp.Status))
-			gotConnOnce.Do(func() { close(gotConn) })
 			return
 		}
 		wrc.Set(resp.Body)
 	}()
 
-	<-gotConn
-
-	if !tcpConnected.Load() {
+	if !<-gotConn {
 		httputils.CloseTransport(uploadTransport)
 		httputils.CloseTransport(downloadTransport)
 		var buf [0]byte
