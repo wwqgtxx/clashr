@@ -166,7 +166,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			},
 		}
 		httputils.SetAddrFromRequest(&conn.NetAddr, request)
-		conn.setUp(request.Body, nil)
+		conn.setup(request.Body, nil)
 		firstPacket := buf.NewPacket()
 		destination, err := conn.ReadPacket(firstPacket)
 		if err != nil {
@@ -203,7 +203,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 				},
 			}
 			httputils.SetAddrFromRequest(&conn.NetAddr, request)
-			conn.setUp(request.Body, nil)
+			conn.setup(request.Body, nil)
 			s.icmpHandler.NewICMPConnection(ctx, conn)
 		}
 	case HealthCheckMagicAddress:
@@ -226,7 +226,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			},
 		}
 		httputils.SetAddrFromRequest(&conn.NetAddr, request)
-		conn.setUp(request.Body, nil)
+		conn.setup(request.Body, nil)
 		_ = s.handler.NewConnection(ctx, conn, M.Metadata{
 			Protocol:    "trusttunnel",
 			Source:      M.ParseSocksaddr(request.RemoteAddr),
