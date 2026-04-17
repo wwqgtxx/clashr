@@ -679,38 +679,36 @@ func NewWaitReadCloser() *WaitReadCloser {
 // Must be called at most once. If Close was already called, rc is closed to
 // prevent leaks.
 func (w *WaitReadCloser) Set(rc io.ReadCloser) {
-	set := false
-	w.once.Do(func() {
-		w.rc = rc
-		set = true
-		close(w.wait)
-	})
-	if !set {
-		rc.Close()
-	}
+	w.setup(rc, nil)
 }
 
 // CloseWithError records an error and unblocks any pending Read calls.
 func (w *WaitReadCloser) CloseWithError(err error) {
+	w.setup(nil, err)
+}
+
+// setup sets the underlying ReadCloser and error.
+func (w *WaitReadCloser) setup(rc io.ReadCloser, err error) {
 	w.once.Do(func() {
+		w.rc = rc
 		w.err = err
 		close(w.wait)
 	})
+	if w.err != nil && rc != nil {
+		_ = rc.Close()
+	}
 }
 
 func (w *WaitReadCloser) Read(b []byte) (int, error) {
 	<-w.wait
-	if w.rc != nil {
-		return w.rc.Read(b)
-	}
-	if w.err != nil {
+	if w.rc == nil {
 		return 0, w.err
 	}
-	return 0, io.ErrClosedPipe
+	return w.rc.Read(b)
 }
 
 func (w *WaitReadCloser) Close() error {
-	w.once.Do(func() { close(w.wait) })
+	w.setup(nil, net.ErrClosed)
 	<-w.wait
 	if w.rc != nil {
 		return w.rc.Close()
