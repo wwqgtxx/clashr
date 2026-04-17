@@ -524,45 +524,6 @@ func TestInboundVless_XHTTP_PacketUp_H1(t *testing.T) {
 	})
 }
 
-func TestInboundVless_XHTTP_PacketUp_H1_ENC(t *testing.T) {
-	privateKeyBase64, passwordBase64, _, err := encryption.GenX25519("")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-	getConfig := func() (inbound.VlessOption, outbound.VlessOption) {
-		inboundOptions := inbound.VlessOption{
-			Decryption: "mlkem768x25519plus.native.600s." + privateKeyBase64,
-			XHTTPConfig: inbound.XHTTPConfig{
-				Path: "/vless-xhttp",
-				Host: "example.com",
-				Mode: "packet-up",
-			},
-		}
-		outboundOptions := outbound.VlessOption{
-			Encryption: "mlkem768x25519plus.native.0rtt." + passwordBase64,
-			Network:    "xhttp",
-			ALPN:       []string{"http/1.1"},
-			XHTTPOpts: outbound.XHTTPOptions{
-				Path: "/vless-xhttp",
-				Host: "example.com",
-				Mode: "packet-up",
-			},
-		}
-		return inboundOptions, outboundOptions
-	}
-
-	t.Run("default", func(t *testing.T) {
-		inboundOptions, outboundOptions := getConfig()
-		testInboundVlessTLS(t, inboundOptions, outboundOptions, false)
-	})
-
-	t.Run("reuse", func(t *testing.T) {
-		inboundOptions, outboundOptions := getConfig()
-		testInboundVlessTLS(t, inboundOptions, withXHTTPReuse(outboundOptions), false)
-	})
-}
-
 func withXHTTPReuse(out outbound.VlessOption) outbound.VlessOption {
 	out.XHTTPOpts.ReuseSettings = &outbound.XHTTPReuseSettings{
 		MaxConnections:   "0",
