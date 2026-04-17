@@ -120,6 +120,9 @@ func (h *httpConn) setup(body io.ReadCloser, err error) {
 
 func (h *httpConn) waitCreated() error {
 	<-h.created
+	if h.body != nil {
+		return nil
+	}
 	return h.createErr
 }
 
