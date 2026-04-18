@@ -237,7 +237,7 @@ func testInboundMieruTCP(t *testing.T, handshakeMode string) {
 		Password:      "password",
 		HandshakeMode: handshakeMode,
 	}
-	outboundOptions.DialerForAPI = NewTestDialer()
+	outboundOptions.DialerForAPI = tunnel.NewDialer()
 	out, err := outbound.NewMieru(outboundOptions)
 	if !assert.NoError(t, err) {
 		return
@@ -293,7 +293,7 @@ func testInboundMieruUDP(t *testing.T, handshakeMode string) {
 		Password:      "password",
 		HandshakeMode: handshakeMode,
 	}
-	outboundOptions.DialerForAPI = NewTestDialer()
+	outboundOptions.DialerForAPI = tunnel.NewDialer()
 	out, err := outbound.NewMieru(outboundOptions)
 	if !assert.NoError(t, err) {
 		return

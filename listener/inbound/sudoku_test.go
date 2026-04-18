@@ -43,7 +43,7 @@ func testInboundSudoku(t *testing.T, inboundOptions inbound.SudokuOption, outbou
 	outboundOptions.Name = "sudoku_outbound"
 	outboundOptions.Server = addrPort.Addr().String()
 	outboundOptions.Port = int(addrPort.Port())
-	outboundOptions.DialerForAPI = NewTestDialer()
+	outboundOptions.DialerForAPI = tunnel.NewDialer()
 
 	out, err := outbound.NewSudoku(outboundOptions)
 	if !assert.NoError(t, err) {

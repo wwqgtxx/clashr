@@ -58,12 +58,15 @@ func init() {
 	realityPublickey = base64.RawURLEncoding.EncodeToString(privateKey.PublicKey().Bytes())
 }
 
-type TestDialer struct{ dialer C.Dialer }
+type TestDialer struct {
+	dialer C.Dialer
+	ctx    context.Context
+}
 
 func (t *TestDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 start:
 	conn, err := t.dialer.DialContext(ctx, network, address)
-	if err != nil && ctx.Err() == nil {
+	if err != nil && ctx.Err() == nil && t.ctx.Err() == nil {
 		// We are conducting tests locally, and they shouldn't fail.
 		// However, a large number of requests in a short period during concurrent testing can exhaust system ports.
 		// This can lead to various errors such as WSAECONNREFUSED and WSAENOBUFS.
@@ -77,10 +80,6 @@ func (t *TestDialer) ListenPacket(ctx context.Context, network, address string, 
 	return t.dialer.ListenPacket(ctx, network, address, rAddrPort)
 }
 
-func NewTestDialer() *TestDialer {
-	return &TestDialer{dialer: dialer.NewDialer()}
-}
-
 var _ C.Dialer = (*TestDialer)(nil)
 
 type TestTunnel struct {
@@ -90,6 +89,7 @@ type TestTunnel struct {
 	CloseFn            func() error
 	DoSequentialTestFn func(t *testing.T, proxy C.ProxyAdapter)
 	DoConcurrentTestFn func(t *testing.T, proxy C.ProxyAdapter)
+	NewDialerFn        func() C.Dialer
 }
 
 func (tt *TestTunnel) HandleTCPConn(conn net.Conn, metadata *C.Metadata) {
@@ -119,6 +119,10 @@ func (tt *TestTunnel) DoSequentialTest(t *testing.T, proxy C.ProxyAdapter) {
 
 func (tt *TestTunnel) DoConcurrentTest(t *testing.T, proxy C.ProxyAdapter) {
 	tt.DoConcurrentTestFn(t, proxy)
+}
+
+func (tt *TestTunnel) NewDialer() C.Dialer {
+	return tt.NewDialerFn()
 }
 
 type TestTunnelListener struct {
@@ -353,6 +357,7 @@ func NewHttpTestTunnel() *TestTunnel {
 		CloseFn:            ln.Close,
 		DoSequentialTestFn: sequentialTestFn,
 		DoConcurrentTestFn: concurrentTestFn,
+		NewDialerFn:        func() C.Dialer { return &TestDialer{dialer: dialer.NewDialer(), ctx: ctx} },
 	}
 	return tunnel
 }
