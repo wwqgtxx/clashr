@@ -115,7 +115,7 @@ func (c *PacketUpWriter) write(b []byte) (int, error) {
 		Path:   c.cfg.NormalizedPath(),
 	}
 
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodPost, u.String(), nil)
+	req, err := http.NewRequestWithContext(c.ctx, c.cfg.GetNormalizedUplinkHTTPMethod(), u.String(), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -359,7 +359,7 @@ func (c *Client) DialStreamOne() (net.Conn, error) {
 		},
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL.String(), pr)
+	req, err := http.NewRequestWithContext(ctx, c.cfg.GetNormalizedUplinkHTTPMethod(), requestURL.String(), pr)
 	if err != nil {
 		_ = pr.Close()
 		_ = pw.Close()
@@ -470,7 +470,7 @@ func (c *Client) DialStreamUp() (net.Conn, error) {
 
 	uploadReq, err := http.NewRequestWithContext(
 		c.ctx,
-		http.MethodPost,
+		c.cfg.GetNormalizedUplinkHTTPMethod(),
 		streamURL.String(),
 		pr,
 	)
