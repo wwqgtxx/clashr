@@ -64,8 +64,10 @@ func (t *TestDialer) DialContext(ctx context.Context, network, address string) (
 start:
 	conn, err := t.dialer.DialContext(ctx, network, address)
 	if err != nil && ctx.Err() == nil {
-		// we are testing in local, should never fail, so just retry when ctx not canceled
-		// it usually happens when the test is running in parallel
+		// We are conducting tests locally, and they shouldn't fail.
+		// However, a large number of requests in a short period during concurrent testing can exhaust system ports.
+		// This can lead to various errors such as WSAECONNREFUSED and WSAENOBUFS.
+		// So we just retry if the context is not canceled.
 		goto start
 	}
 	return conn, err
