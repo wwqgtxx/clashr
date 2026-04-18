@@ -99,23 +99,7 @@ func (c *Config) GetRequestHeader() http.Header {
 	for k, v := range c.Headers {
 		h.Set(k, v)
 	}
-
-	if h.Get("User-Agent") == "" {
-		h.Set("User-Agent", "Mozilla/5.0")
-	}
-	if h.Get("Accept") == "" {
-		h.Set("Accept", "*/*")
-	}
-	if h.Get("Accept-Language") == "" {
-		h.Set("Accept-Language", "en-US,en;q=0.9")
-	}
-	if h.Get("Cache-Control") == "" {
-		h.Set("Cache-Control", "no-cache")
-	}
-	if h.Get("Pragma") == "" {
-		h.Set("Pragma", "no-cache")
-	}
-
+	TryDefaultHeadersWith(h, "fetch")
 	return h
 }
 
