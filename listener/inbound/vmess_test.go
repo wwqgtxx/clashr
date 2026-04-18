@@ -45,6 +45,7 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 	outboundOptions.UUID = userUUID
 	outboundOptions.AlterID = 0
 	outboundOptions.Cipher = "auto"
+	outboundOptions.DialerForAPI = NewTestDialer()
 
 	out, err := outbound.NewVmess(outboundOptions)
 	if !assert.NoError(t, err) {

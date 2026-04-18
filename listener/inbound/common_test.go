@@ -58,6 +58,29 @@ func init() {
 	realityPublickey = base64.RawURLEncoding.EncodeToString(privateKey.PublicKey().Bytes())
 }
 
+type TestDialer struct{ dialer C.Dialer }
+
+func (t *TestDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+start:
+	conn, err := t.dialer.DialContext(ctx, network, address)
+	if err != nil && ctx.Err() == nil {
+		// we are testing in local, should never fail, so just retry when ctx not canceled
+		// it usually happens when the test is running in parallel
+		goto start
+	}
+	return conn, err
+}
+
+func (t *TestDialer) ListenPacket(ctx context.Context, network, address string, rAddrPort netip.AddrPort) (net.PacketConn, error) {
+	return t.dialer.ListenPacket(ctx, network, address, rAddrPort)
+}
+
+func NewTestDialer() *TestDialer {
+	return &TestDialer{dialer: dialer.NewDialer()}
+}
+
+var _ C.Dialer = (*TestDialer)(nil)
+
 type TestTunnel struct {
 	HandleTCPConnFn    func(conn net.Conn, metadata *C.Metadata)
 	HandleUDPPacketFn  func(packet C.UDPPacket, metadata *C.Metadata)
