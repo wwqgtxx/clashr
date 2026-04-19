@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/metacubex/mihomo/common/cmd"
 	"github.com/metacubex/mihomo/component/generator"
 	"github.com/metacubex/mihomo/component/mtproxy/tools"
 	"github.com/metacubex/mihomo/config"
@@ -33,6 +34,8 @@ var (
 	externalControllerUnix string
 	externalControllerPipe string
 	secret                 string
+	postUp                 string
+	postDown               string
 )
 
 func init() {
@@ -43,6 +46,8 @@ func init() {
 	flag.StringVar(&externalControllerUnix, "ext-ctl-unix", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_UNIX"), "override external controller unix address")
 	flag.StringVar(&externalControllerPipe, "ext-ctl-pipe", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_PIPE"), "override external controller pipe address")
 	flag.StringVar(&secret, "secret", os.Getenv("CLASH_OVERRIDE_SECRET"), "override secret for RESTful API")
+	flag.StringVar(&postUp, "post-up", os.Getenv("CLASH_POST_UP"), "set post-up script")
+	flag.StringVar(&postDown, "post-down", os.Getenv("CLASH_POST_DOWN"), "set post-down script")
 	flag.BoolVar(&version, "v", false, "show current version of mihomo")
 	flag.BoolVar(&testConfig, "t", false, "test configuration and exit")
 	flag.Parse()
@@ -140,6 +145,19 @@ func main() {
 
 	if err := hub.Parse(options...); err != nil {
 		log.Fatalln("Parse config error: %s", err.Error())
+	}
+
+	if postDown != "" {
+		defer func() {
+			if _, err := cmd.ExecShell(postDown); err != nil {
+				log.Errorln("post-down script error: %s", err.Error())
+			}
+		}()
+	}
+	if postUp != "" {
+		if _, err := cmd.ExecShell(postUp); err != nil {
+			log.Fatalln("post-up script error: %s", err.Error())
+		}
 	}
 
 	defer executor.Shutdown()
