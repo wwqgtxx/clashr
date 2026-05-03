@@ -173,7 +173,11 @@ func router(isDebug bool, secret string, dohServer string, cors Cors) *chi.Mux {
 					if !strings.Contains(host, ":") {
 						host = host + ":80"
 					}
-					new := []byte(fmt.Sprintf("<meta name=\"external-controller\" content=\"http://%s\">", host))
+					schema := "http"
+					if r.TLS != nil {
+						schema = "https"
+					}
+					new := []byte(fmt.Sprintf("<meta name=\"external-controller\" content=\"%s://%s\">", schema, host))
 					target := bytes.ReplaceAll(data, old, new)
 					fw.buf.Reset()
 					fw.buf.Write(target)
