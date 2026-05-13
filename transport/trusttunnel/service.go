@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/metacubex/mihomo/common/httputils"
+	N "github.com/metacubex/mihomo/common/net"
 
 	"github.com/metacubex/http"
 	"github.com/metacubex/quic-go/http3"
@@ -17,13 +19,13 @@ import (
 	E "github.com/metacubex/sing/common/exceptions"
 	"github.com/metacubex/sing/common/logger"
 	M "github.com/metacubex/sing/common/metadata"
-	N "github.com/metacubex/sing/common/network"
+	"github.com/metacubex/sing/common/network"
 	"github.com/metacubex/tls"
 )
 
 type Handler interface {
-	N.TCPConnectionHandler
-	N.UDPConnectionHandler
+	network.TCPConnectionHandler
+	network.UDPConnectionHandler
 }
 
 type ICMPHandler interface {
@@ -229,11 +231,15 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		}
 		httputils.SetAddrFromRequest(&conn.NetAddr, request)
 		conn.setup(request.Body, nil)
-		_ = s.handler.NewConnection(ctx, conn, M.Metadata{
+		wrapper := &h2ConnWrapper{
+			ExtendedConn: N.NewDeadlineConn(conn),
+		}
+		_ = s.handler.NewConnection(ctx, wrapper, M.Metadata{
 			Protocol:    "trusttunnel",
 			Source:      M.ParseSocksaddr(request.RemoteAddr),
 			Destination: M.ParseSocksaddr(request.Host).Unwrap(),
 		})
+		wrapper.CloseWrapper()
 	}
 }
 
@@ -254,4 +260,39 @@ func (s *Service) verify(authorization string) (username string, loaded bool) {
 
 func (s *Service) badRequest(ctx context.Context, request *http.Request, err error) {
 	s.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", request.RemoteAddr))
+}
+
+// h2ConnWrapper used to avoid "panic: Write called after Handler finished" for gun.Conn
+type h2ConnWrapper struct {
+	N.ExtendedConn
+	access sync.Mutex
+	closed bool
+}
+
+func (w *h2ConnWrapper) Write(p []byte) (n int, err error) {
+	w.access.Lock()
+	defer w.access.Unlock()
+	if w.closed {
+		return 0, net.ErrClosed
+	}
+	return w.ExtendedConn.Write(p)
+}
+
+func (w *h2ConnWrapper) WriteBuffer(buffer *buf.Buffer) error {
+	w.access.Lock()
+	defer w.access.Unlock()
+	if w.closed {
+		return net.ErrClosed
+	}
+	return w.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (w *h2ConnWrapper) CloseWrapper() {
+	w.access.Lock()
+	defer w.access.Unlock()
+	w.closed = true
+}
+
+func (w *h2ConnWrapper) Upstream() any {
+	return w.ExtendedConn
 }
