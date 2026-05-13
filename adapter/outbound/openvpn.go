@@ -58,8 +58,19 @@ type OpenVPNOption struct {
 }
 
 func NewOpenVPN(option OpenVPNOption) (*OpenVPN, error) {
-	cfg, err := loadOpenVPNClientConfig(option)
-	if err != nil {
+	cfg := &ovpn.ClientConfig{
+		RemoteHost: option.Server,
+		RemotePort: uint16(option.Port),
+		Proto:      option.Proto,
+		Dev:        option.Dev,
+		Cipher:     option.Cipher,
+		Auth:       option.Auth,
+		CA:         []byte(option.CA),
+		Cert:       []byte(option.Cert),
+		Key:        []byte(option.Key),
+		TLSCrypt:   []byte(option.TLSCrypt),
+	}
+	if err := cfg.Prepare(); err != nil {
 		return nil, err
 	}
 
@@ -91,40 +102,11 @@ func NewOpenVPN(option OpenVPNOption) (*OpenVPN, error) {
 	return outbound, nil
 }
 
-func loadOpenVPNClientConfig(option OpenVPNOption) (*ovpn.ClientConfig, error) {
-	if option.Server == "" {
-		return nil, fmt.Errorf("openvpn server is required")
-	}
-	if option.Port <= 0 || option.Port > 65535 {
-		return nil, fmt.Errorf("invalid openvpn port: %d", option.Port)
-	}
-	cfg := &ovpn.ClientConfig{
-		RemoteHost: option.Server,
-		RemotePort: uint16(option.Port),
-		Proto:      option.Proto,
-		Dev:        option.Dev,
-		Cipher:     option.Cipher,
-		Auth:       option.Auth,
-		CA:         []byte(option.CA),
-		Cert:       []byte(option.Cert),
-		Key:        []byte(option.Key),
-		TLSCrypt:   []byte(option.TLSCrypt),
-	}
-	if err := cfg.Prepare(); err != nil {
+func (o *OpenVPN) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.Conn, err error) {
+	if err = o.run(ctx); err != nil {
 		return nil, err
 	}
-	return cfg, nil
-}
-
-func (o *OpenVPN) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn, error) {
-	if err := o.run(ctx); err != nil {
-		return nil, err
-	}
-
-	var (
-		conn net.Conn
-		err  error
-	)
+	var conn net.Conn
 	if !metadata.Resolved() || o.resolver != nil {
 		r := resolver.DefaultResolver
 		if o.resolver != nil {
@@ -146,31 +128,22 @@ func (o *OpenVPN) DialContext(ctx context.Context, metadata *C.Metadata) (C.Conn
 	return NewConn(conn, o), nil
 }
 
-func (o *OpenVPN) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (C.PacketConn, error) {
-	if err := o.run(ctx); err != nil {
+func (o *OpenVPN) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
+	var pc net.PacketConn
+	if err = o.run(ctx); err != nil {
 		return nil, err
 	}
-	if err := o.ResolveUDP(ctx, metadata); err != nil {
+	if err = o.ResolveUDP(ctx, metadata); err != nil {
 		return nil, err
 	}
-	pc, err := o.tunDevice.ListenPacket(ctx, M.SocksaddrFrom(metadata.DstIP, metadata.DstPort).Unwrap())
+	pc, err = o.tunDevice.ListenPacket(ctx, M.SocksaddrFrom(metadata.DstIP, metadata.DstPort).Unwrap())
 	if err != nil {
 		return nil, err
 	}
 	if pc == nil {
-		return nil, E.New("packetConn is nil")
+		return nil, errors.New("packetConn is nil")
 	}
 	return newPacketConn(pc, o), nil
-}
-
-func (o *OpenVPN) ProxyInfo() C.ProxyInfo {
-	info := o.Base.ProxyInfo()
-	info.DialerProxy = o.option.DialerProxy
-	return info
-}
-
-func (o *OpenVPN) IsL3Protocol(metadata *C.Metadata) bool {
-	return true
 }
 
 func (o *OpenVPN) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
@@ -186,6 +159,16 @@ func (o *OpenVPN) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
 		metadata.DstIP = ip
 	}
 	return nil
+}
+
+func (o *OpenVPN) ProxyInfo() C.ProxyInfo {
+	info := o.Base.ProxyInfo()
+	info.DialerProxy = o.option.DialerProxy
+	return info
+}
+
+func (o *OpenVPN) IsL3Protocol(metadata *C.Metadata) bool {
+	return true
 }
 
 func (o *OpenVPN) Close() error {

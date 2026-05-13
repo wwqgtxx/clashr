@@ -3,7 +3,6 @@ package openvpn
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/metacubex/tls"
 )
 
 const defaultHandshakeTimeout = 30 * time.Second
@@ -236,26 +237,17 @@ func (c *Client) tlsConfig() (*tls.Config, error) {
 		return nil, errors.New("parse openvpn ca certificate")
 	}
 	return &tls.Config{
-		MinVersion:         tls.VersionTLS12,
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			if len(rawCerts) == 0 {
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
 				return errors.New("openvpn server did not provide certificate")
 			}
-			certs := make([]*x509.Certificate, 0, len(rawCerts))
-			for _, raw := range rawCerts {
-				cert, err := x509.ParseCertificate(raw)
-				if err != nil {
-					return err
-				}
-				certs = append(certs, cert)
-			}
 			intermediates := x509.NewCertPool()
-			for _, cert := range certs[1:] {
+			for _, cert := range cs.PeerCertificates[1:] {
 				intermediates.AddCert(cert)
 			}
-			_, err := certs[0].Verify(x509.VerifyOptions{
+			_, err := cs.PeerCertificates[0].Verify(x509.VerifyOptions{
 				Roots:         roots,
 				Intermediates: intermediates,
 				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
