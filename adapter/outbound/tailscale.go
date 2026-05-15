@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"runtime"
 	"sync"
 	"time"
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
 	"github.com/metacubex/mihomo/component/dialer"
+	"github.com/metacubex/mihomo/component/iface/anet"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/dns"
@@ -21,6 +23,7 @@ import (
 
 	"github.com/metacubex/tailscale/envknob"
 	"github.com/metacubex/tailscale/ipn"
+	"github.com/metacubex/tailscale/net/netmon"
 	"github.com/metacubex/tailscale/tsnet"
 	D "github.com/miekg/dns"
 )
@@ -57,8 +60,25 @@ type TailscaleOption struct {
 	ExitNodeAllowLANAccess *bool  `proxy:"exit-node-allow-lan-access,omitempty"`
 }
 
-func NewTailscale(option TailscaleOption) (*Tailscale, error) {
+func init() {
 	envknob.SetNoLogsNoSupport()
+	if runtime.GOOS == "android" { // Android SDK 30 no longer permits Go's net.Interfaces to work (Issue 2293)
+		netmon.RegisterInterfaceGetter(func() (nif []netmon.Interface, err error) {
+			ifaces, err := anet.Interfaces()
+			if err != nil {
+				return nil, err
+			}
+			for _, iff := range ifaces {
+				nif = append(nif, netmon.Interface{
+					Interface: &iff,
+				})
+			}
+			return
+		})
+	}
+}
+
+func NewTailscale(option TailscaleOption) (*Tailscale, error) {
 	if _, err := buildTailscaleMaskedPrefs(option); err != nil {
 		return nil, err
 	}
