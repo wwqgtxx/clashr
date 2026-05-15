@@ -334,7 +334,7 @@ func (t *Tailscale) ListenPacketContext(ctx context.Context, metadata *C.Metadat
 
 func (t *Tailscale) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
 	if metadata.Host != "" {
-		ip, err := t.resolveIPWithTransport(ctx, metadata.Host)
+		ip, err := resolveIPWithResolver(ctx, metadata.Host, t.prefer, t.dnsResolver)
 		if err != nil {
 			return fmt.Errorf("can't resolve ip: %w", err)
 		}
@@ -352,19 +352,6 @@ func (t *Tailscale) checkTailscaleRoute(ctx context.Context, network, address st
 		return fmt.Errorf("destination %s is not routed by Tailscale; configure exit-node or accept an advertised subnet route", ipp)
 	}
 	return nil
-}
-
-func (t *Tailscale) resolveIPWithTransport(ctx context.Context, host string) (netip.Addr, error) {
-	switch t.option.IPVersion {
-	case C.IPv4Only:
-		return resolver.ResolveIPv4WithResolver(ctx, host, t.dnsResolver)
-	case C.IPv6Only:
-		return resolver.ResolveIPv6WithResolver(ctx, host, t.dnsResolver)
-	case C.IPv6Prefer:
-		return resolver.ResolveIPPrefer6WithResolver(ctx, host, t.dnsResolver)
-	default:
-		return resolver.ResolveIPWithResolver(ctx, host, t.dnsResolver)
-	}
 }
 
 type tailscaleDNSTransport struct {

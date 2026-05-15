@@ -156,7 +156,7 @@ func (o *OpenVPN) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
 		if o.resolver != nil {
 			r = o.resolver
 		}
-		ip, err := resolver.ResolveIPWithResolver(ctx, metadata.Host, r)
+		ip, err := resolveIPWithResolver(ctx, metadata.Host, o.prefer, r)
 		if err != nil {
 			return fmt.Errorf("can't resolve ip: %w", err)
 		}
