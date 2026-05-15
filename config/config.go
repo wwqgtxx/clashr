@@ -1020,6 +1020,12 @@ func parseNameServer(servers []string, respectRules bool) ([]dns.NameServer, err
 			}
 		case "system":
 			dnsNetType = "system" // System DNS
+		case "ts", "tailscale":
+			addr = u.Host
+			dnsNetType = "tailscale" // Tailscale DNS via proxy name
+			if addr == "" {
+				err = errors.New("missing Tailscale proxy name")
+			}
 		case "dhcp":
 			addr = server[len("dhcp://"):] // some special notation cannot be parsed by url
 			dnsNetType = "dhcp"            // UDP from DHCP
