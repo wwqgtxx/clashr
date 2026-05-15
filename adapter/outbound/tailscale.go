@@ -13,6 +13,7 @@ import (
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
+	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/dns"
@@ -290,11 +291,16 @@ func (t *Tailscale) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.
 	if err = t.ensureStarted(ctx); err != nil {
 		return nil, err
 	}
-	address := metadata.RemoteAddress()
-	if err = t.checkTailscaleRoute(ctx, "tcp", address); err != nil {
-		return nil, err
-	}
-	conn, err := t.server.Dial(ctx, "tcp", address)
+	options := t.DialOptions()
+	options = append(options, dialer.WithResolver(t.dnsResolver))
+	options = append(options, dialer.WithNetDialer(dialer.NetDialerFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
+		if err = t.checkTailscaleRoute(ctx, network, address); err != nil {
+			return nil, err
+		}
+		return t.server.Dial(ctx, network, address)
+	})))
+	var conn net.Conn
+	conn, err = dialer.NewDialer(options...).DialContext(ctx, "tcp", metadata.RemoteAddress())
 	if err != nil {
 		return nil, err
 	}
@@ -305,9 +311,6 @@ func (t *Tailscale) DialContext(ctx context.Context, metadata *C.Metadata) (_ C.
 }
 
 func (t *Tailscale) ListenPacketContext(ctx context.Context, metadata *C.Metadata) (_ C.PacketConn, err error) {
-	if !t.option.UDP {
-		return nil, C.ErrNotSupport
-	}
 	if err = t.ensureStarted(ctx); err != nil {
 		return nil, err
 	}
@@ -326,14 +329,11 @@ func (t *Tailscale) ListenPacketContext(ctx context.Context, metadata *C.Metadat
 		return nil, errors.New("packet conn is nil")
 	}
 	rAddr := metadata.UDPAddr()
-	if rAddr == nil {
-		return nil, errors.New("packet destination is invalid")
-	}
 	return newPacketConn(N.NewThreadSafePacketConn(&tailscaleConnPacketConn{Conn: conn, rAddr: rAddr}), t), nil
 }
 
 func (t *Tailscale) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
-	if !metadata.Resolved() && metadata.Host != "" {
+	if metadata.Host != "" {
 		ip, err := t.resolveIPWithTransport(ctx, metadata.Host)
 		if err != nil {
 			return fmt.Errorf("can't resolve ip: %w", err)
