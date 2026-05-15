@@ -42,6 +42,8 @@ type Tailscale struct {
 	backendInitCh   chan struct{}
 	backendInitErr  error
 
+	serverStarted bool
+
 	unregisterDNSResolver func()
 }
 
@@ -140,12 +142,6 @@ func NewTailscale(option TailscaleOption) (*Tailscale, error) {
 	return outbound, nil
 }
 
-func (t *Tailscale) startOnRunning() {
-	if err := t.start(); err != nil {
-		log.Warnln("[Tailscale](%s) start failed: %v", t.Name(), err)
-	}
-}
-
 func (t *Tailscale) start() error {
 	t.startOnce.Do(func() {
 		if err := t.server.Start(); err != nil {
@@ -153,6 +149,7 @@ func (t *Tailscale) start() error {
 			t.setBackendInitialized(err)
 			return
 		}
+		t.serverStarted = true
 		ctx, cancel := context.WithTimeout(t.ctx, 30*time.Second)
 		defer cancel()
 		if err := t.applyPrefs(ctx); err != nil {
@@ -432,7 +429,10 @@ func (t *Tailscale) Close() error {
 	if t.unregisterDNSResolver != nil {
 		t.unregisterDNSResolver()
 	}
-	if t.server != nil {
+	t.startOnce.Do(func() {
+		t.startErr = errors.New("tailscale outbound closed")
+	})
+	if t.server != nil && t.serverStarted { // tsnet.Server.Close() must not be called before or concurrently with Start.
 		return t.server.Close()
 	}
 	return nil
