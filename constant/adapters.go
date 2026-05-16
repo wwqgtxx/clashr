@@ -21,6 +21,12 @@ const (
 	Pass
 	Dns
 
+	Relay
+	Selector
+	Fallback
+	URLTest
+	LoadBalance
+
 	Shadowsocks
 	ShadowsocksR
 	Snell
@@ -41,12 +47,6 @@ const (
 	OpenVPN
 	Tailscale
 	GostRelay
-
-	Relay
-	Selector
-	Fallback
-	URLTest
-	LoadBalance
 )
 
 const (
