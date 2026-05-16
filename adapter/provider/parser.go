@@ -44,7 +44,7 @@ type proxyProviderSchema struct {
 	Header      map[string][]string `provider:"header,omitempty"`
 }
 
-func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefault bool, healthCheckURL string) (P.ProxyProvider, error) {
+func ParseProxyProvider(name string, mapping map[string]any, tunnel C.Tunnel, healthCheckLazyDefault bool, healthCheckURL string) (P.ProxyProvider, error) {
 	decoder := structure.NewDecoder(structure.Option{TagName: "provider", WeaklyTypedInput: true})
 
 	schema := &proxyProviderSchema{
@@ -67,7 +67,7 @@ func ParseProxyProvider(name string, mapping map[string]any, healthCheckLazyDefa
 		schema.URL = strings.Replace(schema.ConverterURL, "{url}", url.QueryEscape(schema.URL), 1)
 	}
 
-	parser, err := NewProxiesParser(name, schema.Filter, schema.ExcludeFilter, schema.ExcludeType, schema.DialerProxy, schema.Override)
+	parser, err := NewProxiesParser(name, tunnel, schema.Filter, schema.ExcludeFilter, schema.ExcludeType, schema.DialerProxy, schema.Override)
 	if err != nil {
 		return nil, err
 	}
