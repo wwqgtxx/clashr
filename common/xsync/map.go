@@ -6,6 +6,7 @@ package xsync
 // mihomo modified:
 // 1. restore xsync/v3's LoadOrCompute api and rename to LoadOrStoreFn.
 // 2. the zero Map is ready for use.
+// 3. remove unnecessary member variables added by xsync/v3's "optimize Map for integer keys"
 
 import (
 	"fmt"
@@ -135,7 +136,6 @@ type Map[K comparable, V any] struct {
 	resizeIdx   atomic.Int64
 	minTableLen int
 	growOnly    bool
-	intKey      bool
 }
 
 type mapTable[K comparable, V any] struct {
@@ -145,8 +145,6 @@ type mapTable[K comparable, V any] struct {
 	// occupies min(buckets_memory/1024, 64KB) of memory
 	size []counterStripe
 	seed maphash.Seed
-	// intSeed is derived from seed for fast integer hashing
-	intSeed uint64
 }
 
 type counterStripe struct {
@@ -226,7 +224,6 @@ func (m *Map[K, V]) init() {
 		m.minTableLen = defaultMinMapTableLen
 	}
 	m.resizeCond = *sync.NewCond(&m.resizeMu)
-	m.intKey = detectIntKey[K]()
 	table := newMapTable[K, V](m.minTableLen, maphash.MakeSeed())
 	m.minTableLen = len(table.buckets)
 	m.table.Store(table)
@@ -246,8 +243,9 @@ func detectIntKey[K comparable]() bool {
 // hashUint64 computes a hash for integer keys using two rounds of
 // multiply-xorshift mixing (wyhash-style).
 // This is significantly faster than maphash.Comparable for integer types.
-func hashUint64(seed, v uint64) uint64 {
-	hi, lo := bits.Mul64(v^seed, 0x2d358dccaa6c78a5)
+func hashUint64(seed maphash.Seed, v uint64) uint64 {
+	// maphash.Seed is just a uint64, so we can convert it directly
+	hi, lo := bits.Mul64(v^(*(*uint64)(unsafe.Pointer(&seed))), 0x2d358dccaa6c78a5)
 	hi2, lo2 := bits.Mul64(hi^lo, 0x8bb84b93962eacc9)
 	return hi2 ^ lo2
 }
@@ -278,16 +276,10 @@ func newMapTable[K comparable, V any](minTableLen int, seed maphash.Seed) *mapTa
 		counterLen = maxMapCounterLen
 	}
 	counter := make([]counterStripe, counterLen)
-	// Derive intSeed from maphash.Seed for fast integer hashing
-	var h maphash.Hash
-	h.SetSeed(seed)
-	h.WriteByte(0)
-	intSeed := h.Sum64()
 	t := &mapTable[K, V]{
 		buckets: buckets,
 		size:    counter,
 		seed:    seed,
-		intSeed: intSeed,
 	}
 	return t
 }
@@ -314,8 +306,8 @@ func (m *Map[K, V]) Load(key K) (value V, ok bool) {
 	m.initOnce.Do(m.init)
 	table := m.table.Load()
 	var hash uint64
-	if m.intKey {
-		hash = hashUint64(table.intSeed, toUint64(key))
+	if detectIntKey[K]() {
+		hash = hashUint64(table.seed, toUint64(key))
 	} else {
 		hash = maphash.Comparable(table.seed, key)
 	}
@@ -370,8 +362,8 @@ func (m *Map[K, V]) Store(key K, value V) {
 		table := m.table.Load()
 		tableLen := len(table.buckets)
 		var hash uint64
-		if m.intKey {
-			hash = hashUint64(table.intSeed, toUint64(key))
+		if detectIntKey[K]() {
+			hash = hashUint64(table.seed, toUint64(key))
 		} else {
 			hash = maphash.Comparable(table.seed, key)
 		}
@@ -591,8 +583,8 @@ func (m *Map[K, V]) doCompute(
 		table := m.table.Load()
 		tableLen := len(table.buckets)
 		var hash uint64
-		if m.intKey {
-			hash = hashUint64(table.intSeed, toUint64(key))
+		if detectIntKey[K]() {
+			hash = hashUint64(table.seed, toUint64(key))
 		} else {
 			hash = maphash.Comparable(table.seed, key)
 		}
@@ -937,7 +929,7 @@ func (m *Map[K, V]) transfer(table, newTable *mapTable[K, V]) {
 			// Visit all source buckets that map to this destination bucket.
 			// When growing, runs once. When shrinking, runs twice.
 			for srcIdx := i; srcIdx < tableLen; srcIdx += baseLen {
-				total += transferBucketUnsafe(&table.buckets[srcIdx], newTable, m.intKey)
+				total += transferBucketUnsafe(&table.buckets[srcIdx], newTable)
 			}
 		}
 		// The exact counter stripe doesn't matter here, so pick up the one
@@ -950,7 +942,6 @@ func (m *Map[K, V]) transfer(table, newTable *mapTable[K, V]) {
 func transferBucketUnsafe[K comparable, V any](
 	b *bucketPadded,
 	destTable *mapTable[K, V],
-	intKey bool,
 ) (copied int) {
 	rootb := b
 	rootb.mu.Lock()
@@ -959,8 +950,8 @@ func transferBucketUnsafe[K comparable, V any](
 			if eptr := b.entries[i]; eptr != nil {
 				e := (*entry[K, V])(eptr)
 				var hash uint64
-				if intKey {
-					hash = hashUint64(destTable.intSeed, toUint64(e.key))
+				if detectIntKey[K]() {
+					hash = hashUint64(destTable.seed, toUint64(e.key))
 				} else {
 					hash = maphash.Comparable(destTable.seed, e.key)
 				}

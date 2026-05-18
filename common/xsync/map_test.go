@@ -11,6 +11,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/metacubex/mihomo/common/maphash"
+
 	"github.com/metacubex/randv2"
 )
 
@@ -146,6 +148,7 @@ func TestMapHashUint64_NoDifferentialBias(t *testing.T) {
 			collisions := 0
 			for i := 0; i < nTrials; i++ {
 				v := uint64(i) * 0x9E3779B97F4A7C15 // spread values
+				seed := *(*maphash.Seed)(unsafe.Pointer(&seed))
 				h1 := hashUint64(seed, v)
 				h2 := hashUint64(seed, v^delta)
 				if (h1 & mask) == (h2 & mask) {
