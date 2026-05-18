@@ -13,10 +13,11 @@ import (
 )
 
 type packet struct {
-	pc     net.PacketConn
-	lAddr  netip.AddrPort
-	buf    []byte
-	tunnel C.Tunnel
+	pc        net.PacketConn
+	lAddr     netip.AddrPort
+	buf       []byte
+	tunnel    C.Tunnel
+	additions []inbound.Addition
 }
 
 func (c *packet) Data() []byte {
@@ -25,7 +26,7 @@ func (c *packet) Data() []byte {
 
 // WriteBack opens a new socket binding `addr` to write UDP packet back
 func (c *packet) WriteBack(b []byte, addr net.Addr) (n int, err error) {
-	tc, err := createOrGetLocalConn(addr, c.LocalAddr(), c.tunnel)
+	tc, err := createOrGetLocalConn(addr, c.LocalAddr(), c.tunnel, c.additions...)
 	if err != nil {
 		n = 0
 		return
@@ -51,7 +52,7 @@ func (c *packet) InAddr() net.Addr {
 // this function listen at rAddr and write to lAddr
 // for here, rAddr is the ip/port client want to access
 // lAddr is the ip/port client opened
-func createOrGetLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel) (*net.UDPConn, error) {
+func createOrGetLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel, additions ...inbound.Addition) (*net.UDPConn, error) {
 	remote := rAddr.String()
 	local := lAddr.String()
 	natTable := tunnel.NatTable()
@@ -76,7 +77,7 @@ func createOrGetLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel) (*net.UDPConn,
 				natTable.DeleteLockForLocalConn(local, remote)
 				cond.Broadcast()
 			}()
-			conn, err := listenLocalConn(rAddr, lAddr, tunnel)
+			conn, err := listenLocalConn(rAddr, lAddr, tunnel, additions...)
 			if err != nil {
 				log.Errorln("listenLocalConn failed with error: %s, packet loss (rAddr[%T]=%s lAddr[%T]=%s)", err.Error(), rAddr, remote, lAddr, local)
 				return nil, err
@@ -90,11 +91,7 @@ func createOrGetLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel) (*net.UDPConn,
 
 // this function listen at rAddr
 // and send what received to program itself, then send to real remote
-func listenLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel) (*net.UDPConn, error) {
-	additions := []inbound.Addition{
-		inbound.WithInName("DEFAULT-TPROXY"),
-		inbound.WithSpecialRules(""),
-	}
+func listenLocalConn(rAddr, lAddr net.Addr, tunnel C.Tunnel, additions ...inbound.Addition) (*net.UDPConn, error) {
 	lc, err := dialUDP("udp", rAddr.(*net.UDPAddr).AddrPort(), lAddr.(*net.UDPAddr).AddrPort())
 	if err != nil {
 		return nil, err
