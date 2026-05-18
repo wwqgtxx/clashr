@@ -125,7 +125,7 @@ func NewTailscale(option TailscaleOption) (*Tailscale, error) {
 		ControlURL:           option.ControlURL,
 		Ephemeral:            option.Ephemeral,
 		SystemDialer:         outbound.dialer.DialContext,
-		SystemPacketListener: tailscalePacketListener{dialer: outbound.dialer},
+		SystemPacketListener: tailscalePacketListener{dialer: outbound.dialer}.ListenPacket,
 		ExtraRootCAs:         ca.GetCertPool(),
 		LookupHook:           tailscaleLookupHook,
 		UserLogf: func(format string, args ...any) {
