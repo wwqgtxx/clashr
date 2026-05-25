@@ -301,7 +301,7 @@ func updateDNS(c *config.DNS) {
 		m.PatchFrom(old.(*dns.ResolverEnhancer))
 	}
 
-	s := dns.NewService(r.Resolver, m)
+	s := dns.NewService(r, m)
 
 	resolver.DefaultResolver = r
 	resolver.DefaultHostMapper = m
