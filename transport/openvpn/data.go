@@ -122,7 +122,7 @@ func NewDataChannel(keys *KeyMaterial, cipherName, authName string, peerID uint3
 
 func isDataChannelAEAD(cipherName string) bool {
 	switch cipherName {
-	case CipherAES128GCM, CipherAES256GCM, CipherChaCha20Poly1305:
+	case CipherAES128GCM, CipherAES192GCM, CipherAES256GCM, CipherChaCha20Poly1305:
 		return true
 	default:
 		return false
@@ -131,7 +131,7 @@ func isDataChannelAEAD(cipherName string) bool {
 
 func newDataChannelAEAD(cipherName string, key []byte) (cipher.AEAD, error) {
 	switch cipherName {
-	case CipherAES128GCM, CipherAES256GCM:
+	case CipherAES128GCM, CipherAES192GCM, CipherAES256GCM:
 		block, err := aes.NewCipher(key)
 		if err != nil {
 			return nil, err
@@ -146,7 +146,7 @@ func newDataChannelAEAD(cipherName string, key []byte) (cipher.AEAD, error) {
 
 func newDataChannelCBC(cipherName string, key []byte) (cipher.Block, error) {
 	switch cipherName {
-	case CipherAESCBC, CipherAES128CBC, CipherAES256CBC:
+	case CipherAESCBC, CipherAES128CBC, CipherAES192CBC, CipherAES256CBC:
 		return aes.NewCipher(key)
 	default:
 		return nil, fmt.Errorf("unsupported openvpn cipher %q", cipherName)
