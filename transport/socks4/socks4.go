@@ -185,6 +185,7 @@ func isReservedIP(ip net.IP) bool {
 }
 
 func readUntilNull(r io.Reader) ([]byte, error) {
+	const maxLen = 256
 	buf := &bytes.Buffer{}
 	var data [1]byte
 
@@ -194,6 +195,9 @@ func readUntilNull(r io.Reader) ([]byte, error) {
 		}
 		if data[0] == 0 {
 			return buf.Bytes(), nil
+		}
+		if buf.Len() >= maxLen {
+			return nil, errors.New("readUntilNull: data too long")
 		}
 		buf.WriteByte(data[0])
 	}
