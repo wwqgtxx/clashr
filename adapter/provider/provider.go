@@ -343,8 +343,10 @@ func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilt
 		filterRegs = append(filterRegs, filterReg)
 	}
 
-	if err := age.VeritySecretKeys(ageSecretKey); err != nil {
-		return nil, fmt.Errorf("invalid age-secret-key: %w", err)
+	if ageSecretKey != "" {
+		if err := age.VeritySecretKeys(ageSecretKey); err != nil {
+			return nil, fmt.Errorf("invalid age-secret-key: %w", err)
+		}
 	}
 
 	return func(buf []byte) ([]C.Proxy, error) {
