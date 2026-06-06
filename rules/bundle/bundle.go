@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 
 	"github.com/metacubex/mihomo/component/resource"
 	C "github.com/metacubex/mihomo/constant"
@@ -18,20 +17,21 @@ func MakeBundleFile(path string) resource.BundleFile {
 		return nil
 	}
 	return func() (fs.File, error) {
-		if _, err := os.Stat(C.Path.BundleMRS()); os.IsNotExist(err) {
-			return nil, fmt.Errorf("bundle file not exist: %s", C.Path.BundleMRS())
-		}
-		r, err := sevenzip.OpenReader(C.Path.BundleMRS())
-		if err != nil {
-			return nil, fmt.Errorf("open bundle file error: %w", err)
-		}
-		f, err := r.Open(path)
-		if err != nil {
-			_ = r.Close()
-			return nil, fmt.Errorf("open path in bundle file error: %w", err)
-		}
-		return file{f, r}, nil
+		return Open(path)
 	}
+}
+
+func Open(path string) (fs.File, error) {
+	r, err := sevenzip.OpenReader(C.Path.BundleMRS())
+	if err != nil {
+		return nil, fmt.Errorf("open bundle file error: %w", err)
+	}
+	f, err := r.Open(path)
+	if err != nil {
+		_ = r.Close()
+		return nil, fmt.Errorf("open path in bundle file error: %w", err)
+	}
+	return file{f, r}, nil
 }
 
 type file struct {
