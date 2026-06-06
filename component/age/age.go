@@ -31,10 +31,10 @@ func SetGlobalIdentities(id []Identity) {
 	globalIdentities = append(globalIdentities[:0], id...)
 }
 
-// DecryptBytes decrypt age encrypted data
-// if not age encrypted, return original data
+// DecryptBytes decrypt age armor format encrypted data
+// if not the age armor format, return original data
 func DecryptBytes(data []byte, identities ...Identity) ([]byte, error) {
-	if !strings.HasPrefix(string(data), FileHeader) { // not age encrypted
+	if !strings.HasPrefix(string(data), FileHeader) { // not age armor format
 		return data, nil
 	}
 	identities = append(identities[:len(identities):len(identities)], globalIdentities...)
@@ -113,7 +113,12 @@ func Main(args []string) {
 		if err != nil {
 			panic(err)
 		}
-		data, err := os.ReadFile(args[2])
+		var data []byte
+		if args[2] == "-" {
+			data, err = io.ReadAll(os.Stdin)
+		} else {
+			data, err = os.ReadFile(args[2])
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -121,7 +126,11 @@ func Main(args []string) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(args[3], result, 0644)
+		if args[3] == "-" {
+			_, err = os.Stdout.Write(result)
+		} else {
+			err = os.WriteFile(args[3], result, 0644)
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -133,7 +142,12 @@ func Main(args []string) {
 		if err != nil {
 			panic(err)
 		}
-		data, err := os.ReadFile(args[2])
+		var data []byte
+		if args[2] == "-" {
+			data, err = io.ReadAll(os.Stdin)
+		} else {
+			data, err = os.ReadFile(args[2])
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -141,7 +155,11 @@ func Main(args []string) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(args[3], result, 0644)
+		if args[3] == "-" {
+			_, err = os.Stdout.Write(result)
+		} else {
+			err = os.WriteFile(args[3], result, 0644)
+		}
 		if err != nil {
 			panic(err)
 		}
