@@ -20,9 +20,7 @@ import (
 	"github.com/metacubex/mihomo/component/auth"
 	"github.com/metacubex/mihomo/component/cidr"
 	"github.com/metacubex/mihomo/component/fakeip"
-	mihomoHttp "github.com/metacubex/mihomo/component/http"
 	"github.com/metacubex/mihomo/component/process"
-	"github.com/metacubex/mihomo/component/resource"
 	"github.com/metacubex/mihomo/component/sniffer"
 	"github.com/metacubex/mihomo/component/trie"
 	C "github.com/metacubex/mihomo/constant"
@@ -44,23 +42,22 @@ import (
 // General config
 type General struct {
 	Inbound
-	Mode                    T.TunnelMode            `json:"mode"`
-	LogLevel                log.LogLevel            `json:"log-level"`
-	IPv6                    bool                    `json:"ipv6"`
-	Interface               string                  `json:"interface-name"`
-	RoutingMark             int                     `json:"routing-mark"`
-	HealthCheckURL          string                  `json:"health-check-url"`
-	HealthCheckLazyDefault  bool                    `json:"health-check-lazy-default"`
-	TouchAfterLazyPassNum   int                     `json:"touch-after-lazy-pass-num"`
-	TCPConcurrent           bool                    `json:"tcp-concurrent"`
-	FindProcessMode         process.FindProcessMode `json:"find-process-mode"`
-	Sniffing                bool                    `json:"sniffing"`
-	GlobalClientFingerprint string                  `json:"global-client-fingerprint"`
-	GlobalUA                string                  `json:"global-ua"`
-	ETagSupport             bool                    `json:"etag-support"`
-	KeepAliveIdle           int                     `json:"keep-alive-idle"`
-	KeepAliveInterval       int                     `json:"keep-alive-interval"`
-	DisableKeepAlive        bool                    `json:"disable-keep-alive"`
+	Mode                   T.TunnelMode            `json:"mode"`
+	LogLevel               log.LogLevel            `json:"log-level"`
+	IPv6                   bool                    `json:"ipv6"`
+	Interface              string                  `json:"interface-name"`
+	RoutingMark            int                     `json:"routing-mark"`
+	HealthCheckURL         string                  `json:"health-check-url"`
+	HealthCheckLazyDefault bool                    `json:"health-check-lazy-default"`
+	TouchAfterLazyPassNum  int                     `json:"touch-after-lazy-pass-num"`
+	TCPConcurrent          bool                    `json:"tcp-concurrent"`
+	FindProcessMode        process.FindProcessMode `json:"find-process-mode"`
+	Sniffing               bool                    `json:"sniffing"`
+	GlobalUA               string                  `json:"global-ua"`
+	ETagSupport            bool                    `json:"etag-support"`
+	KeepAliveIdle          int                     `json:"keep-alive-idle"`
+	KeepAliveInterval      int                     `json:"keep-alive-interval"`
+	DisableKeepAlive       bool                    `json:"disable-keep-alive"`
 }
 
 // Inbound
@@ -567,9 +564,6 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 func temporaryUpdateGeneral(general *General) func()
 
 func parseGeneral(cfg *RawConfig) (*General, error) {
-	mihomoHttp.SetUA(cfg.GlobalUA)
-	resource.SetETag(cfg.ETagSupport)
-
 	externalUI := cfg.ExternalUI
 
 	// checkout externalUI exist
@@ -581,6 +575,9 @@ func parseGeneral(cfg *RawConfig) (*General, error) {
 		}
 	}
 
+	if cfg.GlobalClientFingerprint != "" {
+		log.Errorln("The `global-client-fingerprint` configuration is removed, please set `client-fingerprint` directly on the proxy instead")
+	}
 	return &General{
 		Inbound: Inbound{
 			Port:              cfg.Port,
@@ -602,22 +599,21 @@ func parseGeneral(cfg *RawConfig) (*General, error) {
 			InboundTfo:        cfg.InboundTfo,
 			InboundMPTCP:      cfg.InboundMPTCP,
 		},
-		Mode:                    cfg.Mode,
-		LogLevel:                cfg.LogLevel,
-		IPv6:                    cfg.IPv6,
-		Interface:               cfg.Interface,
-		RoutingMark:             cfg.RoutingMark,
-		HealthCheckURL:          cfg.HealthCheckURL,
-		HealthCheckLazyDefault:  cfg.HealthCheckLazyDefault,
-		TouchAfterLazyPassNum:   cfg.TouchAfterLazyPassNum,
-		TCPConcurrent:           cfg.TCPConcurrent,
-		FindProcessMode:         cfg.FindProcessMode,
-		GlobalClientFingerprint: cfg.GlobalClientFingerprint,
-		GlobalUA:                cfg.GlobalUA,
-		ETagSupport:             cfg.ETagSupport,
-		KeepAliveIdle:           cfg.KeepAliveIdle,
-		KeepAliveInterval:       cfg.KeepAliveInterval,
-		DisableKeepAlive:        cfg.DisableKeepAlive,
+		Mode:                   cfg.Mode,
+		LogLevel:               cfg.LogLevel,
+		IPv6:                   cfg.IPv6,
+		Interface:              cfg.Interface,
+		RoutingMark:            cfg.RoutingMark,
+		HealthCheckURL:         cfg.HealthCheckURL,
+		HealthCheckLazyDefault: cfg.HealthCheckLazyDefault,
+		TouchAfterLazyPassNum:  cfg.TouchAfterLazyPassNum,
+		TCPConcurrent:          cfg.TCPConcurrent,
+		FindProcessMode:        cfg.FindProcessMode,
+		GlobalUA:               cfg.GlobalUA,
+		ETagSupport:            cfg.ETagSupport,
+		KeepAliveIdle:          cfg.KeepAliveIdle,
+		KeepAliveInterval:      cfg.KeepAliveInterval,
+		DisableKeepAlive:       cfg.DisableKeepAlive,
 	}, nil
 }
 

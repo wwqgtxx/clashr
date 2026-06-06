@@ -27,7 +27,6 @@ import (
 	"github.com/metacubex/mihomo/component/resolver"
 	"github.com/metacubex/mihomo/component/resource"
 	"github.com/metacubex/mihomo/component/sniffer"
-	tlsC "github.com/metacubex/mihomo/component/tls"
 	"github.com/metacubex/mihomo/component/trie"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
@@ -147,22 +146,21 @@ func GetGeneral() *config.General {
 			InboundTfo:        inbound.Tfo(),
 			InboundMPTCP:      inbound.MPTCP(),
 		},
-		Mode:                    tunnel.Mode(),
-		LogLevel:                log.Level(),
-		IPv6:                    !resolver.DisableIPv6,
-		Interface:               dialer.DefaultInterface.Load(),
-		RoutingMark:             int(dialer.DefaultRoutingMark.Load()),
-		HealthCheckURL:          adapter.HealthCheckURL(),
-		HealthCheckLazyDefault:  provider.HealthCheckLazyDefault(),
-		TouchAfterLazyPassNum:   provider.TouchAfterLazyPassNum(),
-		TCPConcurrent:           dialer.GetTcpConcurrent(),
-		FindProcessMode:         tunnel.FindProcessMode(),
-		GlobalUA:                mihomoHttp.UA(),
-		GlobalClientFingerprint: tlsC.GetGlobalFingerprint(),
-		ETagSupport:             resource.ETag(),
-		KeepAliveInterval:       int(keepalive.KeepAliveInterval() / time.Second),
-		KeepAliveIdle:           int(keepalive.KeepAliveIdle() / time.Second),
-		DisableKeepAlive:        keepalive.DisableKeepAlive(),
+		Mode:                   tunnel.Mode(),
+		LogLevel:               log.Level(),
+		IPv6:                   !resolver.DisableIPv6,
+		Interface:              dialer.DefaultInterface.Load(),
+		RoutingMark:            int(dialer.DefaultRoutingMark.Load()),
+		HealthCheckURL:         adapter.HealthCheckURL(),
+		HealthCheckLazyDefault: provider.HealthCheckLazyDefault(),
+		TouchAfterLazyPassNum:  provider.TouchAfterLazyPassNum(),
+		TCPConcurrent:          dialer.GetTcpConcurrent(),
+		FindProcessMode:        tunnel.FindProcessMode(),
+		GlobalUA:               mihomoHttp.UA(),
+		ETagSupport:            resource.ETag(),
+		KeepAliveInterval:      int(keepalive.KeepAliveInterval() / time.Second),
+		KeepAliveIdle:          int(keepalive.KeepAliveIdle() / time.Second),
+		DisableKeepAlive:       keepalive.DisableKeepAlive(),
 	}
 
 	return general
@@ -396,11 +394,6 @@ func updateGeneral(general *config.General, logging bool) {
 
 	mihomoHttp.SetUA(general.GlobalUA)
 	resource.SetETag(general.ETagSupport)
-
-	if general.GlobalClientFingerprint != "" {
-		log.Warnln("The `global-client-fingerprint` configuration is deprecated, please set `client-fingerprint` directly on the proxy instead")
-	}
-	tlsC.SetGlobalFingerprint(general.GlobalClientFingerprint)
 }
 
 func updateUsers(users []auth.AuthUser) {
