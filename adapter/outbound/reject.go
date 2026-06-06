@@ -71,6 +71,17 @@ func NewPass() *Reject {
 	}
 }
 
+func NewPassRule() *Reject {
+	return &Reject{
+		Base: &Base{
+			name:   "PASS-RULE",
+			tp:     C.PassRule,
+			udp:    true,
+			prefer: C.DualStack,
+		},
+	}
+}
+
 type nopConn struct{}
 
 func (rw nopConn) Read(b []byte) (int, error) {
