@@ -6,7 +6,6 @@ import (
 
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
-	"github.com/metacubex/mihomo/tunnel"
 
 	"github.com/dlclark/regexp2"
 )
@@ -15,7 +14,7 @@ const (
 	defaultGetProxiesDuration = time.Second * 5
 )
 
-func getProvidersProxies(providers []P.ProxyProvider, touch bool, filter string) []C.Proxy {
+func getProvidersProxies(emptyFallback C.Proxy, providers []P.ProxyProvider, touch bool, filter string) []C.Proxy {
 	proxies := []C.Proxy{}
 	for _, provider := range providers {
 		if touch {
@@ -52,7 +51,7 @@ func getProvidersProxies(providers []P.ProxyProvider, touch bool, filter string)
 	}
 
 	if len(proxies) == 0 {
-		return append(proxies, tunnel.Proxies()["COMPATIBLE"])
+		return append(proxies, emptyFallback)
 	}
 	return proxies
 }

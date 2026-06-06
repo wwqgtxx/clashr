@@ -15,10 +15,11 @@ import (
 
 type Fallback struct {
 	*outbound.Base
-	disableUDP bool
-	filter     string
-	single     *singledo.Single[[]C.Proxy]
-	providers  []P.ProxyProvider
+	disableUDP    bool
+	filter        string
+	single        *singledo.Single[[]C.Proxy]
+	emptyFallback C.Proxy
+	providers     []P.ProxyProvider
 }
 
 func (f *Fallback) Now() string {
@@ -79,9 +80,10 @@ func (f *Fallback) MarshalJSON() ([]byte, error) {
 		all = append(all, proxy.Name())
 	}
 	return json.Marshal(map[string]any{
-		"type": f.Type().String(),
-		"now":  f.Now(),
-		"all":  all,
+		"type":          f.Type().String(),
+		"now":           f.Now(),
+		"all":           all,
+		"emptyFallback": f.emptyFallback.Name(),
 	})
 }
 
@@ -93,7 +95,7 @@ func (f *Fallback) Unwrap(metadata *C.Metadata, touch bool) C.Proxy {
 
 func (f *Fallback) proxies(touch bool) []C.Proxy {
 	elm, _, shared := f.single.Do(func() ([]C.Proxy, error) {
-		return getProvidersProxies(f.providers, touch, f.filter), nil
+		return getProvidersProxies(f.emptyFallback, f.providers, touch, f.filter), nil
 	})
 	if shared && touch { // a shared fastSingle.Do() may cause providers untouched, so we touch them again
 		f.Touch()
@@ -132,15 +134,16 @@ func (f *Fallback) Proxies() []C.Proxy {
 	return f.proxies(false)
 }
 
-func NewFallback(option *GroupCommonOption, providers []P.ProxyProvider) *Fallback {
+func NewFallback(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider) *Fallback {
 	return &Fallback{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,
 			Type: C.Fallback,
 		}),
-		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
-		providers:  providers,
-		disableUDP: option.DisableUDP,
-		filter:     option.Filter,
+		single:        singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
+		emptyFallback: emptyFallback,
+		providers:     providers,
+		disableUDP:    option.DisableUDP,
+		filter:        option.Filter,
 	}
 }

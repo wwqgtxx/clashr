@@ -13,11 +13,12 @@ import (
 
 type Selector struct {
 	*outbound.Base
-	disableUDP bool
-	filter     string
-	single     *singledo.Single[C.Proxy]
-	selected   string
-	providers  []P.ProxyProvider
+	disableUDP    bool
+	filter        string
+	single        *singledo.Single[C.Proxy]
+	selected      string
+	emptyFallback C.Proxy
+	providers     []P.ProxyProvider
 }
 
 // DialContext implements C.ProxyAdapter
@@ -55,14 +56,15 @@ func (s *Selector) IsL3Protocol(metadata *C.Metadata) bool {
 // MarshalJSON implements C.ProxyAdapter
 func (s *Selector) MarshalJSON() ([]byte, error) {
 	var all []string
-	for _, proxy := range getProvidersProxies(s.providers, false, s.filter) {
+	for _, proxy := range getProvidersProxies(s.emptyFallback, s.providers, false, s.filter) {
 		all = append(all, proxy.Name())
 	}
 
 	return json.Marshal(map[string]any{
-		"type": s.Type().String(),
-		"now":  s.Now(),
-		"all":  all,
+		"type":          s.Type().String(),
+		"now":           s.Now(),
+		"all":           all,
+		"emptyFallback": s.emptyFallback.Name(),
 	})
 }
 
@@ -71,7 +73,7 @@ func (s *Selector) Now() string {
 }
 
 func (s *Selector) Set(name string) error {
-	for _, proxy := range getProvidersProxies(s.providers, false, s.filter) {
+	for _, proxy := range getProvidersProxies(s.emptyFallback, s.providers, false, s.filter) {
 		if proxy.Name() == name {
 			s.ForceSet(name)
 			return nil
@@ -93,7 +95,7 @@ func (s *Selector) Unwrap(metadata *C.Metadata, touch bool) C.Proxy {
 
 func (s *Selector) selectedProxy(touch bool) C.Proxy {
 	elm, _, _ := s.single.Do(func() (C.Proxy, error) {
-		proxies := getProvidersProxies(s.providers, touch, s.filter)
+		proxies := getProvidersProxies(s.emptyFallback, s.providers, touch, s.filter)
 		for _, proxy := range proxies {
 			if proxy.Name() == s.selected {
 				return proxy, nil
@@ -117,19 +119,20 @@ func (s *Selector) Providers() []P.ProxyProvider {
 }
 
 func (s *Selector) Proxies() []C.Proxy {
-	return getProvidersProxies(s.providers, false, s.filter)
+	return getProvidersProxies(s.emptyFallback, s.providers, false, s.filter)
 }
 
-func NewSelector(option *GroupCommonOption, providers []P.ProxyProvider) *Selector {
+func NewSelector(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider) *Selector {
 	return &Selector{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,
 			Type: C.Selector,
 		}),
-		single:     singledo.NewSingle[C.Proxy](defaultGetProxiesDuration),
-		providers:  providers,
-		selected:   "COMPATIBLE",
-		disableUDP: option.DisableUDP,
-		filter:     option.Filter,
+		single:        singledo.NewSingle[C.Proxy](defaultGetProxiesDuration),
+		emptyFallback: emptyFallback,
+		providers:     providers,
+		selected:      emptyFallback.Name(),
+		disableUDP:    option.DisableUDP,
+		filter:        option.Filter,
 	}
 }

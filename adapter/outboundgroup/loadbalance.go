@@ -22,11 +22,12 @@ type strategyFn = func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Pr
 
 type LoadBalance struct {
 	*outbound.Base
-	disableUDP bool
-	filter     string
-	single     *singledo.Single[[]C.Proxy]
-	providers  []P.ProxyProvider
-	strategyFn strategyFn
+	disableUDP    bool
+	filter        string
+	single        *singledo.Single[[]C.Proxy]
+	emptyFallback C.Proxy
+	providers     []P.ProxyProvider
+	strategyFn    strategyFn
 }
 
 var errStrategy = errors.New("unsupported strategy")
@@ -188,7 +189,7 @@ func (lb *LoadBalance) Unwrap(metadata *C.Metadata, touch bool) C.Proxy {
 
 func (lb *LoadBalance) proxies(touch bool) []C.Proxy {
 	elm, _, shared := lb.single.Do(func() ([]C.Proxy, error) {
-		return getProvidersProxies(lb.providers, touch, lb.filter), nil
+		return getProvidersProxies(lb.emptyFallback, lb.providers, touch, lb.filter), nil
 	})
 	if shared && touch { // a shared fastSingle.Do() may cause providers untouched, so we touch them again
 		lb.Touch()
@@ -204,8 +205,9 @@ func (lb *LoadBalance) MarshalJSON() ([]byte, error) {
 		all = append(all, proxy.Name())
 	}
 	return json.Marshal(map[string]any{
-		"type": lb.Type().String(),
-		"all":  all,
+		"type":          lb.Type().String(),
+		"all":           all,
+		"emptyFallback": lb.emptyFallback.Name(),
 	})
 }
 
@@ -227,7 +229,7 @@ func (lb *LoadBalance) Now() string {
 	return ""
 }
 
-func NewLoadBalance(option *GroupCommonOption, providers []P.ProxyProvider, strategy string) (lb *LoadBalance, err error) {
+func NewLoadBalance(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider, strategy string) (lb *LoadBalance, err error) {
 	var strategyFn strategyFn
 	switch strategy {
 	case "random":
@@ -244,10 +246,11 @@ func NewLoadBalance(option *GroupCommonOption, providers []P.ProxyProvider, stra
 			Name: option.Name,
 			Type: C.LoadBalance,
 		}),
-		single:     singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
-		providers:  providers,
-		strategyFn: strategyFn,
-		disableUDP: option.DisableUDP,
-		filter:     option.Filter,
+		single:        singledo.NewSingle[[]C.Proxy](defaultGetProxiesDuration),
+		emptyFallback: emptyFallback,
+		providers:     providers,
+		strategyFn:    strategyFn,
+		disableUDP:    option.DisableUDP,
+		filter:        option.Filter,
 	}, nil
 }

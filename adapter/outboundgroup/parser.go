@@ -21,15 +21,16 @@ var (
 )
 
 type GroupCommonOption struct {
-	Name       string   `group:"name"`
-	Type       string   `group:"type"`
-	Proxies    []string `group:"proxies,omitempty"`
-	Use        []string `group:"use,omitempty"`
-	URL        string   `group:"url,omitempty"`
-	Interval   int      `group:"interval,omitempty"`
-	Lazy       bool     `group:"lazy,omitempty"`
-	DisableUDP bool     `group:"disable-udp,omitempty"`
-	Filter     string   `group:"filter,omitempty"`
+	Name          string   `group:"name"`
+	Type          string   `group:"type"`
+	Proxies       []string `group:"proxies,omitempty"`
+	Use           []string `group:"use,omitempty"`
+	URL           string   `group:"url,omitempty"`
+	Interval      int      `group:"interval,omitempty"`
+	EmptyFallback string   `group:"empty-fallback,omitempty"`
+	Lazy          bool     `group:"lazy,omitempty"`
+	DisableUDP    bool     `group:"disable-udp,omitempty"`
+	Filter        string   `group:"filter,omitempty"`
 }
 
 func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, providersMap map[string]P.ProxyProvider, healthCheckLazyDefault bool) (C.ProxyAdapter, error) {
@@ -57,6 +58,14 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 	}
 
 	groupName := groupOption.Name
+
+	if groupOption.EmptyFallback == "" {
+		groupOption.EmptyFallback = "COMPATIBLE"
+	}
+	emptyFallback, ok := proxyMap[groupOption.EmptyFallback]
+	if !ok {
+		return nil, fmt.Errorf("%s: empty fallback proxy '%s' not found", groupName, groupOption.EmptyFallback)
+	}
 
 	providers := []P.ProxyProvider{}
 
@@ -117,14 +126,14 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 	switch groupOption.Type {
 	case "url-test":
 		opts := parseURLTestOption(config)
-		group = NewURLTest(groupOption, providers, opts...)
+		group = NewURLTest(groupOption, emptyFallback, providers, opts...)
 	case "select":
-		group = NewSelector(groupOption, providers)
+		group = NewSelector(groupOption, emptyFallback, providers)
 	case "fallback":
-		group = NewFallback(groupOption, providers)
+		group = NewFallback(groupOption, emptyFallback, providers)
 	case "load-balance":
 		strategy := parseStrategy(config)
-		return NewLoadBalance(groupOption, providers, strategy)
+		return NewLoadBalance(groupOption, emptyFallback, providers, strategy)
 	case "relay":
 		return nil, fmt.Errorf("%w: The group [%s] with relay type was removed, please using dialer-proxy instead", errType, groupName)
 	default:
