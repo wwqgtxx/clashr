@@ -192,7 +192,7 @@ func NewProxySetProvider(name string, interval time.Duration, payload []map[stri
 		hc.setProxies(proxies)
 	}
 
-	fetcher := resource.NewFetcher[[]C.Proxy](name, interval, vehicle, parser, pd.setProxies)
+	fetcher := resource.NewFetcher[[]C.Proxy](name, interval, vehicle, nil, parser, pd.setProxies)
 	pd.Fetcher = fetcher
 
 	wrapper := &ProxySetProvider{pd}
