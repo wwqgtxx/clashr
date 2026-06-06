@@ -38,6 +38,7 @@ type proxyProviderSchema struct {
 	DialerProxy   string           `provider:"dialer-proxy,omitempty"`
 	SizeLimit     int64            `provider:"size-limit,omitempty"`
 	Payload       []map[string]any `provider:"payload,omitempty"`
+	AgeSecretKey  string           `provider:"age-secret-key,omitempty"`
 
 	HealthCheck healthCheckSchema   `provider:"health-check,omitempty"`
 	Override    overrideSchema      `provider:"override,omitempty"`
@@ -67,7 +68,7 @@ func ParseProxyProvider(name string, mapping map[string]any, tunnel C.Tunnel, he
 		schema.URL = strings.Replace(schema.ConverterURL, "{url}", url.QueryEscape(schema.URL), 1)
 	}
 
-	parser, err := NewProxiesParser(name, tunnel, schema.Filter, schema.ExcludeFilter, schema.ExcludeType, schema.DialerProxy, schema.Override)
+	parser, err := NewProxiesParser(name, tunnel, schema.Filter, schema.ExcludeFilter, schema.ExcludeType, schema.DialerProxy, schema.Override, schema.AgeSecretKey)
 	if err != nil {
 		return nil, err
 	}

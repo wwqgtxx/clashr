@@ -11,6 +11,7 @@ import (
 
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/common/yaml"
+	"github.com/metacubex/mihomo/component/age"
 	"github.com/metacubex/mihomo/component/resource"
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
@@ -316,7 +317,7 @@ func (cp *CompatibleProvider) Close() error {
 	return cp.compatibleProvider.Close()
 }
 
-func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilter string, excludeType string, dialerProxy string, override overrideSchema) (resource.Parser[[]C.Proxy], error) {
+func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilter string, excludeType string, dialerProxy string, override overrideSchema, ageSecretKey string) (resource.Parser[[]C.Proxy], error) {
 	var excludeTypeArray []string
 	if excludeType != "" {
 		excludeTypeArray = strings.Split(excludeType, "|")
@@ -342,8 +343,23 @@ func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilt
 		filterRegs = append(filterRegs, filterReg)
 	}
 
+	var identities []age.Identity
+	if ageSecretKey != "" {
+		var err error
+		identities, err = age.ParseIdentities(ageSecretKey)
+		if err != nil {
+			return nil, fmt.Errorf("parse age-secret-key error: %w", err)
+		}
+	}
+
 	return func(buf []byte) ([]C.Proxy, error) {
 		schema := &ProxySchema{}
+
+		// decrypt config
+		buf, err := age.DecryptBytes(buf, identities...)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt config error: %w", err)
+		}
 
 		if err := yaml.Unmarshal(buf, schema); err != nil {
 			return nil, err
