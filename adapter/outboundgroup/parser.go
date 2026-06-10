@@ -66,6 +66,9 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 	if !ok {
 		return nil, fmt.Errorf("%s: empty fallback proxy '%s' not found", groupName, groupOption.EmptyFallback)
 	}
+	if _, ok := emptyFallback.Adapter().(ProxyGroup); ok { // strictly forbidden to fill in a proxy group for empty-fallback
+		return nil, fmt.Errorf("%s: empty fallback proxy '%s' not found", groupName, groupOption.EmptyFallback)
+	}
 
 	providers := []P.ProxyProvider{}
 
