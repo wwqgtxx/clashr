@@ -90,6 +90,10 @@ func (bp *baseProvider) HealthCheckURL() string {
 	return bp.healthCheck.url
 }
 
+func (bp *baseProvider) HealthCheckInterval() time.Duration {
+	return bp.healthCheck.interval
+}
+
 func (bp *baseProvider) setProxies(proxies []C.Proxy) {
 	bp.mutex.Lock()
 	defer bp.mutex.Unlock()

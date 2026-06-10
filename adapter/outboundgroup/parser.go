@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/structure"
 	C "github.com/metacubex/mihomo/constant"
@@ -72,8 +71,6 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 
 	providers := []P.ProxyProvider{}
 
-	ignoreURLTest := false
-
 	if len(groupOption.Proxies) == 0 && len(groupOption.Use) == 0 {
 		return nil, errMissProxy
 	}
@@ -103,7 +100,6 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 				return nil, errMissHealthCheck
 			}
 
-			ignoreURLTest = true
 			hc := provider.NewHealthCheck(ps, groupOption.URL, uint(groupOption.Interval), groupOption.Lazy, groupOption.Type, groupName)
 			pd, err := provider.NewCompatibleProvider(groupName, ps, hc)
 			if err != nil {
@@ -142,12 +138,6 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 	default:
 		return nil, fmt.Errorf("%w: %s", errType, groupOption.Type)
 	}
-
-	if _, exist := proxyMap[groupName]; exist {
-		return nil, fmt.Errorf("proxy group %s: the duplicate name", groupName)
-	}
-
-	proxyMap[groupName] = adapter.NewProxyFromGroup(group, ignoreURLTest)
 
 	return group, nil
 }

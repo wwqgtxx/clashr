@@ -752,20 +752,25 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 
 	// parse proxy group
 	for idx, mapping := range groupsConfig {
-		_, err := outboundgroup.ParseProxyGroup(mapping, proxies, providersMap, healthCheckLazyDefault)
+		group, err := outboundgroup.ParseProxyGroup(mapping, proxies, providersMap, healthCheckLazyDefault)
 		if err != nil {
 			return nil, nil, fmt.Errorf("proxy group[%d]: %w", idx, err)
 		}
 
-		// --------------------------------
-		// merge to outboundgroup.ParseProxyGroup()
-		// --------------------------------
-		//groupName := group.Name()
-		//if _, exist := proxies[groupName]; exist {
-		//	return nil, nil, fmt.Errorf("proxy group %s: the duplicate name", groupName)
-		//}
-		//
-		//proxies[groupName] = adapter.NewProxy(group)
+		groupName := group.Name()
+		if _, exist := proxies[groupName]; exist {
+			return nil, nil, fmt.Errorf("proxy group %s: the duplicate name", groupName)
+		}
+
+		ignoreURLTest := false
+		for _, pd := range group.Providers() {
+			if pd.VehicleType() == P.Compatible && pd.HealthCheckInterval() > 0 {
+				ignoreURLTest = true
+				break
+			}
+		}
+
+		proxies[groupName] = adapter.NewProxyFromGroup(group, ignoreURLTest)
 	}
 
 	// --------------------------------
