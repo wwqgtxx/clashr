@@ -33,7 +33,7 @@ type GroupCommonOption struct {
 	Filter        string   `group:"filter,omitempty"`
 }
 
-func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, providersMap map[string]P.ProxyProvider, healthCheckLazyDefault bool) (C.ProxyAdapter, error) {
+func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, providersMap map[string]P.ProxyProvider, healthCheckLazyDefault bool) (ProxyGroup, error) {
 	decoder := structure.NewDecoder(structure.Option{TagName: "group", WeaklyTypedInput: true})
 
 	groupOption := &GroupCommonOption{
@@ -125,7 +125,7 @@ func ParseProxyGroup(config map[string]any, proxyMap map[string]C.Proxy, provide
 		groupOption.Filter = ""
 	}
 
-	var group C.ProxyAdapter
+	var group ProxyGroup
 	switch groupOption.Type {
 	case "url-test":
 		opts := parseURLTestOption(config)
