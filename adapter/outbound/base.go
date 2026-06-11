@@ -129,7 +129,7 @@ func (b *Base) IsL3Protocol(metadata *C.Metadata) bool {
 func (b *Base) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
 		"type": b.Type().String(),
-		"id": b.Id(),
+		"id":   b.Id(),
 	})
 }
 
@@ -321,7 +321,7 @@ func (c *packetConn) AddRef(ref any) {
 	c.EnhancePacketConn = N.NewRefPacketConn(c.EnhancePacketConn, ref) // add ref for autoCloseProxyAdapter
 }
 
-func newPacketConn(pc net.PacketConn, a ProxyAdapter) C.PacketConn {
+func NewPacketConn(pc net.PacketConn, a ProxyAdapter) C.PacketConn {
 	epc := N.NewEnhancePacketConn(pc)
 	if _, ok := pc.(syscall.Conn); !ok { // exclusion system conn like *net.UDPConn
 		epc = N.NewDeadlineEnhancePacketConn(epc) // most conn from outbound can't handle readDeadline correctly

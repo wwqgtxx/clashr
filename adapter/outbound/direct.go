@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-
 	"github.com/metacubex/mihomo/component/dialer"
 	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
@@ -39,7 +38,7 @@ func (d *Direct) ListenPacketContext(ctx context.Context, metadata *C.Metadata) 
 	if err != nil {
 		return nil, err
 	}
-	return newPacketConn(pc, d), nil
+	return NewPacketConn(pc, d), nil
 }
 
 func NewDirect() *Direct {
