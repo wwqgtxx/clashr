@@ -83,7 +83,7 @@ func (b *Base) Additions() []inbound.Addition {
 	return b.config.Additions()
 }
 
-func (b *Base) ListenConfig() *inbound.ListenConfig {
+func (b *Base) ListenConfig() C.InboundListenConfig {
 	return b.config.ListenConfig()
 }
 
@@ -96,6 +96,11 @@ type BaseOption struct {
 	SpecialRules string `inbound:"rule,omitempty"`
 	SpecialProxy string `inbound:"proxy,omitempty"`
 	RoutingMark  int    `inbound:"routing-mark,omitempty"`
+
+	//
+	// The following parameters are used internally, assign value by the structure decoder are disallowed
+	//
+	ListenConfigForAPI C.InboundListenConfig `inbound:"-"`
 }
 
 func (o BaseOption) Name() string {
@@ -114,7 +119,10 @@ func (o BaseOption) Additions() []inbound.Addition {
 	}
 }
 
-func (o BaseOption) ListenConfig() *inbound.ListenConfig {
+func (o BaseOption) ListenConfig() C.InboundListenConfig {
+	if o.ListenConfigForAPI != nil {
+		return o.ListenConfigForAPI
+	}
 	lc := inbound.NewListenConfig()
 	lc.SetRouteMark(o.RoutingMark)
 	return lc

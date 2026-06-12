@@ -4,9 +4,9 @@ import (
 	"context"
 	"net"
 
-	"github.com/metacubex/mihomo/adapter/inbound"
 	"github.com/metacubex/mihomo/common/sockopt"
 	"github.com/metacubex/mihomo/component/resolver"
+	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 
 	D "github.com/miekg/dns"
@@ -43,7 +43,7 @@ func (s *Server) SetService(service resolver.Service) {
 	s.service = service
 }
 
-func ReCreateServer(addr string, lc *inbound.ListenConfig, service resolver.Service) {
+func ReCreateServer(addr string, lc C.InboundListenConfig, service resolver.Service) {
 	if addr == address && service != nil {
 		server.SetService(service)
 		return
