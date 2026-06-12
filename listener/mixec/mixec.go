@@ -1,6 +1,7 @@
 package mixec
 
 import (
+	"context"
 	"net"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/metacubex/mihomo/component/auth"
 	C "github.com/metacubex/mihomo/constant"
 	authStore "github.com/metacubex/mihomo/listener/auth"
+	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/mtproxy"
 	"github.com/metacubex/mihomo/listener/socks"
 	"github.com/metacubex/mihomo/log"
@@ -18,16 +20,16 @@ import (
 
 type Listener struct {
 	closed       bool
-	config       string
+	config       LC.AuthServer
 	listeners    []net.Listener
 	udpListeners []*socks.UDPListener
 }
 
-func New(config string, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
-	return NewWithAuthenticator(config, tunnel, authStore.Default, additions...)
+func New(addr string, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
+	return NewWithConfig(LC.AuthServer{Enable: true, Listen: addr, AuthStore: authStore.Default}, inbound.NewListenerConfig(), tunnel, additions...)
 }
 
-func NewWithAuthenticator(config string, tunnel C.Tunnel, store auth.AuthStore, additions ...inbound.Addition) (*Listener, error) {
+func NewWithConfig(config LC.AuthServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
 	isDefault := false
 	if len(additions) == 0 {
 		isDefault = true
@@ -39,18 +41,18 @@ func NewWithAuthenticator(config string, tunnel C.Tunnel, store auth.AuthStore, 
 	ml := &Listener{false, config, nil, nil}
 	cl := GetChanListener(tunnel, additions...)
 
-	for _, addr := range strings.Split(config, ",") {
+	for _, addr := range strings.Split(config.Listen, ",") {
 		addr := addr
 
 		//UDP
-		sul, err := socks.NewUDP(addr, tunnel, additions...)
+		sul, err := socks.NewUDPWithConfig(config, lc, tunnel, additions...)
 		if err != nil {
 			return nil, err
 		}
 		ml.udpListeners = append(ml.udpListeners, sul)
 
 		//TCP
-		l, err := inbound.Listen("tcp", addr)
+		l, err := lc.Listen(context.Background(), "tcp", addr)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +68,7 @@ func NewWithAuthenticator(config string, tunnel C.Tunnel, store auth.AuthStore, 
 					}
 					continue
 				}
-				store := store
+				store := config.AuthStore
 				if isDefault || store == authStore.Default { // only apply on default listener
 					if !inbound.IsRemoteAddrDisAllowed(c.RemoteAddr()) {
 						_ = c.Close()
@@ -95,7 +97,7 @@ func (l *Listener) Close() {
 }
 
 func (l *Listener) Config() string {
-	return l.config
+	return l.config.Listen
 }
 
 func handleECConn(conn net.Conn, cl ChanListener, tunnel C.Tunnel, store auth.AuthStore, additions ...inbound.Addition) {

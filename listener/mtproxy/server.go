@@ -1,6 +1,7 @@
 package mtproxy
 
 import (
+	"context"
 	"errors"
 	"net"
 	"strings"
@@ -33,7 +34,7 @@ type Listener struct {
 
 var _listener *Listener
 
-func New(config string, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
+func New(config string, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
 	var hl *Listener
 	if len(additions) == 0 {
 		additions = []inbound.Addition{
@@ -78,7 +79,7 @@ func New(config string, tunnel C.Tunnel, additions ...inbound.Addition) (*Listen
 	for _, addr := range strings.Split(addrString, ",") {
 		addr := addr
 
-		l, err := inbound.Listen("tcp", addr)
+		l, err := lc.Listen(context.Background(), "tcp", addr)
 		if err != nil {
 			return nil, err
 		}

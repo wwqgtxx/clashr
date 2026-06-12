@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 
 	"github.com/metacubex/mihomo/common/cmd"
@@ -26,19 +27,27 @@ import (
 )
 
 var (
-	version                bool
-	testConfig             bool
-	homeDir                string
-	configFile             string
-	ageSecretKey           string
-	externalUI             string
-	externalController     string
-	externalControllerUnix string
-	externalControllerPipe string
-	secret                 string
-	postUp                 string
-	postDown               string
+	version                       bool
+	testConfig                    bool
+	homeDir                       string
+	configFile                    string
+	ageSecretKey                  string
+	externalUI                    string
+	externalController            string
+	externalControllerTLS         string
+	externalControllerUnix        string
+	externalControllerPipe        string
+	externalControllerRoutingMark int
+	secret                        string
+	postUp                        string
+	postDown                      string
 )
+
+func getIntEnv(key string) int {
+	value := os.Getenv(key)
+	intValue, _ := strconv.Atoi(value)
+	return intValue
+}
 
 func init() {
 	flag.StringVar(&homeDir, "d", os.Getenv("CLASH_HOME_DIR"), "set configuration directory")
@@ -46,8 +55,10 @@ func init() {
 	flag.StringVar(&ageSecretKey, "age-secret-key", os.Getenv("CLASH_AGE_SECRET_KEY"), "specify age secret key to decrypt configuration")
 	flag.StringVar(&externalUI, "ext-ui", os.Getenv("CLASH_OVERRIDE_EXTERNAL_UI_DIR"), "override external ui directory")
 	flag.StringVar(&externalController, "ext-ctl", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER"), "override external controller address")
+	flag.StringVar(&externalControllerTLS, "ext-ctl-tls", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_TLS"), "override external controller tls address")
 	flag.StringVar(&externalControllerUnix, "ext-ctl-unix", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_UNIX"), "override external controller unix address")
 	flag.StringVar(&externalControllerPipe, "ext-ctl-pipe", os.Getenv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_PIPE"), "override external controller pipe address")
+	flag.IntVar(&externalControllerRoutingMark, "ext-ctl-routing-mark", getIntEnv("CLASH_OVERRIDE_EXTERNAL_CONTROLLER_ROUTING_MARK"), "override external controller routing mark")
 	flag.StringVar(&secret, "secret", os.Getenv("CLASH_OVERRIDE_SECRET"), "override secret for RESTful API")
 	flag.StringVar(&postUp, "post-up", os.Getenv("CLASH_POST_UP"), "set post-up script")
 	flag.StringVar(&postDown, "post-down", os.Getenv("CLASH_POST_DOWN"), "set post-down script")
@@ -149,11 +160,17 @@ func main() {
 	if externalController != "" {
 		options = append(options, hub.WithExternalController(externalController))
 	}
+	if externalControllerTLS != "" {
+		options = append(options, hub.WithExternalControllerTLS(externalControllerTLS))
+	}
 	if externalControllerUnix != "" {
 		options = append(options, hub.WithExternalControllerUnix(externalControllerUnix))
 	}
 	if externalControllerPipe != "" {
 		options = append(options, hub.WithExternalControllerPipe(externalControllerPipe))
+	}
+	if externalControllerRoutingMark != 0 {
+		options = append(options, hub.WithExternalControllerRoutingMark(externalControllerRoutingMark))
 	}
 	if secret != "" {
 		options = append(options, hub.WithSecret(secret))

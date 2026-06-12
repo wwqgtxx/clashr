@@ -83,6 +83,10 @@ func (b *Base) Additions() []inbound.Addition {
 	return b.config.Additions()
 }
 
+func (b *Base) ListenerConfig() *inbound.ListenerConfig {
+	return b.config.ListenerConfig()
+}
+
 var _ C.InboundListener = (*Base)(nil)
 
 type BaseOption struct {
@@ -91,6 +95,7 @@ type BaseOption struct {
 	Port         string `inbound:"port,omitempty"`
 	SpecialRules string `inbound:"rule,omitempty"`
 	SpecialProxy string `inbound:"proxy,omitempty"`
+	RoutingMark  int    `inbound:"routing-mark,omitempty"`
 }
 
 func (o BaseOption) Name() string {
@@ -107,6 +112,12 @@ func (o BaseOption) Additions() []inbound.Addition {
 		inbound.WithSpecialRules(o.SpecialRules),
 		inbound.WithSpecialProxy(o.SpecialProxy),
 	}
+}
+
+func (o BaseOption) ListenerConfig() *inbound.ListenerConfig {
+	lc := inbound.NewListenerConfig()
+	lc.SetRouteMark(o.RoutingMark)
+	return lc
 }
 
 var _ C.InboundConfig = (*BaseOption)(nil)
