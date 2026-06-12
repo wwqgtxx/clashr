@@ -38,7 +38,7 @@ func (l *Listener) handleTCP(conn net.Conn, tunnel C.Tunnel, additions ...inboun
 	tunnel.HandleTCPConn(inbound.NewSocket(l.target, conn, C.TUNNEL, additions...))
 }
 
-func New(addr, target, proxy string, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
+func New(addr, target, proxy string, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
 	l, err := lc.Listen(context.Background(), "tcp", addr)
 	if err != nil {
 		return nil, err

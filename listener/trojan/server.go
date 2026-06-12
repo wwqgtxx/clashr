@@ -38,7 +38,7 @@ type Listener struct {
 	handler    *sing.ListenerHandler
 }
 
-func New(config LC.TrojanServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
+func New(config LC.TrojanServer, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
 	if len(additions) == 0 {
 		additions = []inbound.Addition{
 			inbound.WithInName("DEFAULT-TROJAN"),

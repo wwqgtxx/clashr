@@ -53,7 +53,7 @@ func (s *shadowTLSService) NewConnection(ctx context.Context, conn net.Conn, met
 	return s.Service.NewConnection(ctx, conn, metadata)
 }
 
-func New(config LC.ShadowsocksServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (C.MultiAddrListener, error) {
+func New(config LC.ShadowsocksServer, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (C.MultiAddrListener, error) {
 	var sl *Listener
 	var err error
 	if len(additions) == 0 {

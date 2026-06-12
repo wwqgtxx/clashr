@@ -114,7 +114,7 @@ func (s *Sudoku) Listen(tunnel C.Tunnel) error {
 	}
 
 	var errs []error
-	lc := s.ListenerConfig()
+	lc := s.ListenConfig()
 	for _, addr := range strings.Split(s.RawAddress(), ",") {
 		conf := s.serverConf
 		conf.Listen = addr

@@ -35,7 +35,7 @@ type Listener struct {
 
 var _listener *Listener
 
-func New(config LC.VmessServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
+func New(config LC.VmessServer, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
 	if len(additions) == 0 {
 		additions = []inbound.Addition{
 			inbound.WithInName("DEFAULT-VMESS"),

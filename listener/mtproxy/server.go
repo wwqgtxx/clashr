@@ -34,7 +34,7 @@ type Listener struct {
 
 var _listener *Listener
 
-func New(config string, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
+func New(config string, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
 	var hl *Listener
 	if len(additions) == 0 {
 		additions = []inbound.Addition{

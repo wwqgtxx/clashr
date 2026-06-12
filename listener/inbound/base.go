@@ -83,8 +83,8 @@ func (b *Base) Additions() []inbound.Addition {
 	return b.config.Additions()
 }
 
-func (b *Base) ListenerConfig() *inbound.ListenerConfig {
-	return b.config.ListenerConfig()
+func (b *Base) ListenConfig() *inbound.ListenConfig {
+	return b.config.ListenConfig()
 }
 
 var _ C.InboundListener = (*Base)(nil)
@@ -114,8 +114,8 @@ func (o BaseOption) Additions() []inbound.Addition {
 	}
 }
 
-func (o BaseOption) ListenerConfig() *inbound.ListenerConfig {
-	lc := inbound.NewListenerConfig()
+func (o BaseOption) ListenConfig() *inbound.ListenConfig {
+	lc := inbound.NewListenConfig()
 	lc.SetRouteMark(o.RoutingMark)
 	return lc
 }

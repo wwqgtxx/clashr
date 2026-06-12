@@ -37,19 +37,19 @@ func MPTCP() bool {
 
 type controlFn = func(network, address string, c syscall.RawConn) error
 
-type ListenerConfig struct {
+type ListenConfig struct {
 	routeMark int
 }
 
-func NewListenerConfig() *ListenerConfig {
-	return &ListenerConfig{}
+func NewListenConfig() *ListenConfig {
+	return &ListenConfig{}
 }
 
-func (l *ListenerConfig) SetRouteMark(mark int) {
+func (l *ListenConfig) SetRouteMark(mark int) {
 	l.routeMark = mark
 }
 
-func (l ListenerConfig) newListenConfig() *tfo.ListenConfig {
+func (l ListenConfig) newListenConfig() *tfo.ListenConfig {
 	lc := tfo.ListenConfig{DisableTFO: !Tfo()}
 	keepalive.SetNetListenConfig(&lc.ListenConfig)
 	mptcp.SetNetListenConfig(&lc.ListenConfig, MPTCP())
@@ -65,7 +65,7 @@ func (l ListenerConfig) newListenConfig() *tfo.ListenConfig {
 	return &lc
 }
 
-func (l ListenerConfig) Listen(ctx context.Context, network, address string) (net.Listener, error) {
+func (l ListenConfig) Listen(ctx context.Context, network, address string) (net.Listener, error) {
 	address, err := preResolve(network, address)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (l ListenerConfig) Listen(ctx context.Context, network, address string) (ne
 	return l.newListenConfig().Listen(ctx, network, address)
 }
 
-func (l ListenerConfig) ListenPacket(ctx context.Context, network, address string) (net.PacketConn, error) {
+func (l ListenConfig) ListenPacket(ctx context.Context, network, address string) (net.PacketConn, error) {
 	address, err := preResolve(network, address)
 	if err != nil {
 		return nil, err

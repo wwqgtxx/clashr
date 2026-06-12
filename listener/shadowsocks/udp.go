@@ -18,7 +18,7 @@ type UDPListener struct {
 	closed     bool
 }
 
-func NewUDP(addr string, lc *inbound.ListenerConfig, pickCipher core.Cipher, tunnel C.Tunnel, additions ...inbound.Addition) (*UDPListener, error) {
+func NewUDP(addr string, lc *inbound.ListenConfig, pickCipher core.Cipher, tunnel C.Tunnel, additions ...inbound.Addition) (*UDPListener, error) {
 	l, err := lc.ListenPacket(context.Background(), "udp", addr)
 	if err != nil {
 		return nil, err

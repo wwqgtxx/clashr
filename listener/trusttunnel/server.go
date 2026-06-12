@@ -29,7 +29,7 @@ type Listener struct {
 	services     []*trusttunnel.Service
 }
 
-func New(config LC.TrustTunnelServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
+func New(config LC.TrustTunnelServer, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (sl *Listener, err error) {
 	if len(additions) == 0 {
 		additions = []inbound.Addition{
 			inbound.WithInName("DEFAULT-TRUSTTUNNEL"),

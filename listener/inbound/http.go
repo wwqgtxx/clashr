@@ -59,7 +59,7 @@ func (h *HTTP) Address() string {
 
 // Listen implements constant.InboundListener
 func (h *HTTP) Listen(tunnel C.Tunnel) error {
-	lc := h.ListenerConfig()
+	lc := h.ListenConfig()
 	for _, addr := range strings.Split(h.RawAddress(), ",") {
 		l, err := http.NewWithConfig(
 			LC.AuthServer{

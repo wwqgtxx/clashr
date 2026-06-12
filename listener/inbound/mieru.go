@@ -153,7 +153,7 @@ func buildMieruServerConfig(option *MieruOption, ports utils.IntRanges[uint16]) 
 			UserHintIsMandatory: proto.Bool(true),
 		}
 	}
-	lc := option.ListenerConfig()
+	lc := option.ListenConfig()
 	return &mieruserver.ServerConfig{
 		Config: &mierupb.ServerConfig{
 			PortBindings:     portBindings,

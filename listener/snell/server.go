@@ -30,7 +30,7 @@ type Listener struct {
 	listeners []net.Listener
 }
 
-func New(config LC.SnellServer, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (C.MultiAddrListener, error) {
+func New(config LC.SnellServer, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (C.MultiAddrListener, error) {
 	if config.Version == 0 {
 		config.Version = snell.Version4
 	}

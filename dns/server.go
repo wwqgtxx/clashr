@@ -43,7 +43,7 @@ func (s *Server) SetService(service resolver.Service) {
 	s.service = service
 }
 
-func ReCreateServer(addr string, lc *inbound.ListenerConfig, service resolver.Service) {
+func ReCreateServer(addr string, lc *inbound.ListenConfig, service resolver.Service) {
 	if addr == address && service != nil {
 		server.SetService(service)
 		return

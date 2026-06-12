@@ -294,7 +294,7 @@ func ReCreateShadowSocks(shadowSocksConfig string, tunnel C.Tunnel) {
 		return
 	}
 
-	listener, err := sing_shadowsocks.New(ssConfig, inbound.NewListenerConfig(), tunnel)
+	listener, err := sing_shadowsocks.New(ssConfig, inbound.NewListenConfig(), tunnel)
 	if err != nil {
 		return
 	}
@@ -346,7 +346,7 @@ func ReCreateVmess(vmessConfig string, tunnel C.Tunnel) {
 		return
 	}
 
-	listener, err := sing_vmess.New(vsConfig, inbound.NewListenerConfig(), tunnel)
+	listener, err := sing_vmess.New(vsConfig, inbound.NewListenConfig(), tunnel)
 	if err != nil {
 		return
 	}
@@ -391,7 +391,7 @@ func ReCreateTuic(config LC.TuicServer, tunnel C.Tunnel) {
 		return
 	}
 
-	listener, err := tuic.New(config, inbound.NewListenerConfig(), tunnel)
+	listener, err := tuic.New(config, inbound.NewListenConfig(), tunnel)
 	if err != nil {
 		return
 	}
@@ -616,7 +616,7 @@ func ReCreateMTProxy(config string, tunnel C.Tunnel) {
 		return
 	}
 
-	mtp, err := mtproxy.New(config, inbound.NewListenerConfig(), tunnel)
+	mtp, err := mtproxy.New(config, inbound.NewListenConfig(), tunnel)
 	if err != nil {
 		return
 	}
@@ -693,7 +693,7 @@ func PatchTunnel(tunnels []LC.Tunnel, tunnel C.Tunnel) {
 		}
 	}
 
-	lc := inbound.NewListenerConfig()
+	lc := inbound.NewListenConfig()
 	for _, elm := range needCreate {
 		key := fmt.Sprintf("%s/%s/%s", elm.addr, elm.target, elm.proxy)
 		if elm.network == "tcp" {

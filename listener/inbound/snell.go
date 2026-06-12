@@ -76,7 +76,7 @@ func (s *Snell) Address() string {
 
 func (s *Snell) Listen(tunnel C.Tunnel) error {
 	var err error
-	s.l, err = snell.New(s.snell, s.ListenerConfig(), tunnel, s.Additions()...)
+	s.l, err = snell.New(s.snell, s.ListenConfig(), tunnel, s.Additions()...)
 	if err != nil {
 		return err
 	}

@@ -229,7 +229,7 @@ func start(cfg *Config) {
 
 	// handle addr
 	if len(cfg.Addr) > 0 {
-		lc := inbound.NewListenerConfig()
+		lc := inbound.NewListenConfig()
 		lc.SetRouteMark(cfg.RoutingMark)
 		l, err := lc.Listen(context.Background(), "tcp", cfg.Addr)
 		if err != nil {
@@ -263,7 +263,7 @@ func startTLS(cfg *Config) {
 			return
 		}
 
-		lc := inbound.NewListenerConfig()
+		lc := inbound.NewListenConfig()
 		lc.SetRouteMark(cfg.RoutingMark)
 		l, err := lc.Listen(context.Background(), "tcp", cfg.TLSAddr)
 		if err != nil {
@@ -337,7 +337,7 @@ func startUnix(cfg *Config) {
 		// should be used to delete the socket file prior to calling bind with the same path.
 		_ = syscall.Unlink(addr)
 
-		lc := inbound.NewListenerConfig()
+		lc := inbound.NewListenConfig()
 		lc.SetRouteMark(0) // don't set route mark for unix socket
 		l, err := lc.Listen(context.Background(), "unix", addr)
 		if err != nil {

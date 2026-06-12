@@ -40,7 +40,7 @@ type Listener struct {
 	services     []*hysteria2.Service[string]
 }
 
-func New(config LC.Hysteria2Server, lc *inbound.ListenerConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
+func New(config LC.Hysteria2Server, lc *inbound.ListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (*Listener, error) {
 	var sl *Listener
 	var err error
 	if len(additions) == 0 {
