@@ -263,7 +263,7 @@ func updateDNS(c *config.DNS) {
 		resolver.DefaultService = nil
 		resolver.ProxyServerHostResolver = nil
 		resolver.DirectHostResolver = nil
-		dns.ReCreateServer("", nil)
+		dns.ReCreateServer("", nil, nil)
 		return
 	}
 
@@ -317,7 +317,9 @@ func updateDNS(c *config.DNS) {
 		resolver.DirectHostResolver = r.Resolver
 	}
 
-	dns.ReCreateServer(c.Listen, s)
+	lc := inbound.NewListenerConfig()
+	lc.SetRouteMark(c.ListenRoutingMark)
+	dns.ReCreateServer(c.Listen, lc, s)
 }
 
 func updateHosts(tree *trie.DomainTrie[netip.Addr]) {

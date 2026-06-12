@@ -130,6 +130,7 @@ type DNS struct {
 	FallbackIPFilter      []C.IpMatcher
 	FallbackDomainFilter  []C.DomainMatcher
 	Listen                string
+	ListenRoutingMark     int
 	EnhancedMode          C.DNSMode
 	DefaultNameserver     []dns.NameServer
 	CacheAlgorithm        string
@@ -200,6 +201,7 @@ type RawDNS struct {
 	Fallback                     []string                            `yaml:"fallback" json:"fallback"`
 	FallbackFilter               RawFallbackFilter                   `yaml:"fallback-filter" json:"fallback-filter"`
 	Listen                       string                              `yaml:"listen" json:"listen"`
+	ListenRoutingMark            int                                 `yaml:"listen-routing-mark" json:"listen-routing-mark"`
 	EnhancedMode                 C.DNSMode                           `yaml:"enhanced-mode" json:"enhanced-mode"`
 	FakeIPRange                  string                              `yaml:"fake-ip-range" json:"fake-ip-range"`
 	FakeIPRange6                 string                              `yaml:"fake-ip-range6" json:"fake-ip-range6"`
@@ -1188,13 +1190,14 @@ func parseDNS(rawCfg *RawConfig, ruleProviders map[string]P.RuleProvider) (*DNS,
 	}
 
 	dnsCfg := &DNS{
-		Enable:         cfg.Enable,
-		Listen:         cfg.Listen,
-		IPv6:           cfg.IPv6,
-		UseHosts:       cfg.UseHosts,
-		EnhancedMode:   cfg.EnhancedMode,
-		CacheAlgorithm: cfg.CacheAlgorithm,
-		CacheMaxSize:   cfg.CacheMaxSize,
+		Enable:            cfg.Enable,
+		Listen:            cfg.Listen,
+		ListenRoutingMark: cfg.ListenRoutingMark,
+		IPv6:              cfg.IPv6,
+		UseHosts:          cfg.UseHosts,
+		EnhancedMode:      cfg.EnhancedMode,
+		CacheAlgorithm:    cfg.CacheAlgorithm,
+		CacheMaxSize:      cfg.CacheMaxSize,
 	}
 	var err error
 	if dnsCfg.NameServer, err = parseNameServer(cfg.NameServer, cfg.RespectRules); err != nil {
