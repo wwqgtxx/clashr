@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/metacubex/mihomo/component/mmdb"
-	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
+
 	"golang.org/x/exp/slices"
 )
 
@@ -110,8 +110,7 @@ func (g *GEOIP) isLan(ip netip.Addr) bool {
 		ip.IsUnspecified() ||
 		ip.IsLoopback() ||
 		ip.IsMulticast() ||
-		ip.IsLinkLocalUnicast() ||
-		resolver.IsFakeBroadcastIP(ip)
+		ip.IsLinkLocalUnicast()
 }
 
 func (g *GEOIP) Adapter() string {
