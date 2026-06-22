@@ -274,6 +274,7 @@ func updateDNS(c *config.DNS) {
 		IPv6:                 ipv6,
 		FallbackIPFilter:     c.FallbackIPFilter,
 		FallbackDomainFilter: c.FallbackDomainFilter,
+		FallbackLazyQuery:    c.FallbackLazyQuery,
 		Default:              c.DefaultNameserver,
 		Policy:               c.NameServerPolicy,
 		ProxyServer:          c.ProxyServerNameserver,
