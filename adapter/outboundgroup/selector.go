@@ -11,7 +11,9 @@ import (
 	P "github.com/metacubex/mihomo/constant/provider"
 )
 
-type SelectorOption struct{}
+type SelectorOption struct {
+	DefaultSelected string `group:"default-selected,omitempty"`
+}
 
 type Selector struct {
 	*outbound.Base
@@ -133,7 +135,7 @@ func NewSelector(option GroupCommonOption, selectorOption SelectorOption, emptyF
 		single:        singledo.NewSingle[C.Proxy](defaultGetProxiesDuration),
 		emptyFallback: emptyFallback,
 		providers:     providers,
-		selected:      emptyFallback.Name(),
+		selected:      selectorOption.DefaultSelected,
 		disableUDP:    option.DisableUDP,
 		filter:        option.Filter,
 	}, nil
