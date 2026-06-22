@@ -13,12 +13,8 @@ import (
 	P "github.com/metacubex/mihomo/constant/provider"
 )
 
-type urlTestOption func(*URLTest)
-
-func urlTestWithTolerance(tolerance uint16) urlTestOption {
-	return func(u *URLTest) {
-		u.tolerance = tolerance
-	}
+type URLTestOption struct {
+	Tolerance uint16 `group:"tolerance,omitempty"`
 }
 
 type URLTest struct {
@@ -160,18 +156,7 @@ func (u *URLTest) Proxies() []C.Proxy {
 	return u.proxies(false)
 }
 
-func parseURLTestOption(config map[string]any) []urlTestOption {
-	opts := []urlTestOption{}
-
-	// tolerance
-	if tolerance, ok := config["tolerance"].(int); ok {
-		opts = append(opts, urlTestWithTolerance(uint16(tolerance)))
-	}
-
-	return opts
-}
-
-func NewURLTest(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider, options ...urlTestOption) *URLTest {
+func NewURLTest(option GroupCommonOption, urlTestOption URLTestOption, emptyFallback C.Proxy, providers []P.ProxyProvider) (*URLTest, error) {
 	urlTest := &URLTest{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,
@@ -183,11 +168,8 @@ func NewURLTest(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.
 		providers:     providers,
 		disableUDP:    option.DisableUDP,
 		filter:        option.Filter,
+		tolerance:     urlTestOption.Tolerance,
 	}
 
-	for _, option := range options {
-		option(urlTest)
-	}
-
-	return urlTest
+	return urlTest, nil
 }

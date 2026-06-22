@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/metacubex/mihomo/common/lru"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/common/singledo"
@@ -18,7 +20,9 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-type strategyFn = func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy
+type LoadBalanceOption struct {
+	Strategy string `group:"strategy,omitempty"`
+}
 
 type LoadBalance struct {
 	*outbound.Base
@@ -30,14 +34,9 @@ type LoadBalance struct {
 	strategyFn    strategyFn
 }
 
-var errStrategy = errors.New("unsupported strategy")
+type strategyFn = func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy
 
-func parseStrategy(config map[string]any) string {
-	if strategy, ok := config["strategy"].(string); ok {
-		return strategy
-	}
-	return "random"
-}
+var errStrategy = errors.New("unsupported strategy")
 
 func getKey(metadata *C.Metadata) string {
 	if metadata == nil {
@@ -60,6 +59,16 @@ func getKey(metadata *C.Metadata) string {
 	}
 
 	return metadata.DstIP.String()
+}
+
+func getKeyWithSrcAndDst(metadata *C.Metadata) string {
+	dst := getKey(metadata)
+	src := ""
+	if metadata != nil {
+		src = metadata.SrcIP.String()
+	}
+
+	return fmt.Sprintf("%s%s", src, dst)
 }
 
 func jumpHash(key uint64, buckets int32) int32 {
@@ -105,6 +114,11 @@ func (lb *LoadBalance) SupportUDP() bool {
 	return !lb.disableUDP
 }
 
+// IsL3Protocol implements C.ProxyAdapter
+func (lb *LoadBalance) IsL3Protocol(metadata *C.Metadata) bool {
+	return lb.Unwrap(metadata, false).IsL3Protocol(metadata)
+}
+
 func strategyRandom() strategyFn {
 	return func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy {
 		aliveProxies := make([]C.Proxy, 0, len(proxies))
@@ -121,11 +135,6 @@ func strategyRandom() strategyFn {
 
 		return aliveProxies[idx]
 	}
-}
-
-// IsL3Protocol implements C.ProxyAdapter
-func (lb *LoadBalance) IsL3Protocol(metadata *C.Metadata) bool {
-	return lb.Unwrap(metadata, false).IsL3Protocol(metadata)
 }
 
 func strategyRoundRobin() strategyFn {
@@ -181,6 +190,39 @@ func strategyConsistentHashing() strategyFn {
 	}
 }
 
+func strategyStickySessions() strategyFn {
+	ttl := time.Minute * 10
+	maxRetry := 5
+	lruCache := lru.New[uint64, int](
+		lru.WithAge[uint64, int](int64(ttl.Seconds())),
+		lru.WithSize[uint64, int](1000))
+	return func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy {
+		key := utils.MapHash(getKeyWithSrcAndDst(metadata))
+		length := len(proxies)
+		idx, has := lruCache.Get(key)
+		if !has || idx >= length {
+			idx = int(jumpHash(key+uint64(time.Now().UnixNano()), int32(length)))
+		}
+
+		nowIdx := idx
+		for i := 1; i < maxRetry; i++ {
+			proxy := proxies[nowIdx]
+			if proxy.Alive() {
+				if !has || nowIdx != idx {
+					lruCache.Set(key, nowIdx)
+				}
+
+				return proxy
+			} else {
+				nowIdx = int(jumpHash(key+uint64(time.Now().UnixNano()), int32(length)))
+			}
+		}
+
+		lruCache.Set(key, 0)
+		return proxies[0]
+	}
+}
+
 // Unwrap implements C.ProxyAdapter
 func (lb *LoadBalance) Unwrap(metadata *C.Metadata, touch bool) C.Proxy {
 	proxies := lb.proxies(touch)
@@ -229,17 +271,19 @@ func (lb *LoadBalance) Now() string {
 	return ""
 }
 
-func NewLoadBalance(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider, strategy string) (lb *LoadBalance, err error) {
+func NewLoadBalance(option GroupCommonOption, loadBalanceOption LoadBalanceOption, emptyFallback C.Proxy, providers []P.ProxyProvider) (lb *LoadBalance, err error) {
 	var strategyFn strategyFn
-	switch strategy {
-	case "random":
-		strategyFn = strategyRandom()
-	case "consistent-hashing":
+	switch loadBalanceOption.Strategy {
+	case "", "consistent-hashing":
 		strategyFn = strategyConsistentHashing()
 	case "round-robin":
 		strategyFn = strategyRoundRobin()
+	case "sticky-sessions":
+		strategyFn = strategyStickySessions()
+	case "random":
+		strategyFn = strategyRandom()
 	default:
-		return nil, fmt.Errorf("%w: %s", errStrategy, strategy)
+		return nil, fmt.Errorf("%w: %s", errStrategy, loadBalanceOption.Strategy)
 	}
 	return &LoadBalance{
 		Base: outbound.NewBase(outbound.BaseOption{

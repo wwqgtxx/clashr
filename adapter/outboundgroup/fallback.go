@@ -13,6 +13,8 @@ import (
 	P "github.com/metacubex/mihomo/constant/provider"
 )
 
+type FallbackOption struct{}
+
 type Fallback struct {
 	*outbound.Base
 	disableUDP    bool
@@ -134,7 +136,7 @@ func (f *Fallback) Proxies() []C.Proxy {
 	return f.proxies(false)
 }
 
-func NewFallback(option *GroupCommonOption, emptyFallback C.Proxy, providers []P.ProxyProvider) *Fallback {
+func NewFallback(option GroupCommonOption, fallbackOption FallbackOption, emptyFallback C.Proxy, providers []P.ProxyProvider) (*Fallback, error) {
 	return &Fallback{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name: option.Name,
@@ -145,5 +147,5 @@ func NewFallback(option *GroupCommonOption, emptyFallback C.Proxy, providers []P
 		providers:     providers,
 		disableUDP:    option.DisableUDP,
 		filter:        option.Filter,
-	}
+	}, nil
 }
