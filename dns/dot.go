@@ -10,6 +10,7 @@ import (
 
 	"github.com/metacubex/mihomo/common/deque"
 	"github.com/metacubex/mihomo/component/ca"
+	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 
 	"github.com/metacubex/tls"
@@ -159,7 +160,7 @@ func (t *dnsOverTLS) Close() error {
 	return nil
 }
 
-func newDoTClient(addr string, resolver *Resolver, params map[string]string, proxyAdapter C.ProxyAdapter, proxyName string) *dnsOverTLS {
+func newDoTClient(addr string, resolver resolver.Resolver, params map[string]string, proxyAdapter C.ProxyAdapter, proxyName string) *dnsOverTLS {
 	host, port, _ := net.SplitHostPort(addr)
 	c := &dnsOverTLS{
 		port:   port,

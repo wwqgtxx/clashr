@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/component/ca"
+	"github.com/metacubex/mihomo/component/resolver"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/log"
 
@@ -107,7 +108,7 @@ func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
 	return msg, err
 }
 
-func newDoHClient(url string, r *Resolver, proxyAdapter C.ProxyAdapter, proxyName string, params map[string]string) *dohClient {
+func newDoHClient(url string, r resolver.Resolver, proxyAdapter C.ProxyAdapter, proxyName string, params map[string]string) *dohClient {
 	doh := &dohClient{
 		url: url,
 		transport: &http.Transport{
