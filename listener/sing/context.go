@@ -27,7 +27,7 @@ func getAdditions(ctx context.Context) (additions []inbound.Addition) {
 		}
 	}
 	if user, ok := auth.UserFromContext[string](ctx); ok {
-		additions = slices.Clone(additions)
+		additions = slices.Clip(additions) // force the subsequent `append()` to copy the slice
 		additions = append(additions, inbound.WithInUser(user))
 	}
 	return
