@@ -238,9 +238,9 @@ type RawNTP struct {
 }
 
 type RawExperimental struct {
-	QUICGoDisableGSO bool `yaml:"quic-go-disable-gso"`
-	QUICGoDisableECN bool `yaml:"quic-go-disable-ecn"`
-	IP4PEnable       bool `yaml:"dialer-ip4p-convert"`
+	QUICGoDisableGSO bool `yaml:"quic-go-disable-gso" json:"quic-go-disable-gso"`
+	QUICGoDisableECN bool `yaml:"quic-go-disable-ecn" json:"quic-go-disable-ecn"`
+	IP4PEnable       bool `yaml:"dialer-ip4p-convert" json:"dialer-ip4p-convert"`
 }
 
 type RawProfile struct {
