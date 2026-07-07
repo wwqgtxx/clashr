@@ -3,7 +3,10 @@ package inbound_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -395,4 +398,23 @@ func (p *vmessInteropReservedUDPPort) Release() {
 func vmessInteropPort(addr string) string {
 	_, port, _ := net.SplitHostPort(addr)
 	return port
+}
+
+func vmessInteropCertChainHash(certContent []byte) string {
+	var hashValue []byte
+	for {
+		block, remain := pem.Decode(certContent)
+		if block == nil {
+			break
+		}
+		certHash := sha256.Sum256(block.Bytes)
+		if hashValue == nil {
+			hashValue = certHash[:]
+		} else {
+			chainHash := sha256.Sum256(append(hashValue, certHash[:]...))
+			hashValue = chainHash[:]
+		}
+		certContent = remain
+	}
+	return base64.StdEncoding.EncodeToString(hashValue)
 }

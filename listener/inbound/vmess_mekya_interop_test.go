@@ -218,7 +218,7 @@ func mekyaInteropServerSecuritySettings(certFile, keyFile string) map[string]any
 
 func mekyaInteropClientSecuritySettings() map[string]any {
 	return map[string]any{
-		"pinnedPeerCertificateChainSha256":     []string{tlsMirrorInteropCertChainHash([]byte(tlsCertificate))},
+		"pinnedPeerCertificateChainSha256":     []string{vmessInteropCertChainHash([]byte(tlsCertificate))},
 		"allowInsecureIfPinnedPeerCertificate": true,
 	}
 }

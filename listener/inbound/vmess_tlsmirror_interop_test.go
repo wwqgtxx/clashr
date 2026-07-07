@@ -3,9 +3,6 @@ package inbound_test
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -451,27 +448,8 @@ func startTLSMirrorInteropCarrierTLS(t *testing.T, configure ...func(*tls.Config
 	return tlsMirrorInteropCarrier{
 		addr:          ln.Addr().String(),
 		fingerprint:   fingerprint,
-		certChainHash: tlsMirrorInteropCertChainHash([]byte(certPEM)),
+		certChainHash: vmessInteropCertChainHash([]byte(certPEM)),
 	}
-}
-
-func tlsMirrorInteropCertChainHash(certContent []byte) string {
-	var hashValue []byte
-	for {
-		block, remain := pem.Decode(certContent)
-		if block == nil {
-			break
-		}
-		certHash := sha256.Sum256(block.Bytes)
-		if hashValue == nil {
-			hashValue = certHash[:]
-		} else {
-			chainHash := sha256.Sum256(append(hashValue, certHash[:]...))
-			hashValue = chainHash[:]
-		}
-		certContent = remain
-	}
-	return base64.StdEncoding.EncodeToString(hashValue)
 }
 
 func startTLSMirrorInteropCarrierHTTP2(t *testing.T) tlsMirrorInteropCarrier {
@@ -501,6 +479,6 @@ func startTLSMirrorInteropCarrierHTTP2(t *testing.T) tlsMirrorInteropCarrier {
 	return tlsMirrorInteropCarrier{
 		addr:          ln.Addr().String(),
 		fingerprint:   fingerprint,
-		certChainHash: tlsMirrorInteropCertChainHash([]byte(certPEM)),
+		certChainHash: vmessInteropCertChainHash([]byte(certPEM)),
 	}
 }
