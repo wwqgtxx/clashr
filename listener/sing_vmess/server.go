@@ -17,6 +17,7 @@ import (
 	"github.com/metacubex/mihomo/listener/tlsmirror"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
+	"github.com/metacubex/mihomo/transport/mekya"
 	"github.com/metacubex/mihomo/transport/mkcp"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/metacubex/sing/common"
 	"github.com/metacubex/sing/common/metadata"
 	"github.com/metacubex/tls"
+	"golang.org/x/exp/slices"
 )
 
 type Listener struct {
@@ -55,6 +57,14 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 	})
 	if err != nil {
 		return nil, err
+	}
+	if config.MekyaConfig.Enable {
+		if config.MKCPConfig.Enable {
+			return nil, errors.New("mkcp-config is unavailable in mekya")
+		}
+		if config.WsPath != "" || config.GrpcServiceName != "" {
+			return nil, errors.New("ws and grpc are unavailable in mekya")
+		}
 	}
 
 	service := vmess.NewService[string](h, vmess.ServiceWithDisableHeaderProtection(), vmess.ServiceWithTimeFunc(ntp.Now))
@@ -174,6 +184,14 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		httpServer.Protocols.SetUnencryptedHTTP2(true)
 		tlsConfig.NextProtos = append([]string{"h2"}, tlsConfig.NextProtos...) // h2 must before http/1.1
 	}
+	if config.MekyaConfig.Enable {
+		if !slices.Contains(tlsConfig.NextProtos, "http/1.1") {
+			tlsConfig.NextProtos = append([]string{"http/1.1"}, tlsConfig.NextProtos...)
+		}
+		if !slices.Contains(tlsConfig.NextProtos, "h2") {
+			tlsConfig.NextProtos = append([]string{"h2"}, tlsConfig.NextProtos...)
+		}
+	}
 
 	for _, addr := range strings.Split(config.Listen, ",") {
 		addr := addr
@@ -202,6 +220,12 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 			l = realityBuilder.NewListener(l)
 		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
+		}
+		if config.MekyaConfig.Enable {
+			l, err = mekya.Listen(context.Background(), l, config.MekyaConfig.Build())
+			if err != nil {
+				return nil, err
+			}
 		}
 		sl.listeners = append(sl.listeners, l)
 

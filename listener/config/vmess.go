@@ -27,6 +27,7 @@ type VmessServer struct {
 	EchKey          string
 	RealityConfig   reality.Config
 	TLSMirrorConfig TLSMirrorConfig `yaml:"tlsmirror-config" json:"tlsmirror-config,omitempty"`
+	MekyaConfig     MekyaConfig     `yaml:"mekya-config" json:"mekya-config,omitempty"`
 	MKCPConfig      MKCPConfig      `yaml:"mkcp-config" json:"mkcp-config,omitempty"`
 	MuxOption       sing.MuxOption  `yaml:"mux-option" json:"mux-option,omitempty"`
 }

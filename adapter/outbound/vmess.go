@@ -18,6 +18,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
+	"github.com/metacubex/mihomo/transport/mekya"
 	"github.com/metacubex/mihomo/transport/mkcp"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
@@ -36,7 +37,8 @@ type Vmess struct {
 	option *VmessOption
 
 	// for gun mux
-	gunClient *gun.Client
+	gunClient   *gun.Client
+	mekyaClient *mekya.Client
 
 	realityConfig *tlsC.RealityConfig
 	echConfig     *ech.Config
@@ -62,6 +64,7 @@ type VmessOption struct {
 	ECHOpts             ECHOptions       `proxy:"ech-opts,omitempty"`
 	RealityOpts         RealityOptions   `proxy:"reality-opts,omitempty"`
 	TLSMirrorOpts       TLSMirrorOptions `proxy:"tlsmirror-opts,omitempty"`
+	MekyaOpts           MekyaOptions     `proxy:"mekya-opts,omitempty"`
 	MKCPOpts            MKCPOptions      `proxy:"mkcp-opts,omitempty"`
 	HTTPOpts            HTTPOptions      `proxy:"http-opts,omitempty"`
 	HTTP2Opts           HTTP2Options     `proxy:"h2-opts,omitempty"`
@@ -98,6 +101,34 @@ func (o MKCPOptions) Build() mkcp.Config {
 		ReadBuffer:       o.ReadBuffer,
 		Seed:             o.Seed,
 		Header:           o.Header,
+	}
+}
+
+type MekyaOptions struct {
+	URL                            string      `proxy:"url,omitempty"`
+	H2PoolSize                     int         `proxy:"h2-pool-size,omitempty"`
+	MaxWriteDelay                  int         `proxy:"max-write-delay,omitempty"`
+	MaxRequestSize                 int         `proxy:"max-request-size,omitempty"`
+	PollingIntervalInitial         int         `proxy:"polling-interval-initial,omitempty"`
+	MaxWriteSize                   int         `proxy:"max-write-size,omitempty"`
+	MaxWriteDurationMs             int         `proxy:"max-write-duration-ms,omitempty"`
+	MaxSimultaneousWriteConnection int         `proxy:"max-simultaneous-write-connection,omitempty"`
+	PacketWritingBuffer            int         `proxy:"packet-writing-buffer,omitempty"`
+	KCP                            MKCPOptions `proxy:"kcp,omitempty"`
+}
+
+func (o MekyaOptions) Build() mekya.Config {
+	return mekya.Config{
+		KCP:                            o.KCP.Build(),
+		URL:                            o.URL,
+		H2PoolSize:                     o.H2PoolSize,
+		MaxWriteDelay:                  o.MaxWriteDelay,
+		MaxRequestSize:                 o.MaxRequestSize,
+		PollingIntervalInitial:         o.PollingIntervalInitial,
+		MaxWriteSize:                   o.MaxWriteSize,
+		MaxWriteDurationMs:             o.MaxWriteDurationMs,
+		MaxSimultaneousWriteConnection: o.MaxSimultaneousWriteConnection,
+		PacketWritingBuffer:            o.PacketWritingBuffer,
 	}
 }
 
@@ -213,6 +244,8 @@ func (v *Vmess) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 		c, err = mihomoVMess.StreamH2Conn(ctx, c, h2Opts)
 	case "grpc":
 		break // already handle in dialContext
+	case "mekya":
+		break // already handle in dialContext
 	default:
 		// default tcp network
 		// handle TLS
@@ -317,6 +350,8 @@ func (v *Vmess) dialContext(ctx context.Context) (c net.Conn, err error) {
 	switch v.option.Network {
 	case "grpc": // gun transport
 		return v.gunClient.Dial()
+	case "mekya":
+		return v.mekyaClient.Dial(ctx)
 	case "mkcp", "kcp":
 		rawConn, err := v.dialer.DialContext(ctx, "udp", v.addr)
 		if err != nil {
@@ -382,6 +417,11 @@ func (v *Vmess) Close() error {
 	var errs []error
 	if v.gunClient != nil {
 		if err := v.gunClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if v.mekyaClient != nil {
+		if err := v.mekyaClient.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -451,6 +491,29 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 	case "h2":
 		if len(option.HTTP2Opts.Host) == 0 {
 			option.HTTP2Opts.Host = append(option.HTTP2Opts.Host, "www.example.com")
+		}
+	case "mekya":
+		if len(v.option.ALPN) == 0 {
+			v.option.ALPN = []string{"h2", "http/1.1"}
+		}
+		cfg := option.MekyaOpts.Build()
+		if cfg.URL == "" {
+			cfg.URL = "https://" + v.addr
+		}
+		v.mekyaClient, err = mekya.NewClient(context.Background(), func(ctx context.Context) (net.Conn, error) {
+			rawConn, err := v.dialer.DialContext(ctx, "tcp", v.addr)
+			if err != nil {
+				return nil, err
+			}
+			conn, err := v.streamTLSConn(ctx, rawConn, false)
+			if err != nil {
+				_ = rawConn.Close()
+				return nil, err
+			}
+			return conn, nil
+		}, cfg)
+		if err != nil {
+			return nil, err
 		}
 	case "grpc":
 		dialFn := func(ctx context.Context, network, addr string) (net.Conn, error) {

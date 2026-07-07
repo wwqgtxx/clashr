@@ -64,6 +64,9 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 	if outboundOptions.Network == "mkcp" { // don't test sing-mux over mkcp
 		return
 	}
+	if outboundOptions.Network == "mekya" { // don't test sing-mux over mekya
+		return
+	}
 	if outboundOptions.TLSMirrorOpts.PrimaryKey != "" { // don't test sing-mux over tlsmirror
 		return
 	}
@@ -186,6 +189,33 @@ func TestInboundVMess_MKCP(t *testing.T) {
 			testInboundVMess(t, inboundOptions, outboundOptions)
 		})
 	}
+}
+
+func TestInboundVMess_Mekya(t *testing.T) {
+	inboundOptions := inbound.VmessOption{
+		MekyaConfig: inbound.MekyaConfig{
+			Enable:                         true,
+			MaxWriteSize:                   1 << 20,
+			MaxWriteDurationMs:             100,
+			MaxSimultaneousWriteConnection: 16,
+			PacketWritingBuffer:            1024,
+			KCP: inbound.MKCPConfig{
+				TTI: 15,
+			},
+		},
+	}
+	outboundOptions := outbound.VmessOption{
+		Network: "mekya",
+		MekyaOpts: outbound.MekyaOptions{
+			MaxWriteDelay:          20,
+			MaxRequestSize:         96000,
+			PollingIntervalInitial: 20,
+			KCP: outbound.MKCPOptions{
+				TTI: 15,
+			},
+		},
+	}
+	testInboundVMess(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundVMess_TLSMirror(t *testing.T) {
