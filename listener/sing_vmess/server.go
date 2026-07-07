@@ -17,6 +17,7 @@ import (
 	"github.com/metacubex/mihomo/listener/tlsmirror"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
+	"github.com/metacubex/mihomo/transport/mkcp"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
 	"github.com/metacubex/http"
@@ -178,9 +179,22 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		addr := addr
 
 		//TCP
-		l, err := lc.Listen(context.Background(), "tcp", addr)
-		if err != nil {
-			return nil, err
+		var l net.Listener
+		if config.MKCPConfig.Enable {
+			pc, err := lc.ListenPacket(context.Background(), "udp", addr)
+			if err != nil {
+				return nil, err
+			}
+			l, err = mkcp.Listen(context.Background(), pc, config.MKCPConfig.Build())
+			if err != nil {
+				_ = pc.Close()
+				return nil, err
+			}
+		} else {
+			l, err = lc.Listen(context.Background(), "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if tlsMirrorBuilder != nil {
 			l = tlsMirrorBuilder.NewListener(l)

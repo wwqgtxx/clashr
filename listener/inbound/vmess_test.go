@@ -58,7 +58,13 @@ func testInboundVMess(t *testing.T, inboundOptions inbound.VmessOption, outbound
 
 	tunnel.DoTest(t, out)
 
-	if outboundOptions.Network == "grpc" || outboundOptions.TLSMirrorOpts.PrimaryKey != "" { // don't test sing-mux over grpc/tlsmirror
+	if outboundOptions.Network == "grpc" { // don't test sing-mux over grpc
+		return
+	}
+	if outboundOptions.Network == "mkcp" { // don't test sing-mux over mkcp
+		return
+	}
+	if outboundOptions.TLSMirrorOpts.PrimaryKey != "" { // don't test sing-mux over tlsmirror
 		return
 	}
 	testSingMux(t, tunnel, out)
@@ -139,6 +145,47 @@ func TestInboundVMess_Ws(t *testing.T) {
 		},
 	}
 	testInboundVMess(t, inboundOptions, outboundOptions)
+}
+
+func TestInboundVMess_MKCP(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		inboundOptions := inbound.VmessOption{
+			MKCPConfig: inbound.MKCPConfig{Enable: true},
+		}
+		outboundOptions := outbound.VmessOption{
+			Network: "mkcp",
+		}
+		testInboundVMess(t, inboundOptions, outboundOptions)
+	})
+
+	tests := []struct {
+		name   string
+		seed   string
+		header string
+	}{
+		{name: "seed", seed: "mihomo-mkcp-test"},
+		{name: "header srtp", header: "srtp"},
+		{name: "seed header srtp", seed: "mihomo-mkcp-test", header: "srtp"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inboundOptions := inbound.VmessOption{
+				MKCPConfig: inbound.MKCPConfig{
+					Enable: true,
+					Seed:   tt.seed,
+					Header: tt.header,
+				},
+			}
+			outboundOptions := outbound.VmessOption{
+				Network: "mkcp",
+				MKCPOpts: outbound.MKCPOptions{
+					Seed:   tt.seed,
+					Header: tt.header,
+				},
+			}
+			testInboundVMess(t, inboundOptions, outboundOptions)
+		})
+	}
 }
 
 func TestInboundVMess_TLSMirror(t *testing.T) {
