@@ -14,6 +14,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/reality"
 	"github.com/metacubex/mihomo/listener/sing"
+	"github.com/metacubex/mihomo/listener/tlsmirror"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
@@ -83,6 +84,7 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 	}
 	tlsConfig := &tls.Config{Time: ntp.Now}
 	var realityBuilder *reality.Builder
+	var tlsMirrorBuilder *tlsmirror.Builder
 
 	if config.Certificate != "" && config.PrivateKey != "" {
 		certLoader, err := ca.NewTLSKeyPairLoader(config.Certificate, config.PrivateKey)
@@ -124,6 +126,19 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		if err != nil {
 			return nil, err
 		}
+	}
+	if config.TLSMirror.PrimaryKey != "" {
+		tlsMirrorBuilder = tlsmirror.Config{
+			PrimaryKey:                    config.TLSMirror.PrimaryKey,
+			Dest:                          config.TLSMirror.Dest,
+			Proxy:                         config.TLSMirror.Proxy,
+			ExplicitNonceCipherSuites:     config.TLSMirror.ExplicitNonceCipherSuites,
+			DeferInstanceDerivedWriteTime: config.TLSMirror.DeferInstanceDerivedWriteTime.Build(),
+			TransportLayerPadding:         config.TLSMirror.TransportLayerPadding.Build(),
+			ConnectionEnrolment:           config.TLSMirror.ConnectionEnrolment.Build(),
+			SequenceWatermarkingEnabled:   config.TLSMirror.SequenceWatermarkingEnabled,
+		}.Build(tunnel)
+		h.Tunnel = tlsMirrorBuilder.WrapTunnel(tunnel)
 	}
 	if config.WsPath != "" {
 		httpMux := http.NewServeMux()
@@ -167,7 +182,9 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		if err != nil {
 			return nil, err
 		}
-		if realityBuilder != nil {
+		if tlsMirrorBuilder != nil {
+			l = tlsMirrorBuilder.NewListener(l)
+		} else if realityBuilder != nil {
 			l = realityBuilder.NewListener(l)
 		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)

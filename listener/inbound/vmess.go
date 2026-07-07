@@ -20,6 +20,7 @@ type VmessOption struct {
 	ClientAuthCert  string        `inbound:"client-auth-cert,omitempty"`
 	EchKey          string        `inbound:"ech-key,omitempty"`
 	RealityConfig   RealityConfig `inbound:"reality-config,omitempty"`
+	TLSMirror       TLSMirror     `inbound:"tlsmirror,omitempty"`
 	MuxOption       MuxOption     `inbound:"mux-option,omitempty"`
 }
 
@@ -68,6 +69,7 @@ func NewVmess(options *VmessOption) (*Vmess, error) {
 			ClientAuthCert:  options.ClientAuthCert,
 			EchKey:          options.EchKey,
 			RealityConfig:   options.RealityConfig.Build(),
+			TLSMirror:       options.TLSMirror.Build(),
 			MuxOption:       options.MuxOption.Build(),
 		},
 	}, nil
