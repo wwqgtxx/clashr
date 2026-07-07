@@ -21,6 +21,7 @@ type VmessOption struct {
 	EchKey          string          `inbound:"ech-key,omitempty"`
 	RealityConfig   RealityConfig   `inbound:"reality-config,omitempty"`
 	TLSMirrorConfig TLSMirrorConfig `inbound:"tlsmirror-config,omitempty"`
+	MKCPConfig      MKCPConfig      `inbound:"mkcp-config,omitempty"`
 	MuxOption       MuxOption       `inbound:"mux-option,omitempty"`
 }
 
@@ -70,6 +71,7 @@ func NewVmess(options *VmessOption) (*Vmess, error) {
 			EchKey:          options.EchKey,
 			RealityConfig:   options.RealityConfig.Build(),
 			TLSMirrorConfig: options.TLSMirrorConfig.Build(),
+			MKCPConfig:      options.MKCPConfig.Build(),
 			MuxOption:       options.MuxOption.Build(),
 		},
 	}, nil

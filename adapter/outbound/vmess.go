@@ -18,6 +18,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
+	"github.com/metacubex/mihomo/transport/mkcp"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
 	"github.com/metacubex/http"
@@ -61,6 +62,7 @@ type VmessOption struct {
 	ECHOpts             ECHOptions       `proxy:"ech-opts,omitempty"`
 	RealityOpts         RealityOptions   `proxy:"reality-opts,omitempty"`
 	TLSMirrorOpts       TLSMirrorOptions `proxy:"tlsmirror-opts,omitempty"`
+	MKCPOpts            MKCPOptions      `proxy:"mkcp-opts,omitempty"`
 	HTTPOpts            HTTPOptions      `proxy:"http-opts,omitempty"`
 	HTTP2Opts           HTTP2Options     `proxy:"h2-opts,omitempty"`
 	GrpcOpts            GrpcOptions      `proxy:"grpc-opts,omitempty"`
@@ -71,6 +73,32 @@ type VmessOption struct {
 	GlobalPadding       bool             `proxy:"global-padding,omitempty"`
 	AuthenticatedLength bool             `proxy:"authenticated-length,omitempty"`
 	ClientFingerprint   string           `proxy:"client-fingerprint,omitempty"`
+}
+
+type MKCPOptions struct {
+	MTU              uint32 `proxy:"mtu,omitempty"`
+	TTI              uint32 `proxy:"tti,omitempty"`
+	UplinkCapacity   uint32 `proxy:"uplink-capacity,omitempty"`
+	DownlinkCapacity uint32 `proxy:"downlink-capacity,omitempty"`
+	Congestion       bool   `proxy:"congestion,omitempty"`
+	WriteBuffer      uint32 `proxy:"write-buffer,omitempty"`
+	ReadBuffer       uint32 `proxy:"read-buffer,omitempty"`
+	Seed             string `proxy:"seed,omitempty"`
+	Header           string `proxy:"header,omitempty"`
+}
+
+func (o MKCPOptions) Build() mkcp.Config {
+	return mkcp.Config{
+		MTU:              o.MTU,
+		TTI:              o.TTI,
+		UplinkCapacity:   o.UplinkCapacity,
+		DownlinkCapacity: o.DownlinkCapacity,
+		Congestion:       o.Congestion,
+		WriteBuffer:      o.WriteBuffer,
+		ReadBuffer:       o.ReadBuffer,
+		Seed:             o.Seed,
+		Header:           o.Header,
+	}
 }
 
 type HTTPOptions struct {
@@ -289,6 +317,12 @@ func (v *Vmess) dialContext(ctx context.Context) (c net.Conn, err error) {
 	switch v.option.Network {
 	case "grpc": // gun transport
 		return v.gunClient.Dial()
+	case "mkcp", "kcp":
+		rawConn, err := v.dialer.DialContext(ctx, "udp", v.addr)
+		if err != nil {
+			return nil, err
+		}
+		return mkcp.Dial(ctx, rawConn, v.option.MKCPOpts.Build())
 	default:
 	}
 	return v.dialer.DialContext(ctx, "tcp", v.addr)
