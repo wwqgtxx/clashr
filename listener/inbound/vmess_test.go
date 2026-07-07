@@ -143,7 +143,7 @@ func TestInboundVMess_Ws(t *testing.T) {
 
 func TestInboundVMess_TLSMirror(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey: tlsMirrorPrimaryKey,
 			Dest:       net.JoinHostPort(realityDest, "443"),
 		},
@@ -164,7 +164,7 @@ func TestInboundVMess_TLSMirror(t *testing.T) {
 func TestInboundVMess_TLSMirror_Ws(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
 		WsPath: "/ws",
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey: tlsMirrorPrimaryKey,
 			Dest:       net.JoinHostPort(realityDest, "443"),
 		},
@@ -189,7 +189,7 @@ func TestInboundVMess_TLSMirror_Ws(t *testing.T) {
 func TestInboundVMess_TLSMirror_Grpc(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
 		GrpcServiceName: "GunService",
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey: tlsMirrorPrimaryKey,
 			Dest:       net.JoinHostPort(realityDest, "443"),
 		},
@@ -211,7 +211,7 @@ func TestInboundVMess_TLSMirror_Grpc(t *testing.T) {
 
 func TestInboundVMess_TLSMirror_AdvancedOptions(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey:                tlsMirrorPrimaryKey,
 			Dest:                      net.JoinHostPort(realityDest, "443"),
 			ExplicitNonceCipherSuites: tlsmirror.RecommendedExplicitNonceCipherSuites,
@@ -243,7 +243,7 @@ func TestInboundVMess_TLSMirror_AdvancedOptions(t *testing.T) {
 
 func TestInboundVMess_TLSMirror_ConnectionEnrolment(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey: tlsMirrorPrimaryKey,
 			Dest:       net.JoinHostPort(realityDest, "443"),
 			ConnectionEnrolment: &inbound.TLSMirrorConnectionEnrolment{
@@ -269,7 +269,7 @@ func TestInboundVMess_TLSMirror_ConnectionEnrolment(t *testing.T) {
 
 func TestInboundVMess_TLSMirror_EmbeddedTrafficGenerator(t *testing.T) {
 	inboundOptions := inbound.VmessOption{
-		TLSMirror: inbound.TLSMirror{
+		TLSMirrorConfig: inbound.TLSMirrorConfig{
 			PrimaryKey: tlsMirrorPrimaryKey,
 			Dest:       net.JoinHostPort(realityDest, "443"),
 		},

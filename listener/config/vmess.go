@@ -26,11 +26,11 @@ type VmessServer struct {
 	ClientAuthCert  string
 	EchKey          string
 	RealityConfig   reality.Config
-	TLSMirror       TLSMirror
-	MuxOption       sing.MuxOption `yaml:"mux-option" json:"mux-option,omitempty"`
+	TLSMirrorConfig TLSMirrorConfig `yaml:"tlsmirror-config" json:"tlsmirror-config,omitempty"`
+	MuxOption       sing.MuxOption  `yaml:"mux-option" json:"mux-option,omitempty"`
 }
 
-type TLSMirror struct {
+type TLSMirrorConfig struct {
 	PrimaryKey                    string                         `yaml:"primary-key" json:"primary-key,omitempty"`
 	Dest                          string                         `yaml:"dest" json:"dest,omitempty"`
 	Proxy                         string                         `yaml:"proxy" json:"proxy,omitempty"`

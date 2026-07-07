@@ -205,7 +205,7 @@ func tlsMirrorInteropTestCase(t *testing.T, v2rayBin, name string, advanced tlsM
 			Users: []inbound.VmessUser{
 				{Username: "test", UUID: userUUID},
 			},
-			TLSMirror: inbound.TLSMirror{
+			TLSMirrorConfig: inbound.TLSMirrorConfig{
 				PrimaryKey:                  tlsMirrorInteropPrimaryKey,
 				Dest:                        forward.addr,
 				ExplicitNonceCipherSuites:   advanced.config.ExplicitNonceCipherSuites,

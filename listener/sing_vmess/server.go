@@ -127,16 +127,16 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 			return nil, err
 		}
 	}
-	if config.TLSMirror.PrimaryKey != "" {
+	if config.TLSMirrorConfig.PrimaryKey != "" {
 		tlsMirrorBuilder = tlsmirror.Config{
-			PrimaryKey:                    config.TLSMirror.PrimaryKey,
-			Dest:                          config.TLSMirror.Dest,
-			Proxy:                         config.TLSMirror.Proxy,
-			ExplicitNonceCipherSuites:     config.TLSMirror.ExplicitNonceCipherSuites,
-			DeferInstanceDerivedWriteTime: config.TLSMirror.DeferInstanceDerivedWriteTime.Build(),
-			TransportLayerPadding:         config.TLSMirror.TransportLayerPadding.Build(),
-			ConnectionEnrolment:           config.TLSMirror.ConnectionEnrolment.Build(),
-			SequenceWatermarkingEnabled:   config.TLSMirror.SequenceWatermarkingEnabled,
+			PrimaryKey:                    config.TLSMirrorConfig.PrimaryKey,
+			Dest:                          config.TLSMirrorConfig.Dest,
+			Proxy:                         config.TLSMirrorConfig.Proxy,
+			ExplicitNonceCipherSuites:     config.TLSMirrorConfig.ExplicitNonceCipherSuites,
+			DeferInstanceDerivedWriteTime: config.TLSMirrorConfig.DeferInstanceDerivedWriteTime.Build(),
+			TransportLayerPadding:         config.TLSMirrorConfig.TransportLayerPadding.Build(),
+			ConnectionEnrolment:           config.TLSMirrorConfig.ConnectionEnrolment.Build(),
+			SequenceWatermarkingEnabled:   config.TLSMirrorConfig.SequenceWatermarkingEnabled,
 		}.Build(tunnel)
 		h.Tunnel = tlsMirrorBuilder.WrapTunnel(tunnel)
 	}

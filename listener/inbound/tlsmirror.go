@@ -4,7 +4,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 )
 
-type TLSMirror struct {
+type TLSMirrorConfig struct {
 	PrimaryKey                    string                         `inbound:"primary-key,omitempty"`
 	Dest                          string                         `inbound:"dest,omitempty"`
 	Proxy                         string                         `inbound:"proxy,omitempty"`
@@ -52,8 +52,8 @@ func (p TLSMirrorTransportLayerPadding) Build() LC.TLSMirrorTransportLayerPaddin
 	}
 }
 
-func (c TLSMirror) Build() LC.TLSMirror {
-	return LC.TLSMirror{
+func (c TLSMirrorConfig) Build() LC.TLSMirrorConfig {
+	return LC.TLSMirrorConfig{
 		PrimaryKey:                    c.PrimaryKey,
 		Dest:                          c.Dest,
 		Proxy:                         c.Proxy,
