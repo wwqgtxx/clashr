@@ -18,12 +18,12 @@ import (
 	"github.com/metacubex/mihomo/transport/mkcp"
 
 	"github.com/metacubex/http"
-	"github.com/metacubex/http/http2"
 	"github.com/metacubex/http/httptrace"
-	"github.com/metacubex/tls"
 )
 
 type DialFunc func(ctx context.Context) (net.Conn, error)
+
+const http2NextProtoTLS = "h2"
 
 type Client struct {
 	ctx    context.Context
@@ -90,17 +90,25 @@ func newRoundTripper(dial DialFunc, h2PoolSize int) http.RoundTripper {
 		},
 		DisableCompression: true,
 	}
-	rt.h2 = newH2RoundTripper(h2PoolSize, func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+	rt.h2 = newH2RoundTripper(h2PoolSize, func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return rt.dialOrGetTLSWithExpectedALPN(ctx, addr, true)
 	})
 	return rt
 }
 
-func newH2RoundTripper(h2PoolSize int, dialTLSContext func(context.Context, string, string, *tls.Config) (net.Conn, error)) http.RoundTripper {
+func newH2RoundTripper(h2PoolSize int, dialTLSContext func(context.Context, string, string) (net.Conn, error)) http.RoundTripper {
 	newTransport := func() http.RoundTripper {
-		return &http2.Transport{
+		protocols := new(http.Protocols)
+		// use h2c mode to disallow the net/http fallback to http1.1
+		//
+		// Note that this usage is only applicable to our own net/http fork.
+		// The standard library also needs to mask the tls.Conn type for the conn returned by DialTLSContext,
+		// see: https://github.com/golang/go/issues/79293#issuecomment-4426393534
+		protocols.SetUnencryptedHTTP2(true)
+		return &http.Transport{
 			DialTLSContext:     dialTLSContext,
 			DisableCompression: true,
+			Protocols:          protocols,
 		}
 	}
 	if h2PoolSize >= 2 {
@@ -189,7 +197,7 @@ func (r *alpnAwareRoundTripper) dialOrGetTLSWithExpectedALPN(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	protocolIsH2 := tlsC.GetTLSConnectionState(conn).NegotiatedProtocol == http2.NextProtoTLS
+	protocolIsH2 := tlsC.GetTLSConnectionState(conn).NegotiatedProtocol == http2NextProtoTLS
 	if protocolIsH2 == expectedH2 {
 		return conn, nil
 	}
