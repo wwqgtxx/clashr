@@ -11,6 +11,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/ntp"
 	gost "github.com/metacubex/mihomo/transport/gost"
+	"github.com/metacubex/mihomo/transport/jls"
 	"github.com/metacubex/mihomo/transport/kcptun"
 	"github.com/metacubex/mihomo/transport/restls"
 	obfs "github.com/metacubex/mihomo/transport/simple-obfs"
@@ -35,6 +36,7 @@ type ShadowSocks struct {
 	gostOption      *gost.Option
 	shadowTLSOption *shadowtls.ShadowTLSOption
 	restlsConfig    *restls.Config
+	jlsConfig       *jls.ClientConfig
 	kcptunClient    *kcptun.Client
 }
 
@@ -113,6 +115,13 @@ type restlsOption struct {
 	ForceTLS12     bool   `obfs:"force-tls12,omitempty"` // for test
 }
 
+type jlsOption struct {
+	Host     string   `obfs:"host"`
+	Username string   `obfs:"username"`
+	Password string   `obfs:"password"`
+	ALPN     []string `obfs:"alpn,omitempty"`
+}
+
 type kcpTunOption struct {
 	Key          string `obfs:"key,omitempty"`
 	Crypt        string `obfs:"crypt,omitempty"`
@@ -171,6 +180,12 @@ func (ss *ShadowSocks) StreamConnContext(ctx context.Context, c net.Conn, metada
 		c, err = restls.NewRestls(ctx, c, ss.restlsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("%s (restls) connect error: %w", ss.addr, err)
+		}
+		useEarly = true
+	case jls.Mode:
+		c, err = jls.NewClient(ctx, c, ss.jlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("%s (jls) connect error: %w", ss.addr, err)
 		}
 		useEarly = true
 	}
@@ -298,6 +313,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 	var obfsOption *simpleObfsOption
 	var shadowTLSOpt *shadowtls.ShadowTLSOption
 	var restlsConfig *restls.Config
+	var jlsConfig *jls.ClientConfig
 	var kcptunClient *kcptun.Client
 	obfsMode := ""
 
@@ -424,6 +440,16 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 			restls.SetNameCertVerify(restlsConfig, restlsOpt.NameCertVerify)
 		}
 		restlsConfig.ForceTLS12 = restlsOpt.ForceTLS12
+	} else if option.Plugin == jls.Mode {
+		obfsMode = jls.Mode
+		jlsOpt := &jlsOption{}
+		if err := decoder.Decode(option.PluginOpts, jlsOpt); err != nil {
+			return nil, fmt.Errorf("ss %s initialize jls-plugin error: %w", addr, err)
+		}
+		jlsConfig, err = jls.NewClientConfig(jlsOpt.Host, jlsOpt.Username, jlsOpt.Password, jlsOpt.ALPN)
+		if err != nil {
+			return nil, fmt.Errorf("ss %s initialize jls-plugin error: %w", addr, err)
+		}
 	} else if option.Plugin == kcptun.Mode {
 		obfsMode = kcptun.Mode
 		kcptunOpt := &kcpTunOption{}
@@ -490,6 +516,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 		obfsOption:      obfsOption,
 		shadowTLSOption: shadowTLSOpt,
 		restlsConfig:    restlsConfig,
+		jlsConfig:       jlsConfig,
 		kcptunClient:    kcptunClient,
 	}
 	outbound.dialer = option.NewDialer(outbound.DialOptions())
