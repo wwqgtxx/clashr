@@ -43,6 +43,7 @@ const (
 	MIERU
 	SUDOKU
 	TRUSTTUNNEL
+	SHADOWQUIC
 	INNER
 	DNS
 )
@@ -125,6 +126,8 @@ func (t Type) String() string {
 		return "Sudoku"
 	case TRUSTTUNNEL:
 		return "TrustTunnel"
+	case SHADOWQUIC:
+		return "ShadowQuic"
 	case INNER:
 		return "Inner"
 	case DNS:
@@ -175,6 +178,8 @@ func ParseType(t string) (*Type, error) {
 		res = SUDOKU
 	case "TRUSTTUNNEL":
 		res = TRUSTTUNNEL
+	case "SHADOWQUIC":
+		res = SHADOWQUIC
 	case "INNER":
 		res = INNER
 	default:
