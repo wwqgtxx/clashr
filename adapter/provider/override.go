@@ -16,6 +16,7 @@ type overrideSchema struct {
 	Down           *string `provider:"down,omitempty"`
 	DialerProxy    *string `provider:"dialer-proxy,omitempty"`
 	SkipCertVerify *bool   `provider:"skip-cert-verify,omitempty"`
+	NameCertVerify *string `provider:"name-cert-verify,omitempty"`
 	Interface      *string `provider:"interface-name,omitempty"`
 	RoutingMark    *int    `provider:"routing-mark,omitempty"`
 	IPVersion      *string `provider:"ip-version,omitempty"`
@@ -62,6 +63,9 @@ func (o *overrideSchema) Apply(mapping map[string]any) error {
 	}
 	if o.SkipCertVerify != nil {
 		mapping["skip-cert-verify"] = *o.SkipCertVerify
+	}
+	if o.NameCertVerify != nil {
+		mapping["name-cert-verify"] = *o.NameCertVerify
 	}
 	if o.Interface != nil {
 		mapping["interface-name"] = *o.Interface

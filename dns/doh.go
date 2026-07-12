@@ -26,6 +26,7 @@ type dohClient struct {
 	url            string
 	transport      *http.Transport
 	skipCertVerify bool
+	nameCertVerify string
 	ecsPrefix      netip.Prefix
 	ecsOverride    bool
 }
@@ -87,7 +88,9 @@ func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
 			InsecureSkipVerify:     doh.skipCertVerify,
 			MinVersion:             tls.VersionTLS12,
 			SessionTicketsDisabled: false,
-		}})
+		},
+		NameCertVerify: doh.nameCertVerify,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +123,7 @@ func newDoHClient(url string, r resolver.Resolver, proxyAdapter C.ProxyAdapter, 
 	if params["skip-cert-verify"] == "true" {
 		doh.skipCertVerify = true
 	}
+	doh.nameCertVerify = params["name-cert-verify"]
 
 	if ecs := params["ecs"]; ecs != "" {
 		prefix, err := netip.ParsePrefix(ecs)
