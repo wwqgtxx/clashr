@@ -24,7 +24,15 @@ func (r *Restls) Upstream() any {
 
 type Config = tls.Config
 
-var NewRestlsConfig = tls.NewRestlsConfig
+func NewRestlsConfig(serverName, password, versionHint, restlsScript, clientID string) (*Config, error) {
+	config, err := tls.NewRestlsConfig(serverName, password, versionHint, restlsScript, clientID)
+	if err != nil {
+		return nil, err
+	}
+	config.RootCAs = ca.GetCertPool()
+	config.Time = ntp.Now
+	return config, nil
+}
 
 type ServerConfig = tls.RestlsServerConfig
 
