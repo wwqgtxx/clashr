@@ -217,7 +217,7 @@ func TestInboundShadowSocks_JLS(t *testing.T) {
 	username := "jls-user"
 	password := "jls-password"
 	inboundOptions := inbound.ShadowSocksOption{
-		JLSConfig: inbound.JLS{
+		JLSConfig: inbound.JLSConfig{
 			Enable: true,
 			Users:  []inbound.JLSUser{{Username: username, Password: password}},
 			SNI:    realityDest,

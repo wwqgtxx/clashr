@@ -33,10 +33,15 @@ var (
 type User = tls.JLSUser
 
 type ClientConfig struct {
+	Config
+
 	ServerName        string
-	User              User
 	ALPN              []string
 	ClientFingerprint string
+}
+
+type Config struct {
+	User User
 }
 
 type ServerConfig struct {
@@ -46,19 +51,27 @@ type ServerConfig struct {
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
-func NewClientConfig(serverName, username, password string, alpn []string) (*ClientConfig, error) {
-	if serverName == "" {
-		return nil, errors.New("jls: server name is required")
-	}
+func NewConfig(username, password string) (*Config, error) {
 	if username == "" {
 		return nil, errors.New("jls: username is required")
 	}
 	if password == "" {
 		return nil, errors.New("jls: password is required")
 	}
+	return &Config{User: User{Username: username, Password: password}}, nil
+}
+
+func NewClientConfig(serverName, username, password string, alpn []string) (*ClientConfig, error) {
+	if serverName == "" {
+		return nil, errors.New("jls: server name is required")
+	}
+	authConfig, err := NewConfig(username, password)
+	if err != nil {
+		return nil, err
+	}
 	config := &ClientConfig{
+		Config:     *authConfig,
 		ServerName: serverName,
-		User:       User{Username: username, Password: password},
 	}
 	if alpn != nil {
 		config.ALPN = append([]string{}, alpn...)
@@ -69,6 +82,15 @@ func NewClientConfig(serverName, username, password string, alpn []string) (*Cli
 func NewClient(ctx context.Context, conn net.Conn, config *ClientConfig) (net.Conn, error) {
 	if config == nil {
 		return nil, errors.New("jls: nil client config")
+	}
+	if config.ServerName == "" {
+		return nil, errors.New("jls: server name is required")
+	}
+	if config.User.Username == "" {
+		return nil, errors.New("jls: username is required")
+	}
+	if config.User.Password == "" {
+		return nil, errors.New("jls: password is required")
 	}
 	if client, ok, err := newUTLSClient(ctx, conn, config); ok {
 		return client, err
