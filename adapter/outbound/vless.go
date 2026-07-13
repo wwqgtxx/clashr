@@ -131,6 +131,7 @@ type XHTTPDownloadSettings struct {
 	TLS               *bool           `proxy:"tls,omitempty"`
 	ALPN              *[]string       `proxy:"alpn,omitempty"`
 	ECHOpts           *ECHOptions     `proxy:"ech-opts,omitempty"`
+	JLSOpts           *JLSOptions     `proxy:"jls-opts,omitempty"`
 	RealityOpts       *RealityOptions `proxy:"reality-opts,omitempty"`
 	SkipCertVerify    *bool           `proxy:"skip-cert-verify,omitempty"`
 	NameCertVerify    *string         `proxy:"name-cert-verify,omitempty"`
@@ -688,6 +689,13 @@ func NewVless(option VlessOption) (*Vless, error) {
 					return nil, err
 				}
 			}
+			downloadJLSConfig := v.jlsConfig
+			if ds.JLSOpts != nil {
+				downloadJLSConfig, err = ds.JLSOpts.Parse()
+				if err != nil {
+					return nil, err
+				}
+			}
 			downloadRealityCfg := v.realityConfig
 			if ds.RealityOpts != nil {
 				downloadRealityCfg, err = ds.RealityOpts.Parse()
@@ -752,7 +760,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 								PrivateKey:        downloadPrivateKey,
 								ClientFingerprint: downloadClientFingerprint,
 								ECH:               downloadEchConfig,
-								JLS:               v.jlsConfig,
+								JLS:               downloadJLSConfig,
 								Reality:           downloadRealityCfg,
 								NextProtos:        downloadALPN,
 							}
@@ -790,7 +798,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 						if !downloadTLS {
 							return nil, errors.New("xhttp HTTP/3 requires TLS")
 						}
-						if v.jlsConfig != nil {
+						if downloadJLSConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support JLS")
 						}
 						if downloadRealityCfg != nil {
