@@ -12,6 +12,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/inner"
 	embedSS "github.com/metacubex/mihomo/listener/shadowsocks"
+	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/ntp"
@@ -23,8 +24,8 @@ import (
 	shadowsocks "github.com/metacubex/sing-shadowsocks"
 	"github.com/metacubex/sing-shadowsocks/shadowaead"
 	"github.com/metacubex/sing-shadowsocks/shadowaead_2022"
-	shadowtls "github.com/metacubex/sing-shadowtls"
 	"github.com/metacubex/sing/common"
+	"github.com/metacubex/sing/common/auth"
 	"github.com/metacubex/sing/common/buf"
 	"github.com/metacubex/sing/common/bufio"
 	M "github.com/metacubex/sing/common/metadata"
@@ -37,26 +38,12 @@ type Listener struct {
 	listeners    []net.Listener
 	udpListeners []net.PacketConn
 	service      shadowsocks.Service
-	shadowTLS    *shadowtls.Service
 	resTLS       *restls.ServerConfig
 	jls          *jls.ServerConfig
 	simpleObfs   func(net.Conn) net.Conn
 }
 
 var _listener *Listener
-
-// shadowTLSService is a wrapper for shadowsocks.Service to support shadowTLS.
-type shadowTLSService struct {
-	shadowsocks.Service
-	shadowTLS *shadowtls.Service
-}
-
-func (s *shadowTLSService) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
-	if s.shadowTLS != nil {
-		return s.shadowTLS.NewConnection(ctx, conn, metadata)
-	}
-	return s.Service.NewConnection(ctx, conn, metadata)
-}
 
 func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel, additions ...inbound.Addition) (C.MultiAddrListener, error) {
 	var sl *Listener
@@ -101,48 +88,11 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		return nil, err
 	}
 
+	var shadowTLSBuilder *shadowtls.Builder
 	if config.ShadowTLS.Enable {
-		buildHandshake := func(handshake LC.ShadowTLSHandshakeOptions) (handshakeConfig shadowtls.HandshakeConfig) {
-			handshakeConfig.Server = M.ParseSocksaddr(handshake.Dest)
-			handshakeConfig.Dialer = sing.NewDialer(tunnel, handshake.Proxy)
-			return
-		}
-		var handshakeForServerName map[string]shadowtls.HandshakeConfig
-		if config.ShadowTLS.Version > 1 {
-			handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
-			for serverName, serverOptions := range config.ShadowTLS.HandshakeForServerName {
-				handshakeForServerName[serverName] = buildHandshake(serverOptions)
-			}
-		}
-		var wildcardSNI shadowtls.WildcardSNI
-		switch config.ShadowTLS.WildcardSNI {
-		case "authed":
-			wildcardSNI = shadowtls.WildcardSNIAuthed
-		case "all":
-			wildcardSNI = shadowtls.WildcardSNIAll
-		default:
-			wildcardSNI = shadowtls.WildcardSNIOff
-		}
-		var shadowTLS *shadowtls.Service
-		shadowTLS, err = shadowtls.NewService(shadowtls.ServiceConfig{
-			Version:  config.ShadowTLS.Version,
-			Password: config.ShadowTLS.Password,
-			Users: common.Map(config.ShadowTLS.Users, func(it LC.ShadowTLSUser) shadowtls.User {
-				return shadowtls.User{Name: it.Name, Password: it.Password}
-			}),
-			Handshake:              buildHandshake(config.ShadowTLS.Handshake),
-			HandshakeForServerName: handshakeForServerName,
-			StrictMode:             config.ShadowTLS.StrictMode,
-			WildcardSNI:            wildcardSNI,
-			Handler:                sl.service,
-			Logger:                 log.SingLogger,
-		})
+		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
 		if err != nil {
 			return nil, err
-		}
-		sl.service = &shadowTLSService{
-			Service:   sl.service,
-			shadowTLS: shadowTLS,
 		}
 	}
 
@@ -262,6 +212,9 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		if err != nil {
 			return nil, err
 		}
+		if shadowTLSBuilder != nil {
+			l = shadowTLSBuilder.NewListener(l)
+		}
 		sl.listeners = append(sl.listeners, l)
 
 		go func() {
@@ -315,7 +268,7 @@ func (l *Listener) AddrList() (addrList []net.Addr) {
 }
 
 func (l *Listener) HandleConn(conn net.Conn, tunnel C.Tunnel, additions ...inbound.Addition) {
-	ctx := sing.WithAdditions(context.TODO(), additions...)
+	user, loaded := shadowtls.UserFromConn(conn)
 	if l.jls != nil {
 		c, err := jls.Server(context.TODO(), conn, l.jls)
 		if err != nil {
@@ -334,6 +287,10 @@ func (l *Listener) HandleConn(conn net.Conn, tunnel C.Tunnel, additions ...inbou
 	}
 	if l.simpleObfs != nil {
 		conn = l.simpleObfs(conn)
+	}
+	ctx := sing.WithAdditions(context.TODO(), additions...)
+	if loaded {
+		ctx = auth.ContextWithUser(ctx, user)
 	}
 	err := l.service.NewConnection(ctx, conn, M.Metadata{
 		Protocol: "shadowsocks",
