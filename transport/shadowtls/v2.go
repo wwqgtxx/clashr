@@ -80,8 +80,10 @@ func (c *hashWriteConn) Fallback() {
 
 type shadowConn struct {
 	net.Conn
-	readRemaining int
-	writeMu       sync.Mutex
+	readRemaining    int
+	readHeader       [tlsHeaderSize]byte
+	readHeaderOffset int
+	writeMu          sync.Mutex
 }
 
 func newConn(conn net.Conn) *shadowConn {
@@ -97,19 +99,22 @@ func (c *shadowConn) Read(p []byte) (int, error) {
 		c.readRemaining -= n
 		return n, err
 	}
-	var header [tlsHeaderSize]byte
-	if _, err := io.ReadFull(c.Conn, header[:]); err != nil {
+	// Keep an incomplete header so a read deadline only interrupts the current Read.
+	n, err := io.ReadFull(c.Conn, c.readHeader[c.readHeaderOffset:])
+	c.readHeaderOffset += n
+	if err != nil {
 		return 0, err
 	}
-	if header[0] != applicationData {
-		return 0, fmt.Errorf("shadow-tls: unexpected TLS record type: %d", header[0])
+	c.readHeaderOffset = 0
+	if c.readHeader[0] != applicationData {
+		return 0, fmt.Errorf("shadow-tls: unexpected TLS record type: %d", c.readHeader[0])
 	}
-	length := int(binary.BigEndian.Uint16(header[3:]))
+	length := int(binary.BigEndian.Uint16(c.readHeader[3:]))
 	readLength := len(p)
 	if readLength > length {
 		readLength = length
 	}
-	n, err := c.Conn.Read(p[:readLength])
+	n, err = c.Conn.Read(p[:readLength])
 	c.readRemaining = length - n
 	return n, err
 }
@@ -145,8 +150,6 @@ func (c *shadowConn) writeRecord(p []byte) error {
 	binary.BigEndian.PutUint16(header[3:], uint16(len(p)))
 	return writeBuffers(c.Conn, header[:], p)
 }
-
-func (c *shadowConn) NeedAdditionalReadDeadline() bool { return true }
 
 func (c *shadowConn) Upstream() any { return c.Conn }
 

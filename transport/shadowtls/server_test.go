@@ -136,6 +136,58 @@ func TestV3UnauthenticatedConnectionFallsBack(t *testing.T) {
 	}
 }
 
+func TestV2InterruptedHeaderRead(t *testing.T) {
+	clientSide, serverSide := net.Pipe()
+	defer clientSide.Close()
+	defer serverSide.Close()
+
+	serverRaw := &readStartedConn{Conn: serverSide, started: make(chan struct{}, 1)}
+	server := newConn(serverRaw)
+	payload := []byte("payload after interrupted v2 header")
+	frame := make([]byte, tlsHeaderSize+len(payload))
+	frame[0] = applicationData
+	frame[1] = 3
+	frame[2] = 3
+	binary.BigEndian.PutUint16(frame[3:tlsHeaderSize], uint16(len(payload)))
+	copy(frame[tlsHeaderSize:], payload)
+
+	buffer := make([]byte, len(payload))
+	serverRead := make(chan error, 1)
+	go func() {
+		_, err := server.Read(buffer)
+		serverRead <- err
+	}()
+	<-serverRaw.started
+	if _, err := clientSide.Write(frame[:2]); err != nil {
+		t.Fatalf("write partial header: %v", err)
+	}
+	<-serverRaw.started
+	if err := server.SetReadDeadline(time.Now()); err != nil {
+		t.Fatalf("interrupt server read: %v", err)
+	}
+	if err := <-serverRead; !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("server read error = %v, want deadline exceeded", err)
+	}
+	if err := server.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear server read deadline: %v", err)
+	}
+
+	clientWrite := make(chan error, 1)
+	go func() {
+		_, err := clientSide.Write(frame[2:])
+		clientWrite <- err
+	}()
+	if _, err := io.ReadFull(server, buffer); err != nil {
+		t.Fatalf("server read completed frame: %v", err)
+	}
+	if !bytes.Equal(buffer, payload) {
+		t.Fatalf("server payload = %q, want %q", buffer, payload)
+	}
+	if err := <-clientWrite; err != nil {
+		t.Fatalf("client write remaining frame: %v", err)
+	}
+}
+
 func TestV3InterruptedReadDoesNotSendAlert(t *testing.T) {
 	clientSide, serverSide := net.Pipe()
 	defer clientSide.Close()
