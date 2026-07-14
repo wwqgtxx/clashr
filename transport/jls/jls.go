@@ -213,7 +213,9 @@ func relayFallback(ctx context.Context, inbound net.Conn, prefix []byte, config 
 	}
 	inbound = N.NewCachedConn(inbound, prefix)
 	upstream = newRateLimitedConn(upstream, config.RateLimit)
-	N.Relay(inbound, upstream)
+	if err = N.RelayContext(ctx, inbound, upstream); err != nil {
+		return err
+	}
 	return ErrFallbackCompleted
 }
 
