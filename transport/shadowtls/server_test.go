@@ -6,9 +6,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	stdTLS "crypto/tls"
+	"encoding/binary"
 	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -132,6 +134,145 @@ func TestV3UnauthenticatedConnectionFallsBack(t *testing.T) {
 	if !errors.Is(serverResult.err, ErrFallbackCompleted) {
 		t.Fatalf("server error = %v, want %v", serverResult.err, ErrFallbackCompleted)
 	}
+}
+
+func TestV3InterruptedReadDoesNotSendAlert(t *testing.T) {
+	clientSide, serverSide := net.Pipe()
+	defer clientSide.Close()
+	defer serverSide.Close()
+
+	serverRaw := &readStartedConn{Conn: serverSide, started: make(chan struct{}, 1)}
+	serverRandom := bytes.Repeat([]byte{1}, tlsRandomSize)
+	clientAdd := hmac.New(sha1.New, []byte(testPassword))
+	hmacReset(clientAdd, serverRandom, 'C')
+	clientVerify := hmac.New(sha1.New, []byte(testPassword))
+	hmacReset(clientVerify, serverRandom, 'S')
+	serverAdd := hmac.New(sha1.New, []byte(testPassword))
+	hmacReset(serverAdd, serverRandom, 'S')
+	serverVerify := hmac.New(sha1.New, []byte(testPassword))
+	hmacReset(serverVerify, serverRandom, 'C')
+	client := newVerifiedConn(clientSide, clientAdd, clientVerify, nil)
+	server := newVerifiedConn(serverRaw, serverAdd, serverVerify, nil)
+
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	clientRead := make(chan readResult, 1)
+	response := []byte("response after interrupted idle read")
+	go func() {
+		buffer := make([]byte, len(response))
+		_, err := io.ReadFull(client, buffer)
+		clientRead <- readResult{data: buffer, err: err}
+	}()
+
+	serverRead := make(chan error, 1)
+	go func() {
+		var buffer [1]byte
+		_, err := server.Read(buffer[:])
+		serverRead <- err
+	}()
+	<-serverRaw.started
+	if err := server.SetReadDeadline(time.Now()); err != nil {
+		t.Fatalf("interrupt server read: %v", err)
+	}
+	if err := <-serverRead; !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("server read error = %v, want deadline exceeded", err)
+	}
+	if err := server.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear server read deadline: %v", err)
+	}
+	select {
+	case result := <-clientRead:
+		t.Fatalf("client received data before response: data=%x err=%v", result.data, result.err)
+	default:
+	}
+
+	request := []byte("request after interrupted partial read")
+	frame := makeV3ClientFrame(client, request)
+	buffer := make([]byte, len(request))
+	serverRead = make(chan error, 1)
+	go func() {
+		_, err := server.Read(buffer)
+		serverRead <- err
+	}()
+	<-serverRaw.started
+	if _, err := clientSide.Write(frame[:tlsHeaderSize]); err != nil {
+		t.Fatalf("write partial request: %v", err)
+	}
+	<-serverRaw.started
+	if err := server.SetReadDeadline(time.Now()); err != nil {
+		t.Fatalf("interrupt partial server read: %v", err)
+	}
+	if err := <-serverRead; !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("partial server read error = %v, want deadline exceeded", err)
+	}
+	if err := server.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear partial server read deadline: %v", err)
+	}
+	select {
+	case result := <-clientRead:
+		t.Fatalf("client received data after interrupted partial read: data=%x err=%v", result.data, result.err)
+	default:
+	}
+
+	clientWrite := make(chan error, 1)
+	go func() {
+		_, err := clientSide.Write(frame[tlsHeaderSize:])
+		clientWrite <- err
+	}()
+	if _, err := io.ReadFull(server, buffer); err != nil {
+		t.Fatalf("server read request: %v", err)
+	}
+	if !bytes.Equal(buffer, request) {
+		t.Fatalf("server request = %q, want %q", buffer, request)
+	}
+	if err := <-clientWrite; err != nil {
+		t.Fatalf("client write request: %v", err)
+	}
+
+	serverWrite := make(chan error, 1)
+	go func() {
+		_, err := server.Write(response)
+		serverWrite <- err
+	}()
+	result := <-clientRead
+	if result.err != nil {
+		t.Fatalf("client read response: %v", result.err)
+	}
+	if !bytes.Equal(result.data, response) {
+		t.Fatalf("client response = %q, want %q", result.data, response)
+	}
+	if err := <-serverWrite; err != nil {
+		t.Fatalf("server write response: %v", err)
+	}
+}
+
+type readStartedConn struct {
+	net.Conn
+	started chan struct{}
+}
+
+func (c *readStartedConn) Read(p []byte) (int, error) {
+	select {
+	case c.started <- struct{}{}:
+	default:
+	}
+	return c.Conn.Read(p)
+}
+
+func makeV3ClientFrame(client *verifiedConn, payload []byte) []byte {
+	frame := make([]byte, tlsHMACHeaderSize+len(payload))
+	frame[0] = applicationData
+	frame[1] = 3
+	frame[2] = 3
+	binary.BigEndian.PutUint16(frame[3:tlsHeaderSize], uint16(hmacSize+len(payload)))
+	_, _ = client.hmacAdd.Write(payload)
+	hmacHash := client.hmacAdd.Sum(nil)[:hmacSize]
+	_, _ = client.hmacAdd.Write(hmacHash)
+	copy(frame[tlsHeaderSize:tlsHMACHeaderSize], hmacHash)
+	copy(frame[tlsHMACHeaderSize:], payload)
+	return frame
 }
 
 func TestHandshakeSelectionByServerName(t *testing.T) {

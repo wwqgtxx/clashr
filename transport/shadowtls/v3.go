@@ -105,6 +105,8 @@ type verifiedConn struct {
 	hmacVerify hash.Hash
 	hmacIgnore hash.Hash
 	pending    []byte
+	readBuffer []byte
+	readOffset int
 }
 
 func newVerifiedConn(conn net.Conn, hmacAdd, hmacVerify, hmacIgnore hash.Hash) *verifiedConn {
@@ -121,8 +123,12 @@ func (c *verifiedConn) Read(p []byte) (int, error) {
 		return c.readPending(p), nil
 	}
 	for {
-		frame, err := readFrame(c.Conn)
+		frame, err := c.readRecord()
 		if err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				return 0, err
+			}
 			sendAlert(c.Conn)
 			return 0, err
 		}
@@ -147,6 +153,33 @@ func (c *verifiedConn) Read(p []byte) (int, error) {
 			return 0, fmt.Errorf("shadow-tls: unexpected TLS record type: %d", frame[0])
 		}
 	}
+}
+
+func (c *verifiedConn) readRecord() ([]byte, error) {
+	// Keep an incomplete record so a read deadline only interrupts the current Read.
+	if c.readBuffer == nil {
+		c.readBuffer = make([]byte, tlsHeaderSize)
+	}
+	if c.readOffset < tlsHeaderSize {
+		n, err := io.ReadFull(c.Conn, c.readBuffer[c.readOffset:tlsHeaderSize])
+		c.readOffset += n
+		if err != nil {
+			return nil, err
+		}
+		length := int(binary.BigEndian.Uint16(c.readBuffer[3:]))
+		c.readBuffer = append(c.readBuffer, make([]byte, length)...)
+	}
+	if c.readOffset < len(c.readBuffer) {
+		n, err := io.ReadFull(c.Conn, c.readBuffer[c.readOffset:])
+		c.readOffset += n
+		if err != nil {
+			return nil, err
+		}
+	}
+	frame := c.readBuffer
+	c.readBuffer = nil
+	c.readOffset = 0
+	return frame, nil
 }
 
 func (c *verifiedConn) readPending(p []byte) int {
@@ -184,8 +217,6 @@ func (c *verifiedConn) writeRecord(p []byte) error {
 	copy(header[tlsHeaderSize:], hmacHash)
 	return writeBuffers(c.Conn, header[:], p)
 }
-
-func (c *verifiedConn) NeedAdditionalReadDeadline() bool { return true }
 
 func (c *verifiedConn) Upstream() any { return c.Conn }
 
