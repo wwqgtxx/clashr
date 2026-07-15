@@ -132,20 +132,22 @@ type XHTTPDownloadSettings struct {
 	Headers       *map[string]string  `proxy:"headers,omitempty"`
 	ReuseSettings *XHTTPReuseSettings `proxy:"reuse-settings,omitempty"` // aka XMUX
 	// proxy part
-	Server            *string         `proxy:"server,omitempty"`
-	Port              *int            `proxy:"port,omitempty"`
-	TLS               *bool           `proxy:"tls,omitempty"`
-	ALPN              *[]string       `proxy:"alpn,omitempty"`
-	ECHOpts           *ECHOptions     `proxy:"ech-opts,omitempty"`
-	JLSOpts           *JLSOptions     `proxy:"jls-opts,omitempty"`
-	RealityOpts       *RealityOptions `proxy:"reality-opts,omitempty"`
-	SkipCertVerify    *bool           `proxy:"skip-cert-verify,omitempty"`
-	NameCertVerify    *string         `proxy:"name-cert-verify,omitempty"`
-	Fingerprint       *string         `proxy:"fingerprint,omitempty"`
-	Certificate       *string         `proxy:"certificate,omitempty"`
-	PrivateKey        *string         `proxy:"private-key,omitempty"`
-	ServerName        *string         `proxy:"servername,omitempty"`
-	ClientFingerprint *string         `proxy:"client-fingerprint,omitempty"`
+	Server            *string           `proxy:"server,omitempty"`
+	Port              *int              `proxy:"port,omitempty"`
+	TLS               *bool             `proxy:"tls,omitempty"`
+	ALPN              *[]string         `proxy:"alpn,omitempty"`
+	ECHOpts           *ECHOptions       `proxy:"ech-opts,omitempty"`
+	ShadowTLSOpts     *ShadowTLSOptions `proxy:"shadow-tls-opts,omitempty"`
+	RestlsOpts        *RestlsOptions    `proxy:"restls-opts,omitempty"`
+	JLSOpts           *JLSOptions       `proxy:"jls-opts,omitempty"`
+	RealityOpts       *RealityOptions   `proxy:"reality-opts,omitempty"`
+	SkipCertVerify    *bool             `proxy:"skip-cert-verify,omitempty"`
+	NameCertVerify    *string           `proxy:"name-cert-verify,omitempty"`
+	Fingerprint       *string           `proxy:"fingerprint,omitempty"`
+	Certificate       *string           `proxy:"certificate,omitempty"`
+	PrivateKey        *string           `proxy:"private-key,omitempty"`
+	ServerName        *string           `proxy:"servername,omitempty"`
+	ClientFingerprint *string           `proxy:"client-fingerprint,omitempty"`
 }
 
 func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.Metadata) (_ net.Conn, err error) {
@@ -738,9 +740,30 @@ func NewVless(option VlessOption) (*Vless, error) {
 			downloadPort := lo.FromPtrOr(ds.Port, v.option.Port)
 			downloadTLS := lo.FromPtrOr(ds.TLS, v.option.TLS)
 			downloadALPN := lo.FromPtrOr(ds.ALPN, v.option.ALPN)
+			downloadSkipCertVerify := lo.FromPtrOr(ds.SkipCertVerify, v.option.SkipCertVerify)
+			downloadNameCertVerify := lo.FromPtrOr(ds.NameCertVerify, v.option.NameCertVerify)
+			downloadFingerprint := lo.FromPtrOr(ds.Fingerprint, v.option.Fingerprint)
+			downloadCertificate := lo.FromPtrOr(ds.Certificate, v.option.Certificate)
+			downloadPrivateKey := lo.FromPtrOr(ds.PrivateKey, v.option.PrivateKey)
+			downloadServerName := lo.FromPtrOr(ds.ServerName, v.option.ServerName)
+			downloadClientFingerprint := lo.FromPtrOr(ds.ClientFingerprint, v.option.ClientFingerprint)
 			downloadEchConfig := v.echConfig
 			if ds.ECHOpts != nil {
 				downloadEchConfig, err = ds.ECHOpts.Parse()
+				if err != nil {
+					return nil, err
+				}
+			}
+			downloadShadowTLSConfig := v.shadowTLSConfig
+			if ds.ShadowTLSOpts != nil {
+				downloadShadowTLSConfig, err = ds.ShadowTLSOpts.Parse()
+				if err != nil {
+					return nil, err
+				}
+			}
+			downloadRestlsConfig := v.restlsConfig
+			if ds.RestlsOpts != nil {
+				downloadRestlsConfig, err = ds.RestlsOpts.Parse(downloadServerName, downloadClientFingerprint)
 				if err != nil {
 					return nil, err
 				}
@@ -759,13 +782,28 @@ func NewVless(option VlessOption) (*Vless, error) {
 					return nil, err
 				}
 			}
-			downloadSkipCertVerify := lo.FromPtrOr(ds.SkipCertVerify, v.option.SkipCertVerify)
-			downloadNameCertVerify := lo.FromPtrOr(ds.NameCertVerify, v.option.NameCertVerify)
-			downloadFingerprint := lo.FromPtrOr(ds.Fingerprint, v.option.Fingerprint)
-			downloadCertificate := lo.FromPtrOr(ds.Certificate, v.option.Certificate)
-			downloadPrivateKey := lo.FromPtrOr(ds.PrivateKey, v.option.PrivateKey)
-			downloadServerName := lo.FromPtrOr(ds.ServerName, v.option.ServerName)
-			downloadClientFingerprint := lo.FromPtrOr(ds.ClientFingerprint, v.option.ClientFingerprint)
+			if downloadShadowTLSConfig != nil {
+				if downloadRestlsConfig != nil {
+					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with Restls")
+				}
+				if downloadJLSConfig != nil {
+					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with JLS")
+				}
+				if downloadRealityCfg != nil {
+					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with REALITY")
+				}
+			}
+			if downloadRestlsConfig != nil {
+				if downloadJLSConfig != nil {
+					return nil, errors.New("xhttp download-settings: Restls is incompatible with JLS")
+				}
+				if downloadRealityCfg != nil {
+					return nil, errors.New("xhttp download-settings: Restls is incompatible with REALITY")
+				}
+			}
+			if downloadJLSConfig != nil && downloadRealityCfg != nil {
+				return nil, errors.New("xhttp download-settings: JLS is incompatible with REALITY")
+			}
 
 			downloadAddr := net.JoinHostPort(downloadServer, strconv.Itoa(downloadPort))
 
@@ -816,8 +854,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 								PrivateKey:        downloadPrivateKey,
 								ClientFingerprint: downloadClientFingerprint,
 								ECH:               downloadEchConfig,
-								ShadowTLS:         v.shadowTLSConfig,
-								Restls:            v.restlsConfig,
+								ShadowTLS:         downloadShadowTLSConfig,
+								Restls:            downloadRestlsConfig,
 								JLS:               downloadJLSConfig,
 								Reality:           downloadRealityCfg,
 								NextProtos:        downloadALPN,
@@ -856,10 +894,10 @@ func NewVless(option VlessOption) (*Vless, error) {
 						if !downloadTLS {
 							return nil, errors.New("xhttp HTTP/3 requires TLS")
 						}
-						if v.shadowTLSConfig != nil {
+						if downloadShadowTLSConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
 						}
-						if v.restlsConfig != nil {
+						if downloadRestlsConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support Restls")
 						}
 						if downloadJLSConfig != nil {
