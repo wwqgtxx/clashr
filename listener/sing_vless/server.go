@@ -14,6 +14,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/jls"
 	"github.com/metacubex/mihomo/listener/reality"
+	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/gun"
@@ -85,6 +86,7 @@ func New(config LC.VlessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		Protocols:   new(http.Protocols),
 	}
 	tlsConfig := &tls.Config{Time: ntp.Now}
+	var shadowTLSBuilder *shadowtls.Builder
 	var jlsBuilder *jls.Builder
 	var realityBuilder *reality.Builder
 
@@ -129,6 +131,21 @@ func New(config LC.VlessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 			return nil, err
 		}
 	}
+	if config.ShadowTLS.Enable {
+		if tlsConfig.GetCertificate != nil {
+			return nil, errors.New("certificate is unavailable in ShadowTLS")
+		}
+		if tlsConfig.ClientAuth != tls.NoClientCert {
+			return nil, errors.New("client-auth is unavailable in ShadowTLS")
+		}
+		if realityBuilder != nil {
+			return nil, errors.New("REALITY is unavailable in ShadowTLS")
+		}
+		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if config.JLSConfig.Enable {
 		if tlsConfig.GetCertificate != nil {
 			return nil, errors.New("certificate is unavailable in JLS")
@@ -138,6 +155,9 @@ func New(config LC.VlessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		}
 		if realityBuilder != nil {
 			return nil, errors.New("REALITY is unavailable in JLS")
+		}
+		if shadowTLSBuilder != nil {
+			return nil, errors.New("ShadowTLS is unavailable in JLS")
 		}
 		jlsBuilder, err = jls.New(config.JLSConfig, tunnel)
 		if err != nil {
@@ -242,14 +262,16 @@ func New(config LC.VlessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		if err != nil {
 			return nil, err
 		}
-		if jlsBuilder != nil {
+		if shadowTLSBuilder != nil {
+			l = shadowTLSBuilder.NewListener(l)
+		} else if jlsBuilder != nil {
 			l = jlsBuilder.NewListener(l)
 		} else if realityBuilder != nil {
 			l = realityBuilder.NewListener(l)
 		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
 		} else if sl.decryption == nil && !config.AllowInsecure {
-			return nil, errors.New("disallow using Vless without any certificates/jls/reality/decryption/allow-insecure config")
+			return nil, errors.New("disallow using Vless without any certificates/shadow-tls/jls/reality/decryption/allow-insecure config")
 		}
 		sl.listeners = append(sl.listeners, l)
 

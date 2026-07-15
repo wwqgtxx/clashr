@@ -14,6 +14,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/jls"
 	"github.com/metacubex/mihomo/listener/reality"
+	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/listener/tlsmirror"
 	"github.com/metacubex/mihomo/ntp"
@@ -95,6 +96,7 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		Protocols:   new(http.Protocols),
 	}
 	tlsConfig := &tls.Config{Time: ntp.Now}
+	var shadowTLSBuilder *shadowtls.Builder
 	var jlsBuilder *jls.Builder
 	var realityBuilder *reality.Builder
 	var tlsMirrorBuilder *tlsmirror.Builder
@@ -153,6 +155,27 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		}.Build(tunnel)
 		h.Tunnel = tlsMirrorBuilder.WrapTunnel(tunnel)
 	}
+	if config.ShadowTLS.Enable {
+		if tlsConfig.GetCertificate != nil {
+			return nil, errors.New("certificate is unavailable in ShadowTLS")
+		}
+		if tlsConfig.ClientAuth != tls.NoClientCert {
+			return nil, errors.New("client-auth is unavailable in ShadowTLS")
+		}
+		if realityBuilder != nil {
+			return nil, errors.New("REALITY is unavailable in ShadowTLS")
+		}
+		if tlsMirrorBuilder != nil {
+			return nil, errors.New("TLSMirror is unavailable in ShadowTLS")
+		}
+		if config.MKCPConfig.Enable {
+			return nil, errors.New("ShadowTLS only supports TCP transports")
+		}
+		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if config.JLSConfig.Enable {
 		if tlsConfig.GetCertificate != nil {
 			return nil, errors.New("certificate is unavailable in JLS")
@@ -165,6 +188,9 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		}
 		if tlsMirrorBuilder != nil {
 			return nil, errors.New("TLSMirror is unavailable in JLS")
+		}
+		if shadowTLSBuilder != nil {
+			return nil, errors.New("ShadowTLS is unavailable in JLS")
 		}
 		if config.MKCPConfig.Enable {
 			return nil, errors.New("JLS only supports TCP transports")
@@ -237,7 +263,9 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 				return nil, err
 			}
 		}
-		if jlsBuilder != nil {
+		if shadowTLSBuilder != nil {
+			l = shadowTLSBuilder.NewListener(l)
+		} else if jlsBuilder != nil {
 			l = jlsBuilder.NewListener(l)
 		} else if tlsMirrorBuilder != nil {
 			l = tlsMirrorBuilder.NewListener(l)

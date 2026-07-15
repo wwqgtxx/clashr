@@ -15,6 +15,7 @@ import (
 	"github.com/metacubex/mihomo/transport/gun"
 	"github.com/metacubex/mihomo/transport/jls"
 	"github.com/metacubex/mihomo/transport/shadowsocks/core"
+	"github.com/metacubex/mihomo/transport/shadowtls"
 	"github.com/metacubex/mihomo/transport/trojan"
 	"github.com/metacubex/mihomo/transport/vmess"
 
@@ -30,35 +31,37 @@ type Trojan struct {
 	// for gun mux
 	gunClient *gun.Client
 
-	echConfig     *ech.Config
-	jlsConfig     *jls.Config
-	realityConfig *tlsC.RealityConfig
+	echConfig       *ech.Config
+	shadowTLSConfig *shadowtls.Config
+	jlsConfig       *jls.Config
+	realityConfig   *tlsC.RealityConfig
 
 	ssCipher core.Cipher
 }
 
 type TrojanOption struct {
 	BasicOption
-	Name              string         `proxy:"name"`
-	Server            string         `proxy:"server"`
-	Port              int            `proxy:"port"`
-	Password          string         `proxy:"password"`
-	ALPN              []string       `proxy:"alpn,omitempty"`
-	SNI               string         `proxy:"sni,omitempty"`
-	SkipCertVerify    bool           `proxy:"skip-cert-verify,omitempty"`
-	NameCertVerify    string         `proxy:"name-cert-verify,omitempty"`
-	Fingerprint       string         `proxy:"fingerprint,omitempty"`
-	Certificate       string         `proxy:"certificate,omitempty"`
-	PrivateKey        string         `proxy:"private-key,omitempty"`
-	UDP               bool           `proxy:"udp,omitempty"`
-	Network           string         `proxy:"network,omitempty"`
-	ECHOpts           ECHOptions     `proxy:"ech-opts,omitempty"`
-	JLSOpts           JLSOptions     `proxy:"jls-opts,omitempty"`
-	RealityOpts       RealityOptions `proxy:"reality-opts,omitempty"`
-	GrpcOpts          GrpcOptions    `proxy:"grpc-opts,omitempty"`
-	WSOpts            WSOptions      `proxy:"ws-opts,omitempty"`
-	SSOpts            TrojanSSOption `proxy:"ss-opts,omitempty"`
-	ClientFingerprint string         `proxy:"client-fingerprint,omitempty"`
+	Name              string           `proxy:"name"`
+	Server            string           `proxy:"server"`
+	Port              int              `proxy:"port"`
+	Password          string           `proxy:"password"`
+	ALPN              []string         `proxy:"alpn,omitempty"`
+	SNI               string           `proxy:"sni,omitempty"`
+	SkipCertVerify    bool             `proxy:"skip-cert-verify,omitempty"`
+	NameCertVerify    string           `proxy:"name-cert-verify,omitempty"`
+	Fingerprint       string           `proxy:"fingerprint,omitempty"`
+	Certificate       string           `proxy:"certificate,omitempty"`
+	PrivateKey        string           `proxy:"private-key,omitempty"`
+	UDP               bool             `proxy:"udp,omitempty"`
+	Network           string           `proxy:"network,omitempty"`
+	ECHOpts           ECHOptions       `proxy:"ech-opts,omitempty"`
+	ShadowTLSOpts     ShadowTLSOptions `proxy:"shadow-tls-opts,omitempty"`
+	JLSOpts           JLSOptions       `proxy:"jls-opts,omitempty"`
+	RealityOpts       RealityOptions   `proxy:"reality-opts,omitempty"`
+	GrpcOpts          GrpcOptions      `proxy:"grpc-opts,omitempty"`
+	WSOpts            WSOptions        `proxy:"ws-opts,omitempty"`
+	SSOpts            TrojanSSOption   `proxy:"ss-opts,omitempty"`
+	ClientFingerprint string           `proxy:"client-fingerprint,omitempty"`
 }
 
 // TrojanSSOption from https://github.com/p4gefau1t/trojan-go/blob/v0.10.6/tunnel/shadowsocks/config.go#L5
@@ -101,11 +104,17 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 			alpn = t.option.ALPN
 		}
 
-		if t.jlsConfig != nil {
+		if t.shadowTLSConfig != nil || t.jlsConfig != nil {
 			c, err = vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
 				Host:              t.option.SNI,
+				SkipCertVerify:    t.option.SkipCertVerify,
+				NameCertVerify:    t.option.NameCertVerify,
+				FingerPrint:       t.option.Fingerprint,
+				Certificate:       t.option.Certificate,
+				PrivateKey:        t.option.PrivateKey,
 				ClientFingerprint: t.option.ClientFingerprint,
 				NextProtos:        []string{"http/1.1"},
+				ShadowTLS:         t.shadowTLSConfig,
 				JLS:               t.jlsConfig,
 			})
 			if err != nil {
@@ -150,6 +159,7 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 			ClientFingerprint: t.option.ClientFingerprint,
 			NextProtos:        alpn,
 			ECH:               t.echConfig,
+			ShadowTLS:         t.shadowTLSConfig,
 			JLS:               t.jlsConfig,
 			Reality:           t.realityConfig,
 		})
@@ -294,6 +304,10 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.shadowTLSConfig, err = option.ShadowTLSOpts.Parse()
+	if err != nil {
+		return nil, err
+	}
 	t.jlsConfig, err = option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
@@ -301,6 +315,14 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 	t.realityConfig, err = option.RealityOpts.Parse()
 	if err != nil {
 		return nil, err
+	}
+	if t.shadowTLSConfig != nil {
+		if t.jlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with JLS")
+		}
+		if t.realityConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with REALITY")
+		}
 	}
 	if t.jlsConfig != nil && t.realityConfig != nil {
 		return nil, errors.New("JLS is incompatible with REALITY")
@@ -339,6 +361,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 			ClientFingerprint: option.ClientFingerprint,
 			NextProtos:        []string{"h2"},
 			ECH:               t.echConfig,
+			ShadowTLS:         t.shadowTLSConfig,
 			JLS:               t.jlsConfig,
 			Reality:           t.realityConfig,
 		}

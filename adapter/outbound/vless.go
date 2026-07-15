@@ -17,6 +17,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/gun"
 	"github.com/metacubex/mihomo/transport/jls"
+	"github.com/metacubex/mihomo/transport/shadowtls"
 	"github.com/metacubex/mihomo/transport/tuic/common"
 	"github.com/metacubex/mihomo/transport/vless"
 	"github.com/metacubex/mihomo/transport/vless/encryption"
@@ -44,9 +45,10 @@ type Vless struct {
 	// for xhttp
 	xhttpClient *xhttp.Client
 
-	echConfig     *ech.Config
-	jlsConfig     *jls.Config
-	realityConfig *tlsC.RealityConfig
+	echConfig       *ech.Config
+	shadowTLSConfig *shadowtls.Config
+	jlsConfig       *jls.Config
+	realityConfig   *tlsC.RealityConfig
 }
 
 type VlessOption struct {
@@ -65,6 +67,7 @@ type VlessOption struct {
 	Encryption        string            `proxy:"encryption,omitempty"`
 	Network           string            `proxy:"network,omitempty"`
 	ECHOpts           ECHOptions        `proxy:"ech-opts,omitempty"`
+	ShadowTLSOpts     ShadowTLSOptions  `proxy:"shadow-tls-opts,omitempty"`
 	JLSOpts           JLSOptions        `proxy:"jls-opts,omitempty"`
 	RealityOpts       RealityOptions    `proxy:"reality-opts,omitempty"`
 	HTTPOpts          HTTPOptions       `proxy:"http-opts,omitempty"`
@@ -172,11 +175,17 @@ func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 				serverName = host
 			}
 
-			if v.jlsConfig != nil {
+			if v.shadowTLSConfig != nil || v.jlsConfig != nil {
 				c, err = vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
 					Host:              serverName,
+					SkipCertVerify:    v.option.SkipCertVerify,
+					NameCertVerify:    v.option.NameCertVerify,
+					FingerPrint:       v.option.Fingerprint,
+					Certificate:       v.option.Certificate,
+					PrivateKey:        v.option.PrivateKey,
 					ClientFingerprint: v.option.ClientFingerprint,
 					NextProtos:        []string{"http/1.1"},
+					ShadowTLS:         v.shadowTLSConfig,
 					JLS:               v.jlsConfig,
 				})
 				if err != nil {
@@ -299,6 +308,7 @@ func (v *Vless) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 			PrivateKey:        v.option.PrivateKey,
 			ClientFingerprint: v.option.ClientFingerprint,
 			ECH:               v.echConfig,
+			ShadowTLS:         v.shadowTLSConfig,
 			JLS:               v.jlsConfig,
 			Reality:           v.realityConfig,
 			NextProtos:        v.option.ALPN,
@@ -498,6 +508,10 @@ func NewVless(option VlessOption) (*Vless, error) {
 	if err != nil {
 		return nil, err
 	}
+	v.shadowTLSConfig, err = option.ShadowTLSOpts.Parse()
+	if err != nil {
+		return nil, err
+	}
 	v.jlsConfig, err = option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
@@ -505,6 +519,17 @@ func NewVless(option VlessOption) (*Vless, error) {
 	v.realityConfig, err = v.option.RealityOpts.Parse()
 	if err != nil {
 		return nil, err
+	}
+	if v.shadowTLSConfig != nil {
+		if !option.TLS {
+			return nil, errors.New("ShadowTLS requires TLS")
+		}
+		if v.jlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with JLS")
+		}
+		if v.realityConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with REALITY")
+		}
 	}
 	if v.jlsConfig != nil {
 		if !option.TLS {
@@ -550,6 +575,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 				ClientFingerprint: option.ClientFingerprint,
 				NextProtos:        []string{"h2"},
 				ECH:               v.echConfig,
+				ShadowTLS:         v.shadowTLSConfig,
 				JLS:               v.jlsConfig,
 				Reality:           v.realityConfig,
 			}
@@ -645,6 +671,9 @@ func NewVless(option VlessOption) (*Vless, error) {
 					}
 					if !v.option.TLS {
 						return nil, errors.New("xhttp HTTP/3 requires TLS")
+					}
+					if v.shadowTLSConfig != nil {
+						return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
 					}
 					if v.jlsConfig != nil {
 						return nil, errors.New("xhttp HTTP/3 does not support JLS")
@@ -760,6 +789,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 								PrivateKey:        downloadPrivateKey,
 								ClientFingerprint: downloadClientFingerprint,
 								ECH:               downloadEchConfig,
+								ShadowTLS:         v.shadowTLSConfig,
 								JLS:               downloadJLSConfig,
 								Reality:           downloadRealityCfg,
 								NextProtos:        downloadALPN,
@@ -797,6 +827,9 @@ func NewVless(option VlessOption) (*Vless, error) {
 						}
 						if !downloadTLS {
 							return nil, errors.New("xhttp HTTP/3 requires TLS")
+						}
+						if v.shadowTLSConfig != nil {
+							return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
 						}
 						if downloadJLSConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support JLS")

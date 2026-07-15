@@ -24,6 +24,7 @@ type TrojanServer struct {
 	ClientAuthCert  string
 	EchKey          string
 	AllowInsecure   bool
+	ShadowTLS       ShadowTLS      `yaml:"shadow-tls" json:"shadow-tls,omitempty"`
 	JLSConfig       JLSConfig      `yaml:"jls-config" json:"jls-config,omitempty"`
 	RealityConfig   reality.Config `yaml:"reality-config" json:"reality-config,omitempty"`
 	MuxOption       sing.MuxOption

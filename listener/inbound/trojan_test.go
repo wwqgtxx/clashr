@@ -168,6 +168,37 @@ func TestInboundTrojan_Grpc2(t *testing.T) {
 	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
+func testInboundTrojanShadowTLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
+	t.Parallel()
+	t.Run("Conn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+	t.Run("UConn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		outboundOptions.ClientFingerprint = "chrome"
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+}
+
+func TestInboundTrojan_ShadowTLS(t *testing.T) {
+	const password = "shadow-tls-password"
+	inboundOptions := inbound.TrojanOption{
+		ShadowTLS: inbound.ShadowTLS{
+			Enable:    true,
+			Version:   3,
+			Users:     []inbound.ShadowTLSUser{{Name: "test", Password: password}},
+			Handshake: inbound.ShadowTLSHandshakeOptions{Dest: net.JoinHostPort(realityDest, "443")},
+		},
+	}
+	outboundOptions := outbound.TrojanOption{
+		SNI:           realityDest,
+		Fingerprint:   tlsFingerprint,
+		ShadowTLSOpts: outbound.ShadowTLSOptions{Password: password, Version: 3},
+	}
+	testInboundTrojanShadowTLS(t, inboundOptions, outboundOptions)
+}
+
 func testInboundTrojanJLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {

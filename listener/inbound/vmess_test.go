@@ -502,6 +502,38 @@ func TestInboundVMess_Grpc2(t *testing.T) {
 	testInboundVMessTLS(t, inboundOptions, outboundOptions)
 }
 
+func testInboundVMessShadowTLS(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
+	t.Parallel()
+	t.Run("Conn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		testInboundVMess(t, inboundOptions, outboundOptions)
+	})
+	t.Run("UConn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		outboundOptions.ClientFingerprint = "chrome"
+		testInboundVMess(t, inboundOptions, outboundOptions)
+	})
+}
+
+func TestInboundVMess_ShadowTLS(t *testing.T) {
+	const password = "shadow-tls-password"
+	inboundOptions := inbound.VmessOption{
+		ShadowTLS: inbound.ShadowTLS{
+			Enable:    true,
+			Version:   3,
+			Users:     []inbound.ShadowTLSUser{{Name: "test", Password: password}},
+			Handshake: inbound.ShadowTLSHandshakeOptions{Dest: net.JoinHostPort(realityDest, "443")},
+		},
+	}
+	outboundOptions := outbound.VmessOption{
+		TLS:           true,
+		ServerName:    realityDest,
+		Fingerprint:   tlsFingerprint,
+		ShadowTLSOpts: outbound.ShadowTLSOptions{Password: password, Version: 3},
+	}
+	testInboundVMessShadowTLS(t, inboundOptions, outboundOptions)
+}
+
 func testInboundVMessJLS(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {
