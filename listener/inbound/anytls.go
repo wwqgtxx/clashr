@@ -18,6 +18,7 @@ type AnyTLSOption struct {
 	ClientAuthCert string            `inbound:"client-auth-cert,omitempty"`
 	EchKey         string            `inbound:"ech-key,omitempty"`
 	ShadowTLS      ShadowTLS         `inbound:"shadow-tls,omitempty"`
+	ResTLS         ResTLS            `inbound:"res-tls,omitempty"`
 	JLSConfig      JLSConfig         `inbound:"jls-config,omitempty"`
 	AllowInsecure  bool              `inbound:"allow-insecure,omitempty"`
 	PaddingScheme  string            `inbound:"padding-scheme,omitempty"`
@@ -52,6 +53,7 @@ func NewAnyTLS(options *AnyTLSOption) (*AnyTLS, error) {
 			ClientAuthCert: options.ClientAuthCert,
 			EchKey:         options.EchKey,
 			ShadowTLS:      options.ShadowTLS.Build(),
+			ResTLS:         options.ResTLS.Build(),
 			JLSConfig:      options.JLSConfig.Build(),
 			AllowInsecure:  options.AllowInsecure,
 			PaddingScheme:  options.PaddingScheme,

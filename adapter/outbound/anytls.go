@@ -33,6 +33,7 @@ type AnyTLSOption struct {
 	SNI                      string           `proxy:"sni,omitempty"`
 	ECHOpts                  ECHOptions       `proxy:"ech-opts,omitempty"`
 	ShadowTLSOpts            ShadowTLSOptions `proxy:"shadow-tls-opts,omitempty"`
+	RestlsOpts               RestlsOptions    `proxy:"restls-opts,omitempty"`
 	JLSOpts                  JLSOptions       `proxy:"jls-opts,omitempty"`
 	ClientFingerprint        string           `proxy:"client-fingerprint,omitempty"`
 	SkipCertVerify           bool             `proxy:"skip-cert-verify,omitempty"`
@@ -123,12 +124,24 @@ func NewAnyTLS(option AnyTLSOption) (*AnyTLS, error) {
 	if err != nil {
 		return nil, err
 	}
+	restlsConfig, err := option.RestlsOpts.Parse(option.SNI, option.ClientFingerprint)
+	if err != nil {
+		return nil, err
+	}
 	jlsConfig, err := option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
 	}
-	if shadowTLSConfig != nil && jlsConfig != nil {
-		return nil, errors.New("ShadowTLS is incompatible with JLS")
+	if shadowTLSConfig != nil {
+		if restlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with Restls")
+		}
+		if jlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with JLS")
+		}
+	}
+	if restlsConfig != nil && jlsConfig != nil {
+		return nil, errors.New("Restls is incompatible with JLS")
 	}
 	tlsConfig := &vmess.TLSConfig{
 		Host:              option.SNI,
@@ -141,6 +154,7 @@ func NewAnyTLS(option AnyTLSOption) (*AnyTLS, error) {
 		ClientFingerprint: option.ClientFingerprint,
 		ECH:               echConfig,
 		ShadowTLS:         shadowTLSConfig,
+		Restls:            restlsConfig,
 		JLS:               jlsConfig,
 	}
 	if tlsConfig.Host == "" {

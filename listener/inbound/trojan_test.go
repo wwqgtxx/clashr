@@ -199,6 +199,36 @@ func TestInboundTrojan_ShadowTLS(t *testing.T) {
 	testInboundTrojanShadowTLS(t, inboundOptions, outboundOptions)
 }
 
+func testInboundTrojanRestls(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
+	t.Parallel()
+	t.Run("Conn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+	t.Run("UConn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		outboundOptions.ClientFingerprint = "chrome"
+		testInboundTrojan(t, inboundOptions, outboundOptions)
+	})
+}
+
+func TestInboundTrojan_Restls(t *testing.T) {
+	const password = "restls-password"
+	inboundOptions := inbound.TrojanOption{
+		ResTLS: inbound.ResTLS{
+			Enable:   true,
+			Dest:     net.JoinHostPort(realityDest, "443"),
+			Password: password,
+		},
+	}
+	outboundOptions := outbound.TrojanOption{
+		SNI:         realityDest,
+		Fingerprint: tlsFingerprint,
+		RestlsOpts:  outbound.RestlsOptions{Password: password, VersionHint: "tls13"},
+	}
+	testInboundTrojanRestls(t, inboundOptions, outboundOptions)
+}
+
 func testInboundTrojanJLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {

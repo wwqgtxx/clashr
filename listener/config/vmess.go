@@ -26,6 +26,7 @@ type VmessServer struct {
 	ClientAuthCert  string
 	EchKey          string
 	ShadowTLS       ShadowTLS       `yaml:"shadow-tls" json:"shadow-tls,omitempty"`
+	ResTLS          ResTLS          `yaml:"res-tls" json:"res-tls,omitempty"`
 	JLSConfig       JLSConfig       `yaml:"jls-config" json:"jls-config,omitempty"`
 	RealityConfig   reality.Config  `yaml:"reality-config" json:"reality-config,omitempty"`
 	TLSMirrorConfig TLSMirrorConfig `yaml:"tlsmirror-config" json:"tlsmirror-config,omitempty"`

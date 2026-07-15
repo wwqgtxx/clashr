@@ -14,6 +14,7 @@ type AnyTLSServer struct {
 	ClientAuthCert string            `yaml:"client-auth-cert" json:"client-auth-cert,omitempty"`
 	EchKey         string            `yaml:"ech-key" json:"ech-key,omitempty"`
 	ShadowTLS      ShadowTLS         `yaml:"shadow-tls" json:"shadow-tls,omitempty"`
+	ResTLS         ResTLS            `yaml:"res-tls" json:"res-tls,omitempty"`
 	JLSConfig      JLSConfig         `yaml:"jls-config" json:"jls-config,omitempty"`
 	AllowInsecure  bool              `yaml:"allow-insecure" json:"allow-insecure,omitempty"`
 	PaddingScheme  string            `yaml:"padding-scheme" json:"padding-scheme,omitempty"`

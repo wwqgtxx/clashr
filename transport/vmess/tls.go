@@ -9,6 +9,7 @@ import (
 	"github.com/metacubex/mihomo/component/ech"
 	tlsC "github.com/metacubex/mihomo/component/tls"
 	"github.com/metacubex/mihomo/transport/jls"
+	"github.com/metacubex/mihomo/transport/restls"
 	"github.com/metacubex/mihomo/transport/shadowtls"
 	"github.com/metacubex/mihomo/transport/tlsmirror"
 
@@ -26,6 +27,7 @@ type TLSConfig struct {
 	NextProtos        []string
 	ECH               *ech.Config
 	ShadowTLS         *shadowtls.Config
+	Restls            *restls.Config
 	JLS               *jls.Config
 	Reality           *tlsC.RealityConfig
 	TLSMirror         *tlsmirror.Config
@@ -64,6 +66,20 @@ func StreamTLSConn(ctx context.Context, conn net.Conn, cfg *TLSConfig) (net.Conn
 			Version:           cfg.ShadowTLS.Version,
 			ALPN:              alpn,
 		})
+	}
+	if cfg.Restls != nil {
+		restlsConfig := cfg.Restls.Clone()
+		restlsConfig.ServerName = cfg.Host
+		restlsConfig.NextProtos = cfg.NextProtos
+		restlsConfig.InsecureSkipVerify = cfg.SkipCertVerify
+		if cfg.FingerPrint != "" {
+			if err := restls.SetFingerprint(restlsConfig, cfg.FingerPrint, cfg.NameCertVerify); err != nil {
+				return nil, err
+			}
+		} else if cfg.NameCertVerify != "" {
+			restls.SetNameCertVerify(restlsConfig, cfg.NameCertVerify)
+		}
+		return restls.NewRestls(ctx, conn, restlsConfig)
 	}
 	if cfg.JLS != nil {
 		return jls.NewClient(ctx, conn, &jls.ClientConfig{

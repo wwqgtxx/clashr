@@ -127,6 +127,36 @@ func TestInboundAnyTLS_ShadowTLS(t *testing.T) {
 	testInboundAnyTLSShadowTLS(t, inboundOptions, outboundOptions)
 }
 
+func testInboundAnyTLSRestls(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
+	t.Parallel()
+	t.Run("Conn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		testInboundAnyTLS(t, inboundOptions, outboundOptions)
+	})
+	t.Run("UConn", func(t *testing.T) {
+		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
+		outboundOptions.ClientFingerprint = "chrome"
+		testInboundAnyTLS(t, inboundOptions, outboundOptions)
+	})
+}
+
+func TestInboundAnyTLS_Restls(t *testing.T) {
+	const password = "restls-password"
+	inboundOptions := inbound.AnyTLSOption{
+		ResTLS: inbound.ResTLS{
+			Enable:   true,
+			Dest:     net.JoinHostPort(realityDest, "443"),
+			Password: password,
+		},
+	}
+	outboundOptions := outbound.AnyTLSOption{
+		SNI:         realityDest,
+		Fingerprint: tlsFingerprint,
+		RestlsOpts:  outbound.RestlsOptions{Password: password, VersionHint: "tls13"},
+	}
+	testInboundAnyTLSRestls(t, inboundOptions, outboundOptions)
+}
+
 func testInboundAnyTLSJLS(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {

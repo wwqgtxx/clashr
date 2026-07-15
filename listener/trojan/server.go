@@ -17,6 +17,7 @@ import (
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/jls"
 	"github.com/metacubex/mihomo/listener/reality"
+	"github.com/metacubex/mihomo/listener/restls"
 	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/ntp"
@@ -83,6 +84,7 @@ func New(config LC.TrojanServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 	}
 	tlsConfig := &tls.Config{Time: ntp.Now}
 	var shadowTLSBuilder *shadowtls.Builder
+	var restlsBuilder *restls.Builder
 	var jlsBuilder *jls.Builder
 	var realityBuilder *reality.Builder
 
@@ -142,6 +144,21 @@ func New(config LC.TrojanServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 			return nil, err
 		}
 	}
+	if config.ResTLS.Enable {
+		if tlsConfig.GetCertificate != nil {
+			return nil, errors.New("certificate is unavailable in Restls")
+		}
+		if tlsConfig.ClientAuth != tls.NoClientCert {
+			return nil, errors.New("client-auth is unavailable in Restls")
+		}
+		if realityBuilder != nil {
+			return nil, errors.New("REALITY is unavailable in Restls")
+		}
+		if shadowTLSBuilder != nil {
+			return nil, errors.New("ShadowTLS is unavailable in Restls")
+		}
+		restlsBuilder = restls.New(config.ResTLS, tunnel)
+	}
 	if config.JLSConfig.Enable {
 		if tlsConfig.GetCertificate != nil {
 			return nil, errors.New("certificate is unavailable in JLS")
@@ -154,6 +171,9 @@ func New(config LC.TrojanServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		}
 		if shadowTLSBuilder != nil {
 			return nil, errors.New("ShadowTLS is unavailable in JLS")
+		}
+		if restlsBuilder != nil {
+			return nil, errors.New("Restls is unavailable in JLS")
 		}
 		jlsBuilder, err = jls.New(config.JLSConfig, tunnel)
 		if err != nil {
@@ -204,6 +224,8 @@ func New(config LC.TrojanServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		}
 		if shadowTLSBuilder != nil {
 			l = shadowTLSBuilder.NewListener(l)
+		} else if restlsBuilder != nil {
+			l = restlsBuilder.NewListener(l)
 		} else if jlsBuilder != nil {
 			l = jlsBuilder.NewListener(l)
 		} else if realityBuilder != nil {
@@ -211,7 +233,7 @@ func New(config LC.TrojanServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
 		} else if !config.TrojanSSOption.Enabled && !config.AllowInsecure {
-			return nil, errors.New("disallow using Trojan without any certificates/shadow-tls/jls/reality/ss/allow-insecure config")
+			return nil, errors.New("disallow using Trojan without any certificates/shadow-tls/res-tls/jls/reality/ss/allow-insecure config")
 		}
 		sl.listeners = append(sl.listeners, l)
 

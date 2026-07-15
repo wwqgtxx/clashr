@@ -20,6 +20,7 @@ type VmessOption struct {
 	ClientAuthCert  string          `inbound:"client-auth-cert,omitempty"`
 	EchKey          string          `inbound:"ech-key,omitempty"`
 	ShadowTLS       ShadowTLS       `inbound:"shadow-tls,omitempty"`
+	ResTLS          ResTLS          `inbound:"res-tls,omitempty"`
 	JLSConfig       JLSConfig       `inbound:"jls-config,omitempty"`
 	RealityConfig   RealityConfig   `inbound:"reality-config,omitempty"`
 	TLSMirrorConfig TLSMirrorConfig `inbound:"tlsmirror-config,omitempty"`
@@ -73,6 +74,7 @@ func NewVmess(options *VmessOption) (*Vmess, error) {
 			ClientAuthCert:  options.ClientAuthCert,
 			EchKey:          options.EchKey,
 			ShadowTLS:       options.ShadowTLS.Build(),
+			ResTLS:          options.ResTLS.Build(),
 			JLSConfig:       options.JLSConfig.Build(),
 			RealityConfig:   options.RealityConfig.Build(),
 			TLSMirrorConfig: options.TLSMirrorConfig.Build(),
