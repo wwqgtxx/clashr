@@ -85,6 +85,20 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		return nil, err
 	}
 
+	securityModes := make([]string, 0, 3)
+	if config.ShadowTLS.Enable {
+		securityModes = append(securityModes, "shadow-tls")
+	}
+	if config.ResTLS.Enable {
+		securityModes = append(securityModes, "res-tls")
+	}
+	if config.JLSConfig.Enable {
+		securityModes = append(securityModes, "jls")
+	}
+	if len(securityModes) > 1 {
+		return nil, fmt.Errorf("security modes are mutually exclusive: %s", strings.Join(securityModes, ", "))
+	}
+
 	var shadowTLSBuilder *shadowtls.Builder
 	if config.ShadowTLS.Enable {
 		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
@@ -194,12 +208,10 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		}
 		if shadowTLSBuilder != nil {
 			l = shadowTLSBuilder.NewListener(l)
-		}
-		if jlsBuilder != nil {
-			l = jlsBuilder.NewListener(l)
-		}
-		if restlsBuilder != nil {
+		} else if restlsBuilder != nil {
 			l = restlsBuilder.NewListener(l)
+		} else if jlsBuilder != nil {
+			l = jlsBuilder.NewListener(l)
 		}
 		sl.listeners = append(sl.listeners, l)
 

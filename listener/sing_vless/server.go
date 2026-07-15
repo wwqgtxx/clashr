@@ -121,64 +121,44 @@ func New(config LC.VlessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		}
 		tlsConfig.ClientCAs = pool
 	}
+	if tlsConfig.ClientAuth != tls.NoClientCert && tlsConfig.GetCertificate == nil {
+		return nil, errors.New("client-auth requires certificate")
+	}
+	securityModes := make([]string, 0, 5)
+	if tlsConfig.GetCertificate != nil {
+		securityModes = append(securityModes, "certificate")
+	}
 	if config.RealityConfig.PrivateKey != "" {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in reality")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in reality")
-		}
+		securityModes = append(securityModes, "reality")
+	}
+	if config.ShadowTLS.Enable {
+		securityModes = append(securityModes, "shadow-tls")
+	}
+	if config.ResTLS.Enable {
+		securityModes = append(securityModes, "res-tls")
+	}
+	if config.JLSConfig.Enable {
+		securityModes = append(securityModes, "jls")
+	}
+	if len(securityModes) > 1 {
+		return nil, errors.New("security modes are mutually exclusive: " + strings.Join(securityModes, ", "))
+	}
+	if config.RealityConfig.PrivateKey != "" {
 		realityBuilder, err = config.RealityConfig.Build(tunnel)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if config.ShadowTLS.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in ShadowTLS")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in ShadowTLS")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in ShadowTLS")
-		}
 		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if config.ResTLS.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in Restls")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in Restls")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in Restls")
-		}
-		if shadowTLSBuilder != nil {
-			return nil, errors.New("ShadowTLS is unavailable in Restls")
-		}
 		restlsBuilder = restls.New(config.ResTLS, tunnel)
 	}
 	if config.JLSConfig.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in JLS")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in JLS")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in JLS")
-		}
-		if shadowTLSBuilder != nil {
-			return nil, errors.New("ShadowTLS is unavailable in JLS")
-		}
-		if restlsBuilder != nil {
-			return nil, errors.New("Restls is unavailable in JLS")
-		}
 		jlsBuilder, err = jls.New(config.JLSConfig, tunnel)
 		if err != nil {
 			return nil, err

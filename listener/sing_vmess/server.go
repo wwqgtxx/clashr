@@ -132,13 +132,39 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		}
 		tlsConfig.ClientCAs = pool
 	}
+	if tlsConfig.ClientAuth != tls.NoClientCert && tlsConfig.GetCertificate == nil {
+		return nil, errors.New("client-auth requires certificate")
+	}
+	securityModes := make([]string, 0, 6)
+	if tlsConfig.GetCertificate != nil {
+		securityModes = append(securityModes, "certificate")
+	}
 	if config.RealityConfig.PrivateKey != "" {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in reality")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in reality")
-		}
+		securityModes = append(securityModes, "reality")
+	}
+	if config.TLSMirrorConfig.PrimaryKey != "" {
+		securityModes = append(securityModes, "tlsmirror")
+	}
+	tcpOnlySecurityMode := ""
+	if config.ShadowTLS.Enable {
+		securityModes = append(securityModes, "shadow-tls")
+		tcpOnlySecurityMode = "ShadowTLS"
+	}
+	if config.ResTLS.Enable {
+		securityModes = append(securityModes, "res-tls")
+		tcpOnlySecurityMode = "Restls"
+	}
+	if config.JLSConfig.Enable {
+		securityModes = append(securityModes, "jls")
+		tcpOnlySecurityMode = "JLS"
+	}
+	if len(securityModes) > 1 {
+		return nil, errors.New("security modes are mutually exclusive: " + strings.Join(securityModes, ", "))
+	}
+	if config.MKCPConfig.Enable && tcpOnlySecurityMode != "" {
+		return nil, errors.New(tcpOnlySecurityMode + " only supports TCP transports")
+	}
+	if config.RealityConfig.PrivateKey != "" {
 		realityBuilder, err = config.RealityConfig.Build(tunnel)
 		if err != nil {
 			return nil, err
@@ -158,69 +184,15 @@ func New(config LC.VmessServer, lc C.InboundListenConfig, tunnel C.Tunnel, addit
 		h.Tunnel = tlsMirrorBuilder.WrapTunnel(tunnel)
 	}
 	if config.ShadowTLS.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in ShadowTLS")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in ShadowTLS")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in ShadowTLS")
-		}
-		if tlsMirrorBuilder != nil {
-			return nil, errors.New("TLSMirror is unavailable in ShadowTLS")
-		}
-		if config.MKCPConfig.Enable {
-			return nil, errors.New("ShadowTLS only supports TCP transports")
-		}
 		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if config.ResTLS.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in Restls")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in Restls")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in Restls")
-		}
-		if tlsMirrorBuilder != nil {
-			return nil, errors.New("TLSMirror is unavailable in Restls")
-		}
-		if shadowTLSBuilder != nil {
-			return nil, errors.New("ShadowTLS is unavailable in Restls")
-		}
-		if config.MKCPConfig.Enable {
-			return nil, errors.New("Restls only supports TCP transports")
-		}
 		restlsBuilder = restls.New(config.ResTLS, tunnel)
 	}
 	if config.JLSConfig.Enable {
-		if tlsConfig.GetCertificate != nil {
-			return nil, errors.New("certificate is unavailable in JLS")
-		}
-		if tlsConfig.ClientAuth != tls.NoClientCert {
-			return nil, errors.New("client-auth is unavailable in JLS")
-		}
-		if realityBuilder != nil {
-			return nil, errors.New("REALITY is unavailable in JLS")
-		}
-		if tlsMirrorBuilder != nil {
-			return nil, errors.New("TLSMirror is unavailable in JLS")
-		}
-		if shadowTLSBuilder != nil {
-			return nil, errors.New("ShadowTLS is unavailable in JLS")
-		}
-		if restlsBuilder != nil {
-			return nil, errors.New("Restls is unavailable in JLS")
-		}
-		if config.MKCPConfig.Enable {
-			return nil, errors.New("JLS only supports TCP transports")
-		}
 		jlsBuilder, err = jls.New(config.JLSConfig, tunnel)
 		if err != nil {
 			return nil, err
