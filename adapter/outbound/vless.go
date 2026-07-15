@@ -17,6 +17,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/gun"
 	"github.com/metacubex/mihomo/transport/jls"
+	"github.com/metacubex/mihomo/transport/restls"
 	"github.com/metacubex/mihomo/transport/shadowtls"
 	"github.com/metacubex/mihomo/transport/tuic/common"
 	"github.com/metacubex/mihomo/transport/vless"
@@ -47,6 +48,7 @@ type Vless struct {
 
 	echConfig       *ech.Config
 	shadowTLSConfig *shadowtls.Config
+	restlsConfig    *restls.Config
 	jlsConfig       *jls.Config
 	realityConfig   *tlsC.RealityConfig
 }
@@ -68,6 +70,7 @@ type VlessOption struct {
 	Network           string            `proxy:"network,omitempty"`
 	ECHOpts           ECHOptions        `proxy:"ech-opts,omitempty"`
 	ShadowTLSOpts     ShadowTLSOptions  `proxy:"shadow-tls-opts,omitempty"`
+	RestlsOpts        RestlsOptions     `proxy:"restls-opts,omitempty"`
 	JLSOpts           JLSOptions        `proxy:"jls-opts,omitempty"`
 	RealityOpts       RealityOptions    `proxy:"reality-opts,omitempty"`
 	HTTPOpts          HTTPOptions       `proxy:"http-opts,omitempty"`
@@ -175,7 +178,7 @@ func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 				serverName = host
 			}
 
-			if v.shadowTLSConfig != nil || v.jlsConfig != nil {
+			if v.shadowTLSConfig != nil || v.restlsConfig != nil || v.jlsConfig != nil {
 				c, err = vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
 					Host:              serverName,
 					SkipCertVerify:    v.option.SkipCertVerify,
@@ -186,6 +189,7 @@ func (v *Vless) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 					ClientFingerprint: v.option.ClientFingerprint,
 					NextProtos:        []string{"http/1.1"},
 					ShadowTLS:         v.shadowTLSConfig,
+					Restls:            v.restlsConfig,
 					JLS:               v.jlsConfig,
 				})
 				if err != nil {
@@ -309,6 +313,7 @@ func (v *Vless) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 			ClientFingerprint: v.option.ClientFingerprint,
 			ECH:               v.echConfig,
 			ShadowTLS:         v.shadowTLSConfig,
+			Restls:            v.restlsConfig,
 			JLS:               v.jlsConfig,
 			Reality:           v.realityConfig,
 			NextProtos:        v.option.ALPN,
@@ -512,6 +517,10 @@ func NewVless(option VlessOption) (*Vless, error) {
 	if err != nil {
 		return nil, err
 	}
+	v.restlsConfig, err = option.RestlsOpts.Parse(option.ServerName, option.ClientFingerprint)
+	if err != nil {
+		return nil, err
+	}
 	v.jlsConfig, err = option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
@@ -524,11 +533,25 @@ func NewVless(option VlessOption) (*Vless, error) {
 		if !option.TLS {
 			return nil, errors.New("ShadowTLS requires TLS")
 		}
+		if v.restlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with Restls")
+		}
 		if v.jlsConfig != nil {
 			return nil, errors.New("ShadowTLS is incompatible with JLS")
 		}
 		if v.realityConfig != nil {
 			return nil, errors.New("ShadowTLS is incompatible with REALITY")
+		}
+	}
+	if v.restlsConfig != nil {
+		if !option.TLS {
+			return nil, errors.New("Restls requires TLS")
+		}
+		if v.jlsConfig != nil {
+			return nil, errors.New("Restls is incompatible with JLS")
+		}
+		if v.realityConfig != nil {
+			return nil, errors.New("Restls is incompatible with REALITY")
 		}
 	}
 	if v.jlsConfig != nil {
@@ -576,6 +599,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 				NextProtos:        []string{"h2"},
 				ECH:               v.echConfig,
 				ShadowTLS:         v.shadowTLSConfig,
+				Restls:            v.restlsConfig,
 				JLS:               v.jlsConfig,
 				Reality:           v.realityConfig,
 			}
@@ -674,6 +698,9 @@ func NewVless(option VlessOption) (*Vless, error) {
 					}
 					if v.shadowTLSConfig != nil {
 						return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
+					}
+					if v.restlsConfig != nil {
+						return nil, errors.New("xhttp HTTP/3 does not support Restls")
 					}
 					if v.jlsConfig != nil {
 						return nil, errors.New("xhttp HTTP/3 does not support JLS")
@@ -790,6 +817,7 @@ func NewVless(option VlessOption) (*Vless, error) {
 								ClientFingerprint: downloadClientFingerprint,
 								ECH:               downloadEchConfig,
 								ShadowTLS:         v.shadowTLSConfig,
+								Restls:            v.restlsConfig,
 								JLS:               downloadJLSConfig,
 								Reality:           downloadRealityCfg,
 								NextProtos:        downloadALPN,
@@ -830,6 +858,9 @@ func NewVless(option VlessOption) (*Vless, error) {
 						}
 						if v.shadowTLSConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
+						}
+						if v.restlsConfig != nil {
+							return nil, errors.New("xhttp HTTP/3 does not support Restls")
 						}
 						if downloadJLSConfig != nil {
 							return nil, errors.New("xhttp HTTP/3 does not support JLS")

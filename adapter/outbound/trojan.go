@@ -14,6 +14,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/transport/gun"
 	"github.com/metacubex/mihomo/transport/jls"
+	"github.com/metacubex/mihomo/transport/restls"
 	"github.com/metacubex/mihomo/transport/shadowsocks/core"
 	"github.com/metacubex/mihomo/transport/shadowtls"
 	"github.com/metacubex/mihomo/transport/trojan"
@@ -33,6 +34,7 @@ type Trojan struct {
 
 	echConfig       *ech.Config
 	shadowTLSConfig *shadowtls.Config
+	restlsConfig    *restls.Config
 	jlsConfig       *jls.Config
 	realityConfig   *tlsC.RealityConfig
 
@@ -56,6 +58,7 @@ type TrojanOption struct {
 	Network           string           `proxy:"network,omitempty"`
 	ECHOpts           ECHOptions       `proxy:"ech-opts,omitempty"`
 	ShadowTLSOpts     ShadowTLSOptions `proxy:"shadow-tls-opts,omitempty"`
+	RestlsOpts        RestlsOptions    `proxy:"restls-opts,omitempty"`
 	JLSOpts           JLSOptions       `proxy:"jls-opts,omitempty"`
 	RealityOpts       RealityOptions   `proxy:"reality-opts,omitempty"`
 	GrpcOpts          GrpcOptions      `proxy:"grpc-opts,omitempty"`
@@ -104,7 +107,7 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 			alpn = t.option.ALPN
 		}
 
-		if t.shadowTLSConfig != nil || t.jlsConfig != nil {
+		if t.shadowTLSConfig != nil || t.restlsConfig != nil || t.jlsConfig != nil {
 			c, err = vmess.StreamTLSConn(ctx, c, &vmess.TLSConfig{
 				Host:              t.option.SNI,
 				SkipCertVerify:    t.option.SkipCertVerify,
@@ -115,6 +118,7 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 				ClientFingerprint: t.option.ClientFingerprint,
 				NextProtos:        []string{"http/1.1"},
 				ShadowTLS:         t.shadowTLSConfig,
+				Restls:            t.restlsConfig,
 				JLS:               t.jlsConfig,
 			})
 			if err != nil {
@@ -160,6 +164,7 @@ func (t *Trojan) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.
 			NextProtos:        alpn,
 			ECH:               t.echConfig,
 			ShadowTLS:         t.shadowTLSConfig,
+			Restls:            t.restlsConfig,
 			JLS:               t.jlsConfig,
 			Reality:           t.realityConfig,
 		})
@@ -308,6 +313,10 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.restlsConfig, err = option.RestlsOpts.Parse(option.SNI, option.ClientFingerprint)
+	if err != nil {
+		return nil, err
+	}
 	t.jlsConfig, err = option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
@@ -317,11 +326,22 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 		return nil, err
 	}
 	if t.shadowTLSConfig != nil {
+		if t.restlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with Restls")
+		}
 		if t.jlsConfig != nil {
 			return nil, errors.New("ShadowTLS is incompatible with JLS")
 		}
 		if t.realityConfig != nil {
 			return nil, errors.New("ShadowTLS is incompatible with REALITY")
+		}
+	}
+	if t.restlsConfig != nil {
+		if t.jlsConfig != nil {
+			return nil, errors.New("Restls is incompatible with JLS")
+		}
+		if t.realityConfig != nil {
+			return nil, errors.New("Restls is incompatible with REALITY")
 		}
 	}
 	if t.jlsConfig != nil && t.realityConfig != nil {
@@ -362,6 +382,7 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 			NextProtos:        []string{"h2"},
 			ECH:               t.echConfig,
 			ShadowTLS:         t.shadowTLSConfig,
+			Restls:            t.restlsConfig,
 			JLS:               t.jlsConfig,
 			Reality:           t.realityConfig,
 		}

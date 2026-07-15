@@ -21,6 +21,7 @@ import (
 	"github.com/metacubex/mihomo/transport/jls"
 	"github.com/metacubex/mihomo/transport/mekya"
 	"github.com/metacubex/mihomo/transport/mkcp"
+	"github.com/metacubex/mihomo/transport/restls"
 	"github.com/metacubex/mihomo/transport/shadowtls"
 	mihomoVMess "github.com/metacubex/mihomo/transport/vmess"
 
@@ -44,6 +45,7 @@ type Vmess struct {
 
 	echConfig       *ech.Config
 	shadowTLSConfig *shadowtls.Config
+	restlsConfig    *restls.Config
 	jlsConfig       *jls.Config
 	realityConfig   *tlsC.RealityConfig
 }
@@ -68,6 +70,7 @@ type VmessOption struct {
 	ServerName          string           `proxy:"servername,omitempty"`
 	ECHOpts             ECHOptions       `proxy:"ech-opts,omitempty"`
 	ShadowTLSOpts       ShadowTLSOptions `proxy:"shadow-tls-opts,omitempty"`
+	RestlsOpts          RestlsOptions    `proxy:"restls-opts,omitempty"`
 	JLSOpts             JLSOptions       `proxy:"jls-opts,omitempty"`
 	RealityOpts         RealityOptions   `proxy:"reality-opts,omitempty"`
 	TLSMirrorOpts       TLSMirrorOptions `proxy:"tlsmirror-opts,omitempty"`
@@ -199,7 +202,7 @@ func (v *Vmess) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 				serverName = host
 			}
 
-			if v.shadowTLSConfig != nil || v.jlsConfig != nil {
+			if v.shadowTLSConfig != nil || v.restlsConfig != nil || v.jlsConfig != nil {
 				c, err = mihomoVMess.StreamTLSConn(ctx, c, &mihomoVMess.TLSConfig{
 					Host:              serverName,
 					SkipCertVerify:    v.option.SkipCertVerify,
@@ -210,6 +213,7 @@ func (v *Vmess) StreamConnContext(ctx context.Context, c net.Conn, metadata *C.M
 					ClientFingerprint: v.option.ClientFingerprint,
 					NextProtos:        []string{"http/1.1"},
 					ShadowTLS:         v.shadowTLSConfig,
+					Restls:            v.restlsConfig,
 					JLS:               v.jlsConfig,
 				})
 				if err != nil {
@@ -353,6 +357,7 @@ func (v *Vmess) streamTLSConn(ctx context.Context, conn net.Conn, isH2 bool) (ne
 			ClientFingerprint: v.option.ClientFingerprint,
 			ECH:               v.echConfig,
 			ShadowTLS:         v.shadowTLSConfig,
+			Restls:            v.restlsConfig,
 			JLS:               v.jlsConfig,
 			Reality:           v.realityConfig,
 			NextProtos:        v.option.ALPN,
@@ -513,6 +518,10 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 	if err != nil {
 		return nil, err
 	}
+	v.restlsConfig, err = option.RestlsOpts.Parse(option.ServerName, option.ClientFingerprint)
+	if err != nil {
+		return nil, err
+	}
 	v.jlsConfig, err = option.JLSOpts.Parse()
 	if err != nil {
 		return nil, err
@@ -525,6 +534,9 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 		if !option.TLS {
 			return nil, errors.New("ShadowTLS requires TLS")
 		}
+		if v.restlsConfig != nil {
+			return nil, errors.New("ShadowTLS is incompatible with Restls")
+		}
 		if v.jlsConfig != nil {
 			return nil, errors.New("ShadowTLS is incompatible with JLS")
 		}
@@ -536,6 +548,23 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 		}
 		if option.Network == "mkcp" || option.Network == "kcp" {
 			return nil, errors.New("ShadowTLS only supports TCP transports")
+		}
+	}
+	if v.restlsConfig != nil {
+		if !option.TLS {
+			return nil, errors.New("Restls requires TLS")
+		}
+		if v.jlsConfig != nil {
+			return nil, errors.New("Restls is incompatible with JLS")
+		}
+		if v.realityConfig != nil {
+			return nil, errors.New("Restls is incompatible with REALITY")
+		}
+		if option.TLSMirrorOpts.PrimaryKey != "" {
+			return nil, errors.New("Restls is incompatible with TLSMirror")
+		}
+		if option.Network == "mkcp" || option.Network == "kcp" {
+			return nil, errors.New("Restls only supports TCP transports")
 		}
 	}
 	if v.jlsConfig != nil {
@@ -612,6 +641,7 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 				NextProtos:        []string{"h2"},
 				ECH:               v.echConfig,
 				ShadowTLS:         v.shadowTLSConfig,
+				Restls:            v.restlsConfig,
 				JLS:               v.jlsConfig,
 				Reality:           v.realityConfig,
 				TLSMirror:         option.TLSMirrorOpts.Build(),
