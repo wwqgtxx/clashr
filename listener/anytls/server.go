@@ -16,6 +16,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
 	"github.com/metacubex/mihomo/listener/jls"
+	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
 	"github.com/metacubex/mihomo/ntp"
 	"github.com/metacubex/mihomo/transport/anytls/padding"
@@ -44,6 +45,7 @@ func New(config LC.AnyTLSServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		}
 	}
 
+	var shadowTLSBuilder *shadowtls.Builder
 	var jlsBuilder *jls.Builder
 	tlsConfig := &tls.Config{Time: ntp.Now}
 	if config.Certificate != "" && config.PrivateKey != "" {
@@ -75,12 +77,27 @@ func New(config LC.AnyTLSServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		}
 		tlsConfig.ClientCAs = pool
 	}
+	if config.ShadowTLS.Enable {
+		if tlsConfig.GetCertificate != nil {
+			return nil, errors.New("certificate is unavailable in ShadowTLS")
+		}
+		if tlsConfig.ClientAuth != tls.NoClientCert {
+			return nil, errors.New("client-auth is unavailable in ShadowTLS")
+		}
+		shadowTLSBuilder, err = shadowtls.New(config.ShadowTLS, tunnel)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if config.JLSConfig.Enable {
 		if tlsConfig.GetCertificate != nil {
 			return nil, errors.New("certificate is unavailable in JLS")
 		}
 		if tlsConfig.ClientAuth != tls.NoClientCert {
 			return nil, errors.New("client-auth is unavailable in JLS")
+		}
+		if shadowTLSBuilder != nil {
+			return nil, errors.New("ShadowTLS is unavailable in JLS")
 		}
 		jlsBuilder, err = jls.New(config.JLSConfig, tunnel)
 		if err != nil {
@@ -124,12 +141,14 @@ func New(config LC.AnyTLSServer, lc C.InboundListenConfig, tunnel C.Tunnel, addi
 		if err != nil {
 			return nil, err
 		}
-		if jlsBuilder != nil {
+		if shadowTLSBuilder != nil {
+			l = shadowTLSBuilder.NewListener(l)
+		} else if jlsBuilder != nil {
 			l = jlsBuilder.NewListener(l)
 		} else if tlsConfig.GetCertificate != nil {
 			l = tls.NewListener(l, tlsConfig)
 		} else if !config.AllowInsecure {
-			return nil, errors.New("disallow using AnyTLS without certificates/jls/allow-insecure config")
+			return nil, errors.New("disallow using AnyTLS without certificates/shadow-tls/jls/allow-insecure config")
 		}
 		sl.listeners = append(sl.listeners, l)
 
