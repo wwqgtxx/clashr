@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/metacubex/mihomo/common/convert"
@@ -531,38 +532,28 @@ func NewVless(option VlessOption) (*Vless, error) {
 	if err != nil {
 		return nil, err
 	}
+	securityModes := make([]string, 0, 4)
 	if v.shadowTLSConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("ShadowTLS requires TLS")
-		}
-		if v.restlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with Restls")
-		}
-		if v.jlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with JLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with REALITY")
-		}
+		securityModes = append(securityModes, "ShadowTLS")
 	}
 	if v.restlsConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("Restls requires TLS")
-		}
-		if v.jlsConfig != nil {
-			return nil, errors.New("Restls is incompatible with JLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("Restls is incompatible with REALITY")
-		}
+		securityModes = append(securityModes, "Restls")
 	}
 	if v.jlsConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("JLS requires TLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("JLS is incompatible with REALITY")
-		}
+		securityModes = append(securityModes, "JLS")
+	}
+	if v.realityConfig != nil {
+		securityModes = append(securityModes, "REALITY")
+	}
+	if len(securityModes) > 1 {
+		return nil, errors.New("security modes are mutually exclusive: " + strings.Join(securityModes, ", "))
+	}
+	securityMode := ""
+	if len(securityModes) == 1 {
+		securityMode = securityModes[0]
+	}
+	if securityMode != "" && !option.TLS {
+		return nil, fmt.Errorf("%s requires TLS", securityMode)
 	}
 
 	switch option.Network {
@@ -698,17 +689,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 					if !v.option.TLS {
 						return nil, errors.New("xhttp HTTP/3 requires TLS")
 					}
-					if v.shadowTLSConfig != nil {
-						return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
-					}
-					if v.restlsConfig != nil {
-						return nil, errors.New("xhttp HTTP/3 does not support Restls")
-					}
-					if v.jlsConfig != nil {
-						return nil, errors.New("xhttp HTTP/3 does not support JLS")
-					}
-					if v.realityConfig != nil {
-						return nil, errors.New("xhttp HTTP/3 does not support reality")
+					if securityMode != "" {
+						return nil, fmt.Errorf("xhttp HTTP/3 does not support %s", securityMode)
 					}
 					tlsConfig, err := tlsOpts.ToStdConfig()
 					if err != nil {
@@ -782,27 +764,28 @@ func NewVless(option VlessOption) (*Vless, error) {
 					return nil, err
 				}
 			}
+			downloadSecurityModes := make([]string, 0, 4)
 			if downloadShadowTLSConfig != nil {
-				if downloadRestlsConfig != nil {
-					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with Restls")
-				}
-				if downloadJLSConfig != nil {
-					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with JLS")
-				}
-				if downloadRealityCfg != nil {
-					return nil, errors.New("xhttp download-settings: ShadowTLS is incompatible with REALITY")
-				}
+				downloadSecurityModes = append(downloadSecurityModes, "ShadowTLS")
 			}
 			if downloadRestlsConfig != nil {
-				if downloadJLSConfig != nil {
-					return nil, errors.New("xhttp download-settings: Restls is incompatible with JLS")
-				}
-				if downloadRealityCfg != nil {
-					return nil, errors.New("xhttp download-settings: Restls is incompatible with REALITY")
-				}
+				downloadSecurityModes = append(downloadSecurityModes, "Restls")
 			}
-			if downloadJLSConfig != nil && downloadRealityCfg != nil {
-				return nil, errors.New("xhttp download-settings: JLS is incompatible with REALITY")
+			if downloadJLSConfig != nil {
+				downloadSecurityModes = append(downloadSecurityModes, "JLS")
+			}
+			if downloadRealityCfg != nil {
+				downloadSecurityModes = append(downloadSecurityModes, "REALITY")
+			}
+			if len(downloadSecurityModes) > 1 {
+				return nil, errors.New("xhttp download-settings security modes are mutually exclusive: " + strings.Join(downloadSecurityModes, ", "))
+			}
+			downloadSecurityMode := ""
+			if len(downloadSecurityModes) == 1 {
+				downloadSecurityMode = downloadSecurityModes[0]
+			}
+			if downloadSecurityMode != "" && !downloadTLS {
+				return nil, fmt.Errorf("xhttp download-settings: %s requires TLS", downloadSecurityMode)
 			}
 
 			downloadAddr := net.JoinHostPort(downloadServer, strconv.Itoa(downloadPort))
@@ -894,17 +877,8 @@ func NewVless(option VlessOption) (*Vless, error) {
 						if !downloadTLS {
 							return nil, errors.New("xhttp HTTP/3 requires TLS")
 						}
-						if downloadShadowTLSConfig != nil {
-							return nil, errors.New("xhttp HTTP/3 does not support ShadowTLS")
-						}
-						if downloadRestlsConfig != nil {
-							return nil, errors.New("xhttp HTTP/3 does not support Restls")
-						}
-						if downloadJLSConfig != nil {
-							return nil, errors.New("xhttp HTTP/3 does not support JLS")
-						}
-						if downloadRealityCfg != nil {
-							return nil, errors.New("xhttp HTTP/3 does not support reality")
+						if downloadSecurityMode != "" {
+							return nil, fmt.Errorf("xhttp HTTP/3 does not support %s", downloadSecurityMode)
 						}
 						tlsConfig, err := tlsOpts.ToStdConfig()
 						if err != nil {

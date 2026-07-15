@@ -530,55 +530,36 @@ func NewVmess(option VmessOption) (*Vmess, error) {
 	if err != nil {
 		return nil, err
 	}
+	securityModes := make([]string, 0, 5)
 	if v.shadowTLSConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("ShadowTLS requires TLS")
-		}
-		if v.restlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with Restls")
-		}
-		if v.jlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with JLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with REALITY")
-		}
-		if option.TLSMirrorOpts.PrimaryKey != "" {
-			return nil, errors.New("ShadowTLS is incompatible with TLSMirror")
-		}
-		if option.Network == "mkcp" || option.Network == "kcp" {
-			return nil, errors.New("ShadowTLS only supports TCP transports")
-		}
+		securityModes = append(securityModes, "ShadowTLS")
 	}
 	if v.restlsConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("Restls requires TLS")
-		}
-		if v.jlsConfig != nil {
-			return nil, errors.New("Restls is incompatible with JLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("Restls is incompatible with REALITY")
-		}
-		if option.TLSMirrorOpts.PrimaryKey != "" {
-			return nil, errors.New("Restls is incompatible with TLSMirror")
-		}
-		if option.Network == "mkcp" || option.Network == "kcp" {
-			return nil, errors.New("Restls only supports TCP transports")
-		}
+		securityModes = append(securityModes, "Restls")
 	}
 	if v.jlsConfig != nil {
-		if !option.TLS {
-			return nil, errors.New("JLS requires TLS")
-		}
-		if v.realityConfig != nil {
-			return nil, errors.New("JLS is incompatible with REALITY")
-		}
-		if option.TLSMirrorOpts.PrimaryKey != "" {
-			return nil, errors.New("JLS is incompatible with TLSMirror")
-		}
-		if option.Network == "mkcp" || option.Network == "kcp" {
-			return nil, errors.New("JLS only supports TCP transports")
+		securityModes = append(securityModes, "JLS")
+	}
+	if v.realityConfig != nil {
+		securityModes = append(securityModes, "REALITY")
+	}
+	if option.TLSMirrorOpts.PrimaryKey != "" {
+		securityModes = append(securityModes, "TLSMirror")
+	}
+	if len(securityModes) > 1 {
+		return nil, errors.New("security modes are mutually exclusive: " + strings.Join(securityModes, ", "))
+	}
+	securityMode := ""
+	if len(securityModes) == 1 {
+		securityMode = securityModes[0]
+	}
+	if securityMode != "" && !option.TLS {
+		return nil, fmt.Errorf("%s requires TLS", securityMode)
+	}
+	if option.Network == "mkcp" || option.Network == "kcp" {
+		switch securityMode {
+		case "ShadowTLS", "Restls", "JLS":
+			return nil, fmt.Errorf("%s only supports TCP transports", securityMode)
 		}
 	}
 

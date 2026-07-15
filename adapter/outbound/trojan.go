@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
@@ -325,27 +326,21 @@ func NewTrojan(option TrojanOption) (*Trojan, error) {
 	if err != nil {
 		return nil, err
 	}
+	securityModes := make([]string, 0, 4)
 	if t.shadowTLSConfig != nil {
-		if t.restlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with Restls")
-		}
-		if t.jlsConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with JLS")
-		}
-		if t.realityConfig != nil {
-			return nil, errors.New("ShadowTLS is incompatible with REALITY")
-		}
+		securityModes = append(securityModes, "ShadowTLS")
 	}
 	if t.restlsConfig != nil {
-		if t.jlsConfig != nil {
-			return nil, errors.New("Restls is incompatible with JLS")
-		}
-		if t.realityConfig != nil {
-			return nil, errors.New("Restls is incompatible with REALITY")
-		}
+		securityModes = append(securityModes, "Restls")
 	}
-	if t.jlsConfig != nil && t.realityConfig != nil {
-		return nil, errors.New("JLS is incompatible with REALITY")
+	if t.jlsConfig != nil {
+		securityModes = append(securityModes, "JLS")
+	}
+	if t.realityConfig != nil {
+		securityModes = append(securityModes, "REALITY")
+	}
+	if len(securityModes) > 1 {
+		return nil, errors.New("security modes are mutually exclusive: " + strings.Join(securityModes, ", "))
 	}
 
 	if option.SSOpts.Enabled {
