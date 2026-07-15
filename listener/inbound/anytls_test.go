@@ -96,7 +96,7 @@ func TestInboundAnyTLS_TLS(t *testing.T) {
 	})
 }
 
-func testInboundAnyTLSShadowTLS(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
+func testInboundAnyTLSUTLS(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {
 		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
@@ -124,20 +124,7 @@ func TestInboundAnyTLS_ShadowTLS(t *testing.T) {
 		Fingerprint:   tlsFingerprint,
 		ShadowTLSOpts: outbound.ShadowTLSOptions{Password: password, Version: 3},
 	}
-	testInboundAnyTLSShadowTLS(t, inboundOptions, outboundOptions)
-}
-
-func testInboundAnyTLSRestls(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundAnyTLS(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundAnyTLS(t, inboundOptions, outboundOptions)
-	})
+	testInboundAnyTLSUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundAnyTLS_Restls(t *testing.T) {
@@ -154,20 +141,7 @@ func TestInboundAnyTLS_Restls(t *testing.T) {
 		Fingerprint: tlsFingerprint,
 		RestlsOpts:  outbound.RestlsOptions{Password: password, VersionHint: "tls13"},
 	}
-	testInboundAnyTLSRestls(t, inboundOptions, outboundOptions)
-}
-
-func testInboundAnyTLSJLS(t *testing.T, inboundOptions inbound.AnyTLSOption, outboundOptions outbound.AnyTLSOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundAnyTLS(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundAnyTLS(t, inboundOptions, outboundOptions)
-	})
+	testInboundAnyTLSUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundAnyTLS_JLS(t *testing.T) {
@@ -185,5 +159,5 @@ func TestInboundAnyTLS_JLS(t *testing.T) {
 		SNI:     realityDest,
 		JLSOpts: outbound.JLSOptions{Username: username, Password: password},
 	}
-	testInboundAnyTLSJLS(t, inboundOptions, outboundOptions)
+	testInboundAnyTLSUTLS(t, inboundOptions, outboundOptions)
 }

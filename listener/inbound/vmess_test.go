@@ -502,7 +502,7 @@ func TestInboundVMess_Grpc2(t *testing.T) {
 	testInboundVMessTLS(t, inboundOptions, outboundOptions)
 }
 
-func testInboundVMessShadowTLS(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
+func testInboundVMessUTLS(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {
 		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
@@ -531,20 +531,7 @@ func TestInboundVMess_ShadowTLS(t *testing.T) {
 		Fingerprint:   tlsFingerprint,
 		ShadowTLSOpts: outbound.ShadowTLSOptions{Password: password, Version: 3},
 	}
-	testInboundVMessShadowTLS(t, inboundOptions, outboundOptions)
-}
-
-func testInboundVMessRestls(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundVMess(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundVMess(t, inboundOptions, outboundOptions)
-	})
+	testInboundVMessUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundVMess_Restls(t *testing.T) {
@@ -562,20 +549,7 @@ func TestInboundVMess_Restls(t *testing.T) {
 		Fingerprint: tlsFingerprint,
 		RestlsOpts:  outbound.RestlsOptions{Password: password, VersionHint: "tls13"},
 	}
-	testInboundVMessRestls(t, inboundOptions, outboundOptions)
-}
-
-func testInboundVMessJLS(t *testing.T, inboundOptions inbound.VmessOption, outboundOptions outbound.VmessOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundVMess(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundVMess(t, inboundOptions, outboundOptions)
-	})
+	testInboundVMessUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundVMess_JLS(t *testing.T) {
@@ -594,7 +568,7 @@ func TestInboundVMess_JLS(t *testing.T) {
 		ServerName: realityDest,
 		JLSOpts:    outbound.JLSOptions{Username: username, Password: password},
 	}
-	testInboundVMessJLS(t, inboundOptions, outboundOptions)
+	testInboundVMessUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundVMess_Reality(t *testing.T) {

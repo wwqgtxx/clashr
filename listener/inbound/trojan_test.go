@@ -168,7 +168,7 @@ func TestInboundTrojan_Grpc2(t *testing.T) {
 	testInboundTrojanTLS(t, inboundOptions, outboundOptions)
 }
 
-func testInboundTrojanShadowTLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
+func testInboundTrojanUTLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
 	t.Parallel()
 	t.Run("Conn", func(t *testing.T) {
 		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
@@ -196,20 +196,7 @@ func TestInboundTrojan_ShadowTLS(t *testing.T) {
 		Fingerprint:   tlsFingerprint,
 		ShadowTLSOpts: outbound.ShadowTLSOptions{Password: password, Version: 3},
 	}
-	testInboundTrojanShadowTLS(t, inboundOptions, outboundOptions)
-}
-
-func testInboundTrojanRestls(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Restls(t *testing.T) {
@@ -226,20 +213,7 @@ func TestInboundTrojan_Restls(t *testing.T) {
 		Fingerprint: tlsFingerprint,
 		RestlsOpts:  outbound.RestlsOptions{Password: password, VersionHint: "tls13"},
 	}
-	testInboundTrojanRestls(t, inboundOptions, outboundOptions)
-}
-
-func testInboundTrojanJLS(t *testing.T, inboundOptions inbound.TrojanOption, outboundOptions outbound.TrojanOption) {
-	t.Parallel()
-	t.Run("Conn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
-	t.Run("UConn", func(t *testing.T) {
-		inboundOptions, outboundOptions := inboundOptions, outboundOptions // don't modify outside options value
-		outboundOptions.ClientFingerprint = "chrome"
-		testInboundTrojan(t, inboundOptions, outboundOptions)
-	})
+	testInboundTrojanUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_JLS(t *testing.T) {
@@ -257,7 +231,7 @@ func TestInboundTrojan_JLS(t *testing.T) {
 		SNI:     realityDest,
 		JLSOpts: outbound.JLSOptions{Username: username, Password: password},
 	}
-	testInboundTrojanJLS(t, inboundOptions, outboundOptions)
+	testInboundTrojanUTLS(t, inboundOptions, outboundOptions)
 }
 
 func TestInboundTrojan_Reality(t *testing.T) {
