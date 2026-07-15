@@ -10,11 +10,10 @@ import (
 	N "github.com/metacubex/mihomo/common/net"
 	C "github.com/metacubex/mihomo/constant"
 	LC "github.com/metacubex/mihomo/listener/config"
-	"github.com/metacubex/mihomo/listener/inner"
 	"github.com/metacubex/mihomo/listener/jls"
+	"github.com/metacubex/mihomo/listener/restls"
 	"github.com/metacubex/mihomo/listener/shadowtls"
 	"github.com/metacubex/mihomo/listener/sing"
-	"github.com/metacubex/mihomo/transport/restls"
 	"github.com/metacubex/mihomo/transport/shadowsocks/core"
 	obfs "github.com/metacubex/mihomo/transport/simple-obfs"
 	"github.com/metacubex/mihomo/transport/socks5"
@@ -27,7 +26,6 @@ type Listener struct {
 	udpListeners []*UDPListener
 	pickCipher   core.Cipher
 	handler      *sing.ListenerHandler
-	resTLS       *restls.ServerConfig
 	simpleObfs   func(net.Conn) net.Conn
 }
 
@@ -60,16 +58,9 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		}
 	}
 
+	var restlsBuilder *restls.Builder
 	if config.ResTLS.Enable {
-		sl.resTLS = &restls.ServerConfig{
-			ServerHostname: config.ResTLS.Dest,
-			Password:       config.ResTLS.Password,
-			RestlsScript:   config.ResTLS.RestlsScript,
-			MinRecordLen:   config.ResTLS.MinRecordLen,
-			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-				return inner.HandleTcp(tunnel, address, config.ResTLS.Proxy)
-			},
-		}
+		restlsBuilder = restls.New(config.ResTLS, tunnel)
 	}
 
 	var jlsBuilder *jls.Builder
@@ -113,6 +104,9 @@ func New(config LC.ShadowsocksServer, lc C.InboundListenConfig, tunnel C.Tunnel,
 		}
 		if jlsBuilder != nil {
 			l = jlsBuilder.NewListener(l)
+		}
+		if restlsBuilder != nil {
+			l = restlsBuilder.NewListener(l)
 		}
 		sl.listeners = append(sl.listeners, l)
 
@@ -171,14 +165,6 @@ func (l *Listener) HandleConn(conn net.Conn, tunnel C.Tunnel, additions ...inbou
 	}
 	if loaded {
 		additions = append(append([]inbound.Addition(nil), additions...), inbound.WithInUser(user))
-	}
-	if l.resTLS != nil {
-		c, err := restls.Server(context.TODO(), conn, l.resTLS)
-		if err != nil {
-			_ = conn.Close()
-			return
-		}
-		conn = c
 	}
 	if l.simpleObfs != nil {
 		conn = l.simpleObfs(conn)
