@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -186,8 +187,40 @@ func TestJLSUTLSClientFallback(t *testing.T) {
 	}
 }
 
-func TestJLSServerFallsBackInsteadOfHelloRetryRequest(t *testing.T) {
+func TestJLSServerFallsBackBeforeServerFlight(t *testing.T) {
 	user := User{Username: "user", Password: "password"}
+	for _, test := range []struct {
+		name      string
+		configure func(*ServerConfig, *ClientConfig)
+	}{
+		{
+			name: "HelloRetryRequest",
+			configure: func(serverConfig *ServerConfig, _ *ClientConfig) {
+				serverConfig.TLSConfig.CurvePreferences = []tls.CurveID{tls.CurveP256}
+			},
+		},
+		{
+			name: "missing certificate",
+			configure: func(serverConfig *ServerConfig, _ *ClientConfig) {
+				serverConfig.TLSConfig.Certificates = nil
+			},
+		},
+		{
+			name: "ALPN mismatch",
+			configure: func(serverConfig *ServerConfig, clientConfig *ClientConfig) {
+				serverConfig.TLSConfig.NextProtos = []string{"h3"}
+				clientConfig.ALPN = []string{"http/1.1"}
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testJLSServerFallsBackBeforeServerFlight(t, user, test.configure)
+		})
+	}
+}
+
+func testJLSServerFallsBackBeforeServerFlight(t *testing.T, user User, configure func(*ServerConfig, *ClientConfig)) {
+	t.Helper()
 	fallbackRequest := make(chan struct{}, 1)
 	fallback := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		fallbackRequest <- struct{}{}
@@ -208,7 +241,12 @@ func TestJLSServerFallsBackInsteadOfHelloRetryRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverConfig.TLSConfig.CurvePreferences = []tls.CurveID{tls.CurveP256}
+	clientConfig, err := NewClientConfig("example.com", user.Username, user.Password, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientConfig.ClientFingerprint = "chrome"
+	configure(serverConfig, clientConfig)
 
 	serverSide, clientSide := newLocalTCPPair(t)
 	serverDone := make(chan error, 1)
@@ -218,11 +256,6 @@ func TestJLSServerFallsBackInsteadOfHelloRetryRequest(t *testing.T) {
 		serverDone <- serverErr
 	}()
 
-	clientConfig, err := NewClientConfig("example.com", user.Username, user.Password, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	clientConfig.ClientFingerprint = "chrome"
 	if conn, clientErr := NewClient(context.Background(), clientSide, clientConfig); !errors.Is(clientErr, ErrJLSAuthFailed) {
 		if conn != nil {
 			_ = conn.Close()
@@ -323,7 +356,7 @@ func testJLSServerFallback(t *testing.T, version uint16) {
 	}
 }
 
-func TestJLSServerDoesNotFallbackAfterAuthentication(t *testing.T) {
+func TestJLSServerDoesNotFallbackAfterServerFlight(t *testing.T) {
 	user := User{Username: "user", Password: "password"}
 	fallbackDialed := false
 	serverConfig, err := NewServerConfig("camouflage.example", "camouflage.example:443", []User{user}, nil, 0, func(context.Context, string, string) (net.Conn, error) {
@@ -333,8 +366,6 @@ func TestJLSServerDoesNotFallbackAfterAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverConfig.TLSConfig.Certificates = nil
-
 	clientConfig, err := NewClientConfig("camouflage.example", user.Username, user.Password, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -346,7 +377,7 @@ func TestJLSServerDoesNotFallbackAfterAuthentication(t *testing.T) {
 		serverDone <- err
 	}()
 
-	client, clientErr := NewClient(context.Background(), clientSide, clientConfig)
+	client, clientErr := NewClient(context.Background(), &failWritesAfterReadConn{Conn: clientSide}, clientConfig)
 	if client != nil {
 		_ = client.Close()
 	}
@@ -358,8 +389,28 @@ func TestJLSServerDoesNotFallbackAfterAuthentication(t *testing.T) {
 		t.Fatal("server handshake unexpectedly succeeded")
 	}
 	if fallbackDialed {
-		t.Fatal("authenticated handshake failure dialed fallback")
+		t.Fatal("post-flight handshake failure dialed fallback")
 	}
+}
+
+type failWritesAfterReadConn struct {
+	net.Conn
+	read atomic.Bool
+}
+
+func (c *failWritesAfterReadConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if n > 0 {
+		c.read.Store(true)
+	}
+	return n, err
+}
+
+func (c *failWritesAfterReadConn) Write(p []byte) (int, error) {
+	if c.read.Load() {
+		return 0, errors.New("test client write failed after reading server flight")
+	}
+	return c.Conn.Write(p)
 }
 
 func TestJLSServerFallbackReplaysRejectedTLS(t *testing.T) {

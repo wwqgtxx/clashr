@@ -180,14 +180,16 @@ func Server(ctx context.Context, conn net.Conn, config *ServerConfig) (net.Conn,
 	recorder := &handshakeRecorderConn{Conn: conn, recording: true}
 	tlsConn := tls.Server(recorder, config.TLSConfig.Clone())
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
-		// Forwarding after authentication or a local write would mix two server handshakes.
-		if tlsConn.ConnectionState().JLS.Status == tls.JLSAuthenticated || recorder.wroteToClient() {
+		// A partial or complete server flight may have been written before a later
+		// client message or network error; forwarding would then mix two TLS handshakes.
+		if recorder.wroteToClient() {
 			recorder.discard()
 			return nil, err
 		}
 		return nil, relayFallback(ctx, conn, recorder.stop(), config)
 	}
 	recorder.discard()
+	// Defensively reject a successful TLS handshake if custom configuration bypassed JLS authentication.
 	if tlsConn.ConnectionState().JLS.Status != tls.JLSAuthenticated {
 		return nil, ErrJLSAuthFailed
 	}
