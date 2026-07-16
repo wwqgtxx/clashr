@@ -338,6 +338,18 @@ type handshakeRecorderConn struct {
 	wrote     bool
 }
 
+func (c *handshakeRecorderConn) Upstream() any {
+	return c.Conn
+}
+
+func (c *handshakeRecorderConn) ReaderReplaceable() bool {
+	return !c.recording
+}
+
+func (c *handshakeRecorderConn) WriterReplaceable() bool {
+	return !c.recording
+}
+
 func (c *handshakeRecorderConn) Read(p []byte) (int, error) {
 	n, err := c.Conn.Read(p)
 	if c.recording && n > 0 {
@@ -356,14 +368,16 @@ func (c *handshakeRecorderConn) Write(p []byte) (int, error) {
 
 func (c *handshakeRecorderConn) stop() []byte {
 	c.recording = false
-	data := append([]byte(nil), c.buffer.Bytes()...)
-	c.buffer.Reset()
+	data := c.buffer.Bytes()
+	// Transfer ownership of the backing slice to the fallback path. Recording is
+	// disabled before detaching, so the recorder cannot append to or reuse it.
+	c.buffer = bytes.Buffer{}
 	return data
 }
 
 func (c *handshakeRecorderConn) discard() {
 	c.recording = false
-	c.buffer.Reset()
+	c.buffer = bytes.Buffer{}
 }
 
 func (c *handshakeRecorderConn) wroteToClient() bool {
