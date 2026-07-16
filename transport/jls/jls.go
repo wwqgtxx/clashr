@@ -195,14 +195,14 @@ func Server(ctx context.Context, conn net.Conn, config *ServerConfig) (net.Conn,
 }
 
 func UserFromConn(conn net.Conn) (string, bool) {
-	tlsConn, ok := conn.(*tls.Conn)
+	tlsConn, ok := N.FindUpstream(conn, func(tlsConn *tls.Conn) bool {
+		state := tlsConn.ConnectionState().JLS
+		return state.Authenticated && state.User != ""
+	})
 	if !ok {
 		return "", false
 	}
 	state := tlsConn.ConnectionState().JLS
-	if !state.Authenticated || state.User == "" {
-		return "", false
-	}
 	return state.User, true
 }
 

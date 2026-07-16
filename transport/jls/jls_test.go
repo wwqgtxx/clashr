@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	N "github.com/metacubex/mihomo/common/net"
 	"github.com/metacubex/mihomo/component/ca"
 
 	"github.com/metacubex/http"
@@ -56,7 +57,8 @@ func testJLSClientServer(t *testing.T, clientFingerprint string) {
 			serverDone <- errors.New("server did not authenticate JLS user")
 			return
 		}
-		if authenticatedUser, ok := UserFromConn(conn); !ok || authenticatedUser != user.Username {
+		outerTLS := tls.Server(N.NewBufferedConn(N.NewCachedConn(conn, nil)), &tls.Config{})
+		if authenticatedUser, ok := UserFromConn(outerTLS); !ok || authenticatedUser != user.Username {
 			serverDone <- errors.New("server did not expose JLS user")
 			return
 		}
