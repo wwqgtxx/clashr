@@ -93,7 +93,7 @@ func newUTLSClient(ctx context.Context, conn net.Conn, config *ClientConfig) (ne
 	if err = uConn.BuildHandshakeState(); err != nil {
 		return nil, true, err
 	}
-	sentClientHello := append([]byte(nil), uConn.HandshakeState.Hello.Raw...)
+	verifier.clientHello = append([]byte(nil), uConn.HandshakeState.Hello.Raw...)
 
 	if err = uConn.HandshakeContext(ctx); err != nil {
 		return nil, true, err
@@ -104,13 +104,6 @@ func newUTLSClient(ctx context.Context, conn net.Conn, config *ClientConfig) (ne
 		// synchronous because the Shadowsocks caller closes conn on return.
 		jlsClientHTTPFallback(ctx, uConn, config.ServerName, fingerprint)
 		return nil, true, ErrJLSAuthFailed
-	}
-	// A HelloRetryRequest makes uTLS generate another ClientHello. Its public API
-	// cannot recalculate the JLS random at that point, so reject it instead of
-	// accepting a connection whose second ClientHello was not authenticated.
-	if !bytes.Equal(sentClientHello, uConn.HandshakeState.Hello.Raw) {
-		_ = uConn.Close()
-		return nil, true, errors.New("jls: uTLS HelloRetryRequest is not supported")
 	}
 	if uConn.ConnectionState().Version != utls.VersionTLS13 {
 		_ = uConn.Close()
@@ -164,10 +157,16 @@ type utlsJLSVerifier struct {
 	*utls.UConn
 	user          User
 	serverName    string
+	clientHello   []byte
 	authenticated bool
 }
 
 func (v *utlsJLSVerifier) VerifyConnection(state utls.ConnectionState) error {
+	// JLS v3 does not permit HelloRetryRequest at any stage. uTLS replaces
+	// HandshakeState.Hello when it sends the second ClientHello.
+	if !bytes.Equal(v.clientHello, v.HandshakeState.Hello.Raw) {
+		return verifyUTLSCertificate(state, v.serverName)
+	}
 	serverHello := v.HandshakeState.ServerHello
 	if serverHello == nil {
 		return errors.New("jls: uTLS server hello is unavailable")

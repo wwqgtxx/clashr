@@ -112,7 +112,7 @@ func NewClient(ctx context.Context, conn net.Conn, config *ClientConfig) (net.Co
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
 		return nil, err
 	}
-	if !tlsConn.ConnectionState().JLS.Authenticated {
+	if tlsConn.ConnectionState().JLS.Status != tls.JLSAuthenticated {
 		return nil, ErrJLSAuthFailed
 	}
 	return tlsConn, nil
@@ -181,14 +181,14 @@ func Server(ctx context.Context, conn net.Conn, config *ServerConfig) (net.Conn,
 	tlsConn := tls.Server(recorder, config.TLSConfig.Clone())
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
 		// Forwarding after authentication or a local write would mix two server handshakes.
-		if tlsConn.ConnectionState().JLS.Authenticated || recorder.wroteToClient() {
+		if tlsConn.ConnectionState().JLS.Status == tls.JLSAuthenticated || recorder.wroteToClient() {
 			recorder.discard()
 			return nil, err
 		}
 		return nil, relayFallback(ctx, conn, recorder.stop(), config)
 	}
 	recorder.discard()
-	if !tlsConn.ConnectionState().JLS.Authenticated {
+	if tlsConn.ConnectionState().JLS.Status != tls.JLSAuthenticated {
 		return nil, ErrJLSAuthFailed
 	}
 	return tlsConn, nil
@@ -196,13 +196,15 @@ func Server(ctx context.Context, conn net.Conn, config *ServerConfig) (net.Conn,
 
 func UserFromConn(conn net.Conn) (string, bool) {
 	tlsConn, ok := N.FindUpstream(conn, func(tlsConn *tls.Conn) bool {
-		state := tlsConn.ConnectionState().JLS
-		return state.Authenticated && state.User != ""
+		return tlsConn.ConnectionState().JLS.Status != tls.JLSDisabled
 	})
 	if !ok {
 		return "", false
 	}
 	state := tlsConn.ConnectionState().JLS
+	if state.Status != tls.JLSAuthenticated || state.User == "" {
+		return "", false
+	}
 	return state.User, true
 }
 

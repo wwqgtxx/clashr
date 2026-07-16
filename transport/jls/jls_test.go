@@ -15,6 +15,7 @@ import (
 	"github.com/metacubex/http"
 	"github.com/metacubex/http/httptest"
 	tls "github.com/metacubex/jls-tls"
+	httpTLS "github.com/metacubex/tls"
 )
 
 func TestJLSClientServer(t *testing.T) {
@@ -53,13 +54,18 @@ func testJLSClientServer(t *testing.T, clientFingerprint string) {
 		}
 		defer conn.Close()
 		state := conn.(*tls.Conn).ConnectionState()
-		if !state.JLS.Authenticated || state.JLS.User != user.Username {
+		if state.JLS.Status != tls.JLSAuthenticated || state.JLS.User != user.Username {
 			serverDone <- errors.New("server did not authenticate JLS user")
 			return
 		}
 		outerTLS := tls.Server(N.NewBufferedConn(N.NewCachedConn(conn, nil)), &tls.Config{})
 		if authenticatedUser, ok := UserFromConn(outerTLS); !ok || authenticatedUser != user.Username {
 			serverDone <- errors.New("server did not expose JLS user")
+			return
+		}
+		outerJLS := tls.Server(outerTLS, &tls.Config{JLSConfig: &tls.JLSConfig{Enable: true}})
+		if _, ok := UserFromConn(outerJLS); ok {
+			serverDone <- errors.New("server exposed an inner JLS user through an unauthenticated outer JLS connection")
 			return
 		}
 		_, err = io.Copy(conn, conn)
@@ -112,14 +118,32 @@ func TestJLSUTLSClientRejectsInvalidFallbackCertificate(t *testing.T) {
 }
 
 func TestJLSUTLSClientFallback(t *testing.T) {
-	for _, protocol := range []string{"http/1.1", "h2"} {
-		t.Run(protocol, func(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		protocol string
+		hrr      bool
+	}{
+		{name: "HTTP/1.1", protocol: "http/1.1"},
+		{name: "HTTP/2", protocol: "h2"},
+		{name: "HelloRetryRequest", protocol: "http/1.1", hrr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			requestProtocol := make(chan string, 1)
+			hrrObserved := make(chan bool, 1)
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				requestProtocol <- request.Proto
 				writer.WriteHeader(http.StatusNoContent)
 			}))
-			server.EnableHTTP2 = protocol == "h2"
+			server.EnableHTTP2 = test.protocol == "h2"
+			if test.hrr {
+				server.TLS = &httpTLS.Config{
+					CurvePreferences: []httpTLS.CurveID{httpTLS.CurveP256},
+					VerifyConnection: func(state httpTLS.ConnectionState) error {
+						hrrObserved <- state.HelloRetryRequest
+						return nil
+					},
+				}
+			}
 			server.StartTLS()
 			defer func() {
 				server.CloseClientConnections()
@@ -131,7 +155,7 @@ func TestJLSUTLSClientFallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			config, err := NewClientConfig("example.com", "user", "password", []string{protocol})
+			config, err := NewClientConfig("example.com", "user", "password", []string{test.protocol})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -144,7 +168,7 @@ func TestJLSUTLSClientFallback(t *testing.T) {
 			}
 
 			wantProtocol := "HTTP/1.1"
-			if protocol == "h2" {
+			if test.protocol == "h2" {
 				wantProtocol = "HTTP/2.0"
 			}
 			select {
@@ -155,14 +179,31 @@ func TestJLSUTLSClientFallback(t *testing.T) {
 			default:
 				t.Fatal("fallback HTTP request was not sent")
 			}
+			if test.hrr && !<-hrrObserved {
+				t.Fatal("ordinary TLS fallback did not exercise HelloRetryRequest")
+			}
 		})
 	}
 }
 
-func TestJLSUTLSClientRejectsHelloRetryRequest(t *testing.T) {
+func TestJLSServerFallsBackInsteadOfHelloRetryRequest(t *testing.T) {
 	user := User{Username: "user", Password: "password"}
-	serverConfig, err := NewServerConfig("camouflage.example", "camouflage.example:443", []User{user}, nil, 0, func(context.Context, string, string) (net.Conn, error) {
-		return nil, errors.New("HRR failure dialed fallback")
+	fallbackRequest := make(chan struct{}, 1)
+	fallback := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		fallbackRequest <- struct{}{}
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	fallback.StartTLS()
+	defer func() {
+		fallback.CloseClientConnections()
+		fallback.Close()
+	}()
+	ca.GetCertPool().AddCert(fallback.Certificate())
+
+	fallbackDialed := make(chan struct{}, 1)
+	serverConfig, err := NewServerConfig("example.com", fallback.Listener.Addr().String(), []User{user}, nil, 0, func(ctx context.Context, network, _ string) (net.Conn, error) {
+		fallbackDialed <- struct{}{}
+		return (&net.Dialer{}).DialContext(ctx, network, fallback.Listener.Addr().String())
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -177,18 +218,30 @@ func TestJLSUTLSClientRejectsHelloRetryRequest(t *testing.T) {
 		serverDone <- serverErr
 	}()
 
-	clientConfig, err := NewClientConfig("camouflage.example", user.Username, user.Password, nil)
+	clientConfig, err := NewClientConfig("example.com", user.Username, user.Password, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	clientConfig.ClientFingerprint = "chrome"
-	if conn, clientErr := NewClient(context.Background(), clientSide, clientConfig); clientErr == nil {
-		_ = conn.Close()
-		t.Fatal("uTLS client unexpectedly completed a HelloRetryRequest handshake")
+	if conn, clientErr := NewClient(context.Background(), clientSide, clientConfig); !errors.Is(clientErr, ErrJLSAuthFailed) {
+		if conn != nil {
+			_ = conn.Close()
+		}
+		t.Fatalf("client error = %v, want %v", clientErr, ErrJLSAuthFailed)
 	}
 	_ = clientSide.Close()
-	if err = <-serverDone; err == nil {
-		t.Fatal("JLS server unexpectedly completed a HelloRetryRequest handshake")
+	if err = <-serverDone; !errors.Is(err, ErrFallbackCompleted) {
+		t.Fatalf("server error = %v, want %v", err, ErrFallbackCompleted)
+	}
+	select {
+	case <-fallbackDialed:
+	default:
+		t.Fatal("JLS server did not dial fallback")
+	}
+	select {
+	case <-fallbackRequest:
+	default:
+		t.Fatal("fallback HTTP request was not sent")
 	}
 }
 
