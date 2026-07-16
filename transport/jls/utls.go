@@ -18,20 +18,16 @@ import (
 	"github.com/metacubex/http"
 	"github.com/metacubex/randv2"
 	utls "github.com/metacubex/utls"
-	"golang.org/x/crypto/cryptobyte"
 )
 
 const (
-	jlsClientHelloType        = 1
-	jlsServerHelloType        = 2
-	jlsHandshakeHeaderLen     = 4
-	jlsHelloLegacyVersionLen  = 2
-	jlsHelloRandomLen         = 32
-	jlsHelloRandomOffset      = jlsHandshakeHeaderLen + jlsHelloLegacyVersionLen
-	jlsRandomSeedLen          = jlsHelloRandomLen / 2
-	jlsExtensionPreSharedKey  = 41
-	jlsExtensionSupportedVers = 43
-	jlsExtensionKeyShare      = 51
+	jlsClientHelloType       = 1
+	jlsServerHelloType       = 2
+	jlsHandshakeHeaderLen    = 4
+	jlsHelloLegacyVersionLen = 2
+	jlsHelloRandomLen        = 32
+	jlsHelloRandomOffset     = jlsHandshakeHeaderLen + jlsHelloLegacyVersionLen
+	jlsRandomSeedLen         = jlsHelloRandomLen / 2
 )
 
 func newUTLSClient(ctx context.Context, conn net.Conn, config *ClientConfig) (net.Conn, bool, error) {
@@ -254,80 +250,8 @@ func jlsServerHelloAuthData(raw []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	s := cryptobyte.String(msg)
-	var messageType, compressionMethod uint8
-	var legacyVersion, cipherSuite uint16
-	var body, sessionID, extensions cryptobyte.String
-	var random []byte
-	if !s.ReadUint8(&messageType) ||
-		!s.ReadUint24LengthPrefixed(&body) ||
-		!s.Empty() ||
-		!body.ReadUint16(&legacyVersion) ||
-		!body.ReadBytes(&random, jlsHelloRandomLen) ||
-		!body.ReadUint8LengthPrefixed(&sessionID) ||
-		!body.ReadUint16(&cipherSuite) ||
-		!body.ReadUint8(&compressionMethod) ||
-		!body.ReadUint16LengthPrefixed(&extensions) ||
-		!body.Empty() {
-		return nil, errors.New("jls: invalid uTLS server hello")
-	}
-
-	type extension struct {
-		typeID uint16
-		wire   []byte
-	}
-	extensionBytes := extensions
-	parsed := make([]extension, 0, 3)
-	for len(extensions) > 0 {
-		remaining := extensions
-		var typeID uint16
-		var data cryptobyte.String
-		if !extensions.ReadUint16(&typeID) || !extensions.ReadUint16LengthPrefixed(&data) {
-			return nil, errors.New("jls: invalid uTLS server hello extensions")
-		}
-		wireLen := len(remaining) - len(extensions)
-		parsed = append(parsed, extension{typeID: typeID, wire: remaining[:wireLen]})
-	}
-
-	// rustls decodes ServerHello extensions into fields and serializes them in
-	// this order when it calculates the JLS random. The wire order is irrelevant
-	// to TLS but not to JLS, whose authentication input must match byte for byte.
-	canonicalTypes := [...]uint16{
-		jlsExtensionKeyShare,
-		jlsExtensionPreSharedKey,
-		jlsExtensionSupportedVers,
-	}
-	canonical := make(map[uint16][]byte, len(canonicalTypes))
-	for _, ext := range parsed {
-		for _, typeID := range canonicalTypes {
-			if ext.typeID == typeID {
-				canonical[typeID] = ext.wire
-				break
-			}
-		}
-	}
-
-	// Reinsert the canonical extensions at their first original position. Their
-	// encoded bytes and all unrelated extensions remain untouched, and the total
-	// length does not change.
-	extensionOffset := len(msg) - len(extensionBytes)
-	result := append([]byte(nil), msg[:extensionOffset]...)
-	canonicalWritten := false
-	for _, ext := range parsed {
-		if _, ok := canonical[ext.typeID]; ok {
-			if !canonicalWritten {
-				for _, typeID := range canonicalTypes {
-					result = append(result, canonical[typeID]...)
-				}
-				canonicalWritten = true
-			}
-			continue
-		}
-		result = append(result, ext.wire...)
-	}
-	zeroJLSBytes(result[jlsHelloRandomOffset : jlsHelloRandomOffset+jlsHelloRandomLen])
-	return result, nil
+	zeroJLSBytes(msg[jlsHelloRandomOffset : jlsHelloRandomOffset+jlsHelloRandomLen])
+	return msg, nil
 }
 
 func cloneJLSHello(raw []byte, messageType byte) ([]byte, error) {
