@@ -49,6 +49,7 @@ const (
 	ShadowQuic
 	OpenVPN
 	Tailscale
+	ZeroTier
 	GostRelay
 )
 
@@ -219,6 +220,8 @@ func (at AdapterType) String() string {
 		return "OpenVPN"
 	case Tailscale:
 		return "Tailscale"
+	case ZeroTier:
+		return "ZeroTier"
 	case GostRelay:
 		return "GostRelay"
 	case Relay:
