@@ -100,8 +100,9 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	updateHosts(cfg.Hosts)
 	updateProfile(cfg)
 	updateGeneral(cfg.General, true)
-	updateListeners(cfg.General, cfg.Listeners, force)
 	updateDNS(cfg.DNS)
+	updateNTP(cfg.NTP) // initialize NTP after DNS because an NTP server may be a hostname.
+	updateListeners(cfg.General, cfg.Listeners, force)
 	updateTun(cfg.General) // tun should not care "force"
 	loadProvider(cfg.Providers)
 	loadProvider(cfg.RuleProviders)

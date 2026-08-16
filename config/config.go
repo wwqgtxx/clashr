@@ -172,6 +172,7 @@ type Config struct {
 	General       *General
 	Controller    *Controller
 	Experimental  *Experimental
+	NTP           *NTP
 	DNS           *DNS
 	Hosts         *trie.DomainTrie[netip.Addr]
 	Profile       *Profile
@@ -498,6 +499,12 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 		return nil, err
 	}
 	config.Experimental = experimental
+
+	ntpCfg, err := parseNTP(rawCfg)
+	if err != nil {
+		return nil, err
+	}
+	config.NTP = ntpCfg
 
 	profile, err := parseProfile(rawCfg)
 	if err != nil {
