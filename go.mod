@@ -22,7 +22,7 @@ require (
 	github.com/metacubex/fswatch v0.1.1
 	github.com/metacubex/http v0.1.6
 	github.com/metacubex/jls-quic-go v0.0.0-20260722070908-2d506f2b0d24
-	github.com/metacubex/jls-tls v0.0.0-20260722070430-048cc2060002
+	github.com/metacubex/jls-tls v0.0.0-20260723084315-67adc0e2f796
 	github.com/metacubex/kcp-go v0.0.0-20260105040817-550693377604
 	github.com/metacubex/mhurl v0.1.0
 	github.com/metacubex/mlkem v0.1.0
