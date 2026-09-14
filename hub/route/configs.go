@@ -68,10 +68,10 @@ type tunSchema struct {
 	AutoRoute           *bool       `yaml:"auto-route" json:"auto-route"`
 	AutoDetectInterface *bool       `yaml:"auto-detect-interface" json:"auto-detect-interface"`
 
-	MTU                    *uint32         `yaml:"mtu" json:"mtu,omitempty"`
-	GSO                    *bool           `yaml:"gso" json:"gso,omitempty"`
-	GSOMaxSize             *uint32         `yaml:"gso-max-size" json:"gso-max-size,omitempty"`
-	Inet4Address           *[]netip.Prefix `yaml:"inet4-address" json:"inet4-address,omitempty"`
+	MTU                                   *uint32         `yaml:"mtu" json:"mtu,omitempty"`
+	GSO                                   *bool           `yaml:"gso" json:"gso,omitempty"`
+	GSOMaxSize                            *uint32         `yaml:"gso-max-size" json:"gso-max-size,omitempty"`
+	Inet4Address                          *[]netip.Prefix `yaml:"inet4-address" json:"inet4-address,omitempty"`
 	Inet6Address                          *[]netip.Prefix `yaml:"inet6-address" json:"inet6-address,omitempty"`
 	IPRoute2TableIndex                    *int            `yaml:"iproute2-table-index" json:"iproute2-table-index,omitempty"`
 	IPRoute2RuleIndex                     *int            `yaml:"iproute2-rule-index" json:"iproute2-rule-index,omitempty"`
@@ -109,6 +109,9 @@ type tunSchema struct {
 	// darwin special config
 	RecvMsgX *bool `yaml:"recvmsgx" json:"recvmsgx,omitempty"`
 	SendMsgX *bool `yaml:"sendmsgx" json:"sendmsgx,omitempty"`
+
+	// gvisor special config (Non-public option; do not include it in the document.)
+	ProcessorsPerChannel *int `yaml:"processors-per-channel" json:"processors-per-channel,omitempty"`
 }
 
 type tuicServerSchema struct {
@@ -279,6 +282,9 @@ func pointerOrDefaultTun(p *tunSchema, def LC.Tun) LC.Tun {
 		}
 		if p.SendMsgX != nil {
 			def.SendMsgX = *p.SendMsgX
+		}
+		if p.ProcessorsPerChannel != nil {
+			def.ProcessorsPerChannel = *p.ProcessorsPerChannel
 		}
 	}
 	return def

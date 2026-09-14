@@ -403,15 +403,16 @@ func DefaultRawConfig() *RawConfig {
 			FakeIPFilterMode: C.FilterBlackList,
 		},
 		Tun: LC.Tun{
-			Enable:              false,
-			Stack:               C.TunSystem,
-			DNSHijack:           []string{},
-			AutoDetectInterface: true,
-			AutoRoute:           true,
-			Inet4Address:        []netip.Prefix{netip.MustParsePrefix("198.18.0.1/30")},
-			Inet6Address:        []netip.Prefix{netip.MustParsePrefix("fdfe:dcba:9876::1/126")},
-			RecvMsgX:            true,
-			SendMsgX:            false, // In the current implementation, if enabled, the kernel may freeze during multi-thread downloads, so it is disabled by default.
+			Enable:               false,
+			Stack:                C.TunSystem,
+			DNSHijack:            []string{},
+			AutoDetectInterface:  true,
+			AutoRoute:            true,
+			Inet4Address:         []netip.Prefix{netip.MustParsePrefix("198.18.0.1/30")},
+			Inet6Address:         []netip.Prefix{netip.MustParsePrefix("fdfe:dcba:9876::1/126")},
+			RecvMsgX:             true,
+			SendMsgX:             false, // In the current implementation, if enabled, the kernel may freeze during multi-thread downloads, so it is disabled by default.
+			ProcessorsPerChannel: 1,     // For most users, memory usage is more important than peak performance. Setting this to 1 can significantly reduce memory consumption.
 		},
 		TuicServer: LC.TuicServer{
 			Enable:                false,
