@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -525,5 +527,193 @@ func TestDomainMapForeach(test *testing.T) {
 			assert.False(test, found)
 			assert.Zero(test, value)
 		}
+	}
+}
+
+type domainMapBenchmarkQuery struct {
+	name  string
+	keys  []string
+	found bool
+}
+
+func domainMapBenchmarkDomains(count int) []string {
+	domains := make([]string, count)
+	for index := range domains {
+		domain := "host" + strconv.Itoa(index) + ".example.com"
+		switch index % 5 {
+		case 0:
+			domains[index] = domain
+		case 1:
+			domains[index] = "+." + domain
+		case 2:
+			domains[index] = "." + domain
+		case 3:
+			domains[index] = "*." + domain
+		case 4:
+			domains[index] = "service.*." + domain
+		}
+	}
+	return domains
+}
+
+func BenchmarkDomainMapLookup(benchmark *testing.B) {
+	const deepDomain = "api.service.region.cluster.internal.prod.company.example.com"
+	domains := append(domainMapBenchmarkDomains(10000),
+		"*.*.overlap.example.com",
+		"dead.*.a.overlap.example.com",
+		"dead.b.a.overlap.example.com",
+		deepDomain,
+		"例子.测试",
+		"bücher.example",
+		"xn--fsqu00a.xn--0zwm56d",
+	)
+	queries := []domainMapBenchmarkQuery{
+		{"exact", []string{"host0.example.com", "HOST9995.EXAMPLE.COM"}, true},
+		{"suffix", []string{"www.host1.example.com", "a.b.host2.example.com"}, true},
+		{"wildcard", []string{"www.host3.example.com", "service.eu.host4.example.com"}, true},
+		{"wildcard_fallback", []string{"b.a.overlap.example.com", "c.a.overlap.example.com"}, true},
+		{"miss", []string{"host0.example.net", "www.host0.example.com", "other.eu.host4.example.com"}, false},
+		{"deep", []string{deepDomain, "prod.eu-west-1.api.metrics.host1.example.com"}, true},
+		{"unicode", []string{"例子.测试", "BÜCHER.EXAMPLE"}, true},
+		{"punycode", []string{"xn--fsqu00a.xn--0zwm56d"}, true},
+	}
+	benchmark.Run("int", func(benchmark *testing.B) {
+		benchmarkDomainMapLookup(benchmark, domains, queries, 1)
+	})
+	benchmark.Run("empty", func(benchmark *testing.B) {
+		benchmarkDomainMapLookup(benchmark, domains, queries, struct{}{})
+		benchmark.Run("set", func(benchmark *testing.B) {
+			var builder trie.DomainSetBuilder
+			for _, domain := range domains {
+				assert.NoError(benchmark, builder.Insert(domain))
+			}
+			set := builder.Build()
+			for _, query := range queries {
+				benchmark.Run(query.name, func(benchmark *testing.B) {
+					for _, key := range query.keys {
+						assert.Equal(benchmark, query.found, set.Has(key), key)
+					}
+					benchmark.ReportAllocs()
+					benchmark.ResetTimer()
+					var found bool
+					for iteration := 0; iteration < benchmark.N; iteration++ {
+						found = set.Has(query.keys[iteration%len(query.keys)])
+					}
+					benchmark.StopTimer()
+					runtime.KeepAlive(found)
+				})
+			}
+		})
+	})
+}
+
+func benchmarkDomainMapLookup[T any](benchmark *testing.B, domains []string, queries []domainMapBenchmarkQuery, value T) {
+	benchmark.Run("map", func(benchmark *testing.B) {
+		var builder trie.DomainMapBuilder[T]
+		for _, domain := range domains {
+			assert.NoError(benchmark, builder.Insert(domain, value))
+		}
+		mapping := builder.Build()
+		for _, query := range queries {
+			benchmark.Run(query.name, func(benchmark *testing.B) {
+				for _, key := range query.keys {
+					_, found := mapping.Lookup(key)
+					assert.Equal(benchmark, query.found, found, key)
+				}
+				benchmark.ReportAllocs()
+				benchmark.ResetTimer()
+				var result T
+				var found bool
+				for iteration := 0; iteration < benchmark.N; iteration++ {
+					result, found = mapping.Lookup(query.keys[iteration%len(query.keys)])
+				}
+				benchmark.StopTimer()
+				runtime.KeepAlive(result)
+				runtime.KeepAlive(found)
+			})
+		}
+	})
+	benchmark.Run("trie", func(benchmark *testing.B) {
+		tree := trie.New[T]()
+		for _, domain := range domains {
+			assert.NoError(benchmark, tree.Insert(domain, value))
+		}
+		tree.Optimize()
+		for _, query := range queries {
+			benchmark.Run(query.name, func(benchmark *testing.B) {
+				for _, key := range query.keys {
+					assert.Equal(benchmark, query.found, tree.Search(key) != nil, key)
+				}
+				benchmark.ReportAllocs()
+				benchmark.ResetTimer()
+				var result T
+				var found bool
+				for iteration := 0; iteration < benchmark.N; iteration++ {
+					node := tree.Search(query.keys[iteration%len(query.keys)])
+					found = node != nil
+					if found {
+						result = node.Data()
+					} else {
+						var zero T
+						result = zero
+					}
+				}
+				benchmark.StopTimer()
+				runtime.KeepAlive(result)
+				runtime.KeepAlive(found)
+			})
+		}
+	})
+}
+
+func BenchmarkDomainMapBuild(benchmark *testing.B) {
+	for _, count := range []int{100, 10000} {
+		domains := domainMapBenchmarkDomains(count)
+		benchmark.Run(fmt.Sprintf("%d/map", count), func(benchmark *testing.B) {
+			benchmark.ReportAllocs()
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			benchmark.ResetTimer()
+			var mapping *trie.DomainMap[int]
+			for iteration := 0; iteration < benchmark.N; iteration++ {
+				var builder trie.DomainMapBuilder[int]
+				for _, domain := range domains {
+					if err := builder.Insert(domain, 1); err != nil {
+						benchmark.Fatal(err)
+					}
+				}
+				mapping = builder.Build()
+			}
+			benchmark.StopTimer()
+			runtime.GC()
+			runtime.ReadMemStats(&after)
+			runtime.KeepAlive(domains)
+			runtime.KeepAlive(mapping)
+			benchmark.ReportMetric(float64(int64(after.HeapAlloc)-int64(before.HeapAlloc)), "retained-B")
+		})
+		benchmark.Run(fmt.Sprintf("%d/trie", count), func(benchmark *testing.B) {
+			benchmark.ReportAllocs()
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			benchmark.ResetTimer()
+			var tree *trie.DomainTrie[int]
+			for iteration := 0; iteration < benchmark.N; iteration++ {
+				tree = trie.New[int]()
+				for _, domain := range domains {
+					if err := tree.Insert(domain, 1); err != nil {
+						benchmark.Fatal(err)
+					}
+				}
+				tree.Optimize()
+			}
+			benchmark.StopTimer()
+			runtime.GC()
+			runtime.ReadMemStats(&after)
+			runtime.KeepAlive(domains)
+			runtime.KeepAlive(tree)
+			benchmark.ReportMetric(float64(int64(after.HeapAlloc)-int64(before.HeapAlloc)), "retained-B")
+		})
 	}
 }
