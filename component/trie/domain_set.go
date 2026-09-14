@@ -195,7 +195,7 @@ func (ss *DomainSet) Has(key string) bool {
 				break
 			}
 		}
-		nodeId = countZeros(ss.labelBitmap, ss.ranks, bmIdx+1)
+		nodeId = bmIdx - nodeId + 1 // countZeros(ss.labelBitmap, ss.ranks, bmIdx+1)
 		bmIdx = selectIthOne(ss.labelBitmap, ss.ranks, ss.selects, nodeId-1) + 1
 		if i == len(key)-1 && getBit(ss.leaves, nodeId) == 0 && len(stack) > 0 {
 			bmIdx = selectIthOne(ss.labelBitmap, ss.ranks, ss.selects, nodeId)
@@ -241,7 +241,7 @@ func (ss *DomainSet) keys(f func(key string) bool) {
 			}
 			nextLabel := ss.labels[bmIdx-nodeId]
 			currentKey = append(currentKey, nextLabel)
-			nextNodeId := countZeros(ss.labelBitmap, ss.ranks, bmIdx+1)
+			nextNodeId := bmIdx - nodeId + 1 // countZeros(ss.labelBitmap, ss.ranks, bmIdx+1)
 			nextBmIdx := selectIthOne(ss.labelBitmap, ss.ranks, ss.selects, nextNodeId-1) + 1
 			if !traverse(nextNodeId, nextBmIdx) {
 				return false
