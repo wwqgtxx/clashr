@@ -153,6 +153,32 @@ func TestDomainSetWildcard(t *testing.T) {
 	testDump(t, tree, set)
 }
 
+func TestDomainSetWildcardShadow(t *testing.T) {
+	tests := []struct {
+		domains  []string
+		match    string
+		notMatch string
+	}{
+		{[]string{"*.example.com", "dead.a.example.com"}, "a.example.com", "b.a.example.com"},
+		{[]string{"*.*.example.com", "dead.*.a.example.com", "dead.b.a.example.com"}, "b.a.example.com", "a.example.com"},
+		{[]string{"*.*.*.example.com", "*.a.example.com"}, "b.c.a.example.com", "d.b.c.a.example.com"},
+	}
+	for _, test := range tests {
+		tree := trie.New[struct{}]()
+		var builder trie.DomainSetBuilder
+		for _, domain := range test.domains {
+			assert.NoError(t, tree.Insert(domain, struct{}{}))
+			assert.NoError(t, builder.Insert(domain))
+		}
+		set := builder.Build()
+		assert.Equal(t, tree.NewDomainSet(), set)
+		assert.NotNil(t, set)
+		assert.True(t, set.Has(test.match), test.match)
+		assert.False(t, set.Has(test.notMatch), test.notMatch)
+		testDump(t, tree, set)
+	}
+}
+
 func TestDomainSetCase(t *testing.T) {
 	tree := trie.New[struct{}]()
 	var builder trie.DomainSetBuilder
