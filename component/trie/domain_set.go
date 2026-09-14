@@ -75,7 +75,7 @@ func (b *DomainSetBuilder) Build() *DomainSet {
 	}
 	keys := b.keys
 	b.keys = nil
-	return buildDomainSet(keys)
+	return buildDomainSet(keys, nil)
 }
 
 // NewDomainSet creates a new *DomainSet struct, from a DomainTrie.
@@ -90,10 +90,10 @@ func (t *DomainTrie[T]) NewDomainSet() *DomainSet {
 		keys = append(keys, utils.Reverse(domain))
 		return true
 	})
-	return buildDomainSet(keys)
+	return buildDomainSet(keys, nil)
 }
 
-func buildDomainSet(keys []string) *DomainSet {
+func buildDomainSet(keys []string, onTerminal func(string)) *DomainSet {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -111,6 +111,9 @@ func buildDomainSet(keys []string) *DomainSet {
 	for i := 0; i < len(queue); i++ {
 		elt := queue[i]
 		if elt.col == len(keys[elt.s]) {
+			if onTerminal != nil {
+				onTerminal(keys[elt.s])
+			}
 			elt.s++
 			// a leaf node
 			setBit(&ss.leaves, i, 1)
@@ -243,12 +246,12 @@ func byteReverse(s string) string {
 	return string(buf)
 }
 
-func (ss *DomainSet) keys(f func(key string) bool) {
+func (ss *DomainSet) keys(f func(key string, nodeId int) bool) {
 	var currentKey []byte
 	var traverse func(int, int) bool
 	traverse = func(nodeId, bmIdx int) bool {
 		if getBit(ss.leaves, nodeId) != 0 {
-			if !f(string(currentKey)) {
+			if !f(string(currentKey), nodeId) {
 				return false
 			}
 		}
@@ -278,7 +281,7 @@ func (ss *DomainSet) keys(f func(key string) bool) {
 // entries; "+." shorthand is not emitted. Each pattern can be passed to
 // DomainSetBuilder.Insert independently to reproduce the set.
 func (ss *DomainSet) Foreach(f func(key string) bool) {
-	ss.keys(func(key string) bool {
+	ss.keys(func(key string, _ int) bool {
 		// Internal keys are reversed, with a trailing '+' for suffix wildcards.
 		// Removing that marker leaves the leading-dot syntax after reversal.
 		return f(utils.Reverse(strings.TrimSuffix(key, complexWildcard)))
