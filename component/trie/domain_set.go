@@ -82,6 +82,11 @@ func (b *DomainSetBuilder) Build() *DomainSet {
 func (t *DomainTrie[T]) NewDomainSet() *DomainSet {
 	keys := make([]string, 0)
 	t.Foreach(func(domain string, _ T) bool {
+		if domain[0] == domainStepByte {
+			// Suffix-only patterns need an explicit '+' wildcard marker in
+			// the internal key; a leading dot alone is only a label separator.
+			domain = complexWildcard + domain
+		}
 		keys = append(keys, utils.Reverse(domain))
 		return true
 	})
@@ -267,9 +272,16 @@ func (ss *DomainSet) keys(f func(key string) bool) {
 	return
 }
 
+// Foreach iterates over the stored domain patterns in unspecified order.
+// Patterns use lowercase labels, "*" for a single-label wildcard, and a leading
+// "." for subdomain-only matching. Exact and suffix-only patterns are separate
+// entries; "+." shorthand is not emitted. Each pattern can be passed to
+// DomainSetBuilder.Insert independently to reproduce the set.
 func (ss *DomainSet) Foreach(f func(key string) bool) {
 	ss.keys(func(key string) bool {
-		return f(utils.Reverse(key))
+		// Internal keys are reversed, with a trailing '+' for suffix wildcards.
+		// Removing that marker leaves the leading-dot syntax after reversal.
+		return f(utils.Reverse(strings.TrimSuffix(key, complexWildcard)))
 	})
 }
 

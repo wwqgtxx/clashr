@@ -60,6 +60,33 @@ func TestDomainSet(t *testing.T) {
 	testDump(t, tree, set)
 }
 
+func TestDomainSetForeach(test *testing.T) {
+	var builder trie.DomainSetBuilder
+	for _, domain := range []string{".example.com", "+.example.org", "example.net"} {
+		assert.NoError(test, builder.Insert(domain))
+	}
+	set := builder.Build()
+	var keys []string
+	set.Foreach(func(key string) bool {
+		keys = append(keys, key)
+		assert.NoError(test, builder.Insert(key))
+		return true
+	})
+	assert.ElementsMatch(test, []string{".example.com", ".example.org", "example.org", "example.net"}, keys)
+	for _, set := range []*trie.DomainSet{set, builder.Build()} {
+		for domain, expected := range map[string]bool{
+			"example.com":     false,
+			"www.example.com": true,
+			"example.org":     true,
+			"www.example.org": true,
+			"example.net":     true,
+			"www.example.net": false,
+		} {
+			assert.Equal(test, expected, set.Has(domain), domain)
+		}
+	}
+}
+
 func TestDomainSetBuilderLifecycle(t *testing.T) {
 	var builder trie.DomainSetBuilder
 	assert.True(t, builder.IsEmpty())
@@ -81,7 +108,7 @@ func TestDomainSetBuilderLifecycle(t *testing.T) {
 		return true
 	})
 	slices.Sort(keys)
-	assert.Equal(t, []string{"+.example.com", "example.com"}, keys)
+	assert.Equal(t, []string{".example.com", "example.com"}, keys)
 
 	assert.NoError(t, builder.Insert("other.example"))
 	set = builder.Build()

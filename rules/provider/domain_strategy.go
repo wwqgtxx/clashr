@@ -71,6 +71,9 @@ func (d *domainStrategy) WriteMrs(w io.Writer) error {
 	return d.domainSet.WriteBin(w)
 }
 
+// DumpMrs emits a compact domain rule list in lexicographical order through f.
+// A "domain" entry and a ".domain" entry are represented by one "+.domain" rule;
+// either entry alone is emitted unchanged. Returning false from f stops iteration.
 func (d *domainStrategy) DumpMrs(f func(key string) bool) {
 	if d.domainSet != nil {
 		var keys []string
@@ -80,10 +83,23 @@ func (d *domainStrategy) DumpMrs(f func(key string) bool) {
 		})
 		slices.Sort(keys)
 
+		// Keep keys unchanged for binary searches; sort the compact rules separately.
+		rules := make([]string, 0, len(keys))
 		for _, key := range keys {
-			if _, ok := slices.BinarySearch(keys, "+."+key); ok {
-				continue // ignore the rules added by trie internal processing
+			if strings.HasPrefix(key, ".") {
+				if _, ok := slices.BinarySearch(keys, key[1:]); ok {
+					// Both the domain itself and its subdomains are covered by one "+." rule.
+					key = "+" + key
+				}
+			} else if _, ok := slices.BinarySearch(keys, "."+key); ok {
+				// The paired suffix entry represents this exact entry in the combined rule.
+				continue
 			}
+			rules = append(rules, key)
+		}
+		slices.Sort(rules)
+
+		for _, key := range rules {
 			if !f(key) {
 				return
 			}
