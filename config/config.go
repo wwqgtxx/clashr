@@ -1058,6 +1058,12 @@ func parseNameServer(servers []string, respectRules bool) ([]dns.NameServer, err
 			if addr == "" {
 				err = errors.New("missing Tailscale proxy name")
 			}
+		case "et", "easytier":
+			addr = u.Host
+			dnsNetType = "easytier" // EasyTier overlay DNS via proxy name
+			if addr == "" {
+				err = errors.New("missing EasyTier proxy name")
+			}
 		case "dhcp":
 			addr = server[len("dhcp://"):] // some special notation cannot be parsed by url
 			dnsNetType = "dhcp"            // UDP from DHCP
