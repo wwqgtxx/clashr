@@ -52,6 +52,21 @@ func TestDomainStrategyDumpMrs(test *testing.T) {
 				"www.example.org": true,
 			},
 		},
+		{
+			"wildcards",
+			[]string{"*.example.com", "+.example.org", "test.*.google.com", ".test.*.google.com", ".example.net"},
+			[]string{"*.example.com", "+.example.org", "+.test.*.google.com", ".example.net"},
+			map[string]bool{
+				"example.com":             false,
+				"www.example.com":         true,
+				"example.org":             true,
+				"www.example.org":         true,
+				"test.www.google.com":     true,
+				"www.test.www.google.com": true,
+				"example.net":             false,
+				"www.example.net":         true,
+			},
+		},
 	}
 	for _, testCase := range tests {
 		test.Run(testCase.name, func(test *testing.T) {

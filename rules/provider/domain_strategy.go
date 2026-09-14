@@ -81,25 +81,28 @@ func (d *domainStrategy) DumpMrs(f func(key string) bool) {
 			keys = append(keys, key)
 			return true
 		})
+
+		// Group exact and suffix-only entries for the same domain.
+		// Set entries are unique, so each group contains at most two entries.
+		slices.SortFunc(keys, func(left, right string) int {
+			left = strings.TrimPrefix(left, ".")
+			right = strings.TrimPrefix(right, ".")
+			return strings.Compare(left, right)
+		})
+		for index := 0; index+1 < len(keys); index++ {
+			domain := strings.TrimPrefix(keys[index], ".")
+			if domain == strings.TrimPrefix(keys[index+1], ".") {
+				// Both the domain itself and its subdomains are covered by one "+." rule.
+				keys[index] = "+." + domain
+				keys[index+1] = ""
+				index++
+			}
+		}
+		keys = slices.DeleteFunc(keys, func(key string) bool { return key == "" })
+		// Sort the compact rules by their full text, including wildcard prefixes.
 		slices.Sort(keys)
 
-		// Keep keys unchanged for binary searches; sort the compact rules separately.
-		rules := make([]string, 0, len(keys))
 		for _, key := range keys {
-			if strings.HasPrefix(key, ".") {
-				if _, ok := slices.BinarySearch(keys, key[1:]); ok {
-					// Both the domain itself and its subdomains are covered by one "+." rule.
-					key = "+" + key
-				}
-			} else if _, ok := slices.BinarySearch(keys, "."+key); ok {
-				// The paired suffix entry represents this exact entry in the combined rule.
-				continue
-			}
-			rules = append(rules, key)
-		}
-		slices.Sort(rules)
-
-		for _, key := range rules {
 			if !f(key) {
 				return
 			}
