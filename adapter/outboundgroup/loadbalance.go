@@ -22,6 +22,7 @@ import (
 
 type LoadBalanceOption struct {
 	Strategy string `group:"strategy,omitempty"`
+	HashKey  string `group:"hash-key,omitempty"`
 }
 
 type LoadBalance struct {
@@ -37,6 +38,10 @@ type LoadBalance struct {
 type strategyFn = func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy
 
 var errStrategy = errors.New("unsupported strategy")
+var errHashKey = errors.New("unsupported hash-key")
+
+// keyFn derives the value a hashing strategy pins a request on.
+type keyFn = func(metadata *C.Metadata) string
 
 func getKey(metadata *C.Metadata) string {
 	if metadata == nil {
@@ -69,6 +74,32 @@ func getKeyWithSrcAndDst(metadata *C.Metadata) string {
 	}
 
 	return fmt.Sprintf("%s%s", src, dst)
+}
+
+// getKeyWithInUser pins on the authenticated inbound user instead of on an
+// address. An unauthenticated request keeps the strategy's own key rather than
+// collapsing every such request onto one node.
+func getKeyWithInUser(fallback keyFn) keyFn {
+	return func(metadata *C.Metadata) string {
+		if metadata != nil && metadata.InUser != "" {
+			return metadata.InUser
+		}
+
+		return fallback(metadata)
+	}
+}
+
+// hashKey resolves the hash-key option into a decorator over whichever key the
+// chosen strategy derives by default.
+func hashKey(name string) (func(keyFn) keyFn, error) {
+	switch name {
+	case "":
+		return func(fn keyFn) keyFn { return fn }, nil
+	case "in-user":
+		return getKeyWithInUser, nil
+	}
+
+	return nil, fmt.Errorf("%w: %s", errHashKey, name)
 }
 
 func jumpHash(key uint64, buckets int32) int32 {
@@ -166,10 +197,10 @@ func strategyRoundRobin() strategyFn {
 	}
 }
 
-func strategyConsistentHashing() strategyFn {
+func strategyConsistentHashing(keyOf keyFn) strategyFn {
 	maxRetry := 5
 	return func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy {
-		key := utils.MapHash(getKey(metadata))
+		key := utils.MapHash(keyOf(metadata))
 		buckets := int32(len(proxies))
 		for i := 0; i < maxRetry; i, key = i+1, key+1 {
 			idx := jumpHash(key, buckets)
@@ -190,14 +221,14 @@ func strategyConsistentHashing() strategyFn {
 	}
 }
 
-func strategyStickySessions() strategyFn {
+func strategyStickySessions(keyOf keyFn) strategyFn {
 	ttl := time.Minute * 10
 	maxRetry := 5
 	lruCache := lru.New[uint64, int](
 		lru.WithAge[uint64, int](int64(ttl.Seconds())),
 		lru.WithSize[uint64, int](1000))
 	return func(proxies []C.Proxy, metadata *C.Metadata, touch bool) C.Proxy {
-		key := utils.MapHash(getKeyWithSrcAndDst(metadata))
+		key := utils.MapHash(keyOf(metadata))
 		length := len(proxies)
 		idx, has := lruCache.Get(key)
 		if !has || idx >= length {
@@ -273,14 +304,24 @@ func (lb *LoadBalance) Now() string {
 
 func NewLoadBalance(option GroupCommonOption, loadBalanceOption LoadBalanceOption, emptyFallback C.Proxy, providers []P.ProxyProvider) (lb *LoadBalance, err error) {
 	var strategyFn strategyFn
+	withKey, err := hashKey(loadBalanceOption.HashKey)
+	if err != nil {
+		return nil, err
+	}
 	switch loadBalanceOption.Strategy {
 	case "", "consistent-hashing":
-		strategyFn = strategyConsistentHashing()
+		strategyFn = strategyConsistentHashing(withKey(getKey))
 	case "round-robin":
+		if loadBalanceOption.HashKey != "" {
+			return nil, fmt.Errorf("%w: round-robin does not hash", errHashKey)
+		}
 		strategyFn = strategyRoundRobin()
 	case "sticky-sessions":
-		strategyFn = strategyStickySessions()
+		strategyFn = strategyStickySessions(withKey(getKeyWithSrcAndDst))
 	case "random":
+		if loadBalanceOption.HashKey != "" {
+			return nil, fmt.Errorf("%w: random does not hash", errHashKey)
+		}
 		strategyFn = strategyRandom()
 	default:
 		return nil, fmt.Errorf("%w: %s", errStrategy, loadBalanceOption.Strategy)
