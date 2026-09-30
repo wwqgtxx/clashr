@@ -404,7 +404,7 @@ func DefaultRawConfig() *RawConfig {
 		},
 		Tun: LC.Tun{
 			Enable:               false,
-			Stack:                C.TunSystem,
+			Stack:                C.TunMips,
 			DNSHijack:            []string{},
 			AutoDetectInterface:  true,
 			AutoRoute:            true,
