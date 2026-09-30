@@ -261,10 +261,19 @@ func (c *conn) AddRef(ref any) {
 	c.ExtendedConn = N.NewRefConn(c.ExtendedConn, ref) // add ref for autoCloseProxyAdapter
 }
 
+// ipstackConn is a common experimental API interface implemented by:
+// *mipstack.TCPConn, *mipstack.UDPConn, *mipstack.IPConn
+// it's also implemented by our gVisor fork
+type ipstackConn interface {
+	ReadWithBuffer(getBuffer func(sizeHint int) []byte) (int, error)
+}
+
 func NewConn(c net.Conn, a C.ProxyAdapter) C.Conn {
 	if _, ok := c.(syscall.Conn); !ok { // exclusion system conn like *net.TCPConn
-		c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
-		c = N.NewRefConn(c, a)   // add ref for autoCloseProxyAdapter
+		if _, ok := c.(ipstackConn); !ok { // exclusion *mipstack.TCPConn
+			c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
+		}
+		c = N.NewRefConn(c, a) // add ref for autoCloseProxyAdapter
 	}
 	cc := &conn{N.NewExtendedConn(c), nil, nil}
 	cc.AppendToChains(a)
@@ -323,7 +332,12 @@ func (c *packetConn) AddRef(ref any) {
 
 func NewPacketConn(pc net.PacketConn, a ProxyAdapter) C.PacketConn {
 	epc := N.NewEnhancePacketConn(pc)
-	if _, ok := pc.(syscall.Conn); !ok { // exclusion system conn like *net.UDPConn
+	switch pc.(type) {
+	case syscall.Conn: // exclusion system conn like *net.UDPConn
+		break
+	case ipstackConn: // exclusion *mipstack.UDPConn
+		break
+	default:
 		epc = N.NewDeadlineEnhancePacketConn(epc) // most conn from outbound can't handle readDeadline correctly
 	}
 	cpc := &packetConn{epc, nil, nil, a.Name(), utils.NewUUIDV4().String(), a.ResolveUDP}
