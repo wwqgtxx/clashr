@@ -269,11 +269,13 @@ type ipstackConn interface {
 }
 
 func NewConn(c net.Conn, a C.ProxyAdapter) C.Conn {
-	if _, ok := c.(syscall.Conn); !ok { // exclusion system conn like *net.TCPConn
-		if _, ok := c.(ipstackConn); !ok { // exclusion *mipstack.TCPConn
-			c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
-		}
-		c = N.NewRefConn(c, a) // add ref for autoCloseProxyAdapter
+	switch c.(type) {
+	case syscall.Conn: // exclusion system conn like *net.TCPConn
+		break
+	case ipstackConn: // exclusion *mipstack.TCPConn
+		break
+	default:
+		c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
 	}
 	cc := &conn{N.NewExtendedConn(c), nil, nil}
 	cc.AppendToChains(a)
