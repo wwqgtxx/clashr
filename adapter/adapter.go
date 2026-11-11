@@ -222,6 +222,10 @@ func (p *Proxy) URLTest(ctx context.Context, url string) (delay, meanDelay uint1
 	}
 	resp.Body.Close()
 	delay = uint16(time.Since(start) / time.Millisecond)
+	if delay == 0 {
+		// Zero marks failure to callers; a successful sub-millisecond test takes 1 ms.
+		delay = 1
+	}
 
 	resp, err = client.Do(req)
 	if err != nil {
@@ -230,6 +234,9 @@ func (p *Proxy) URLTest(ctx context.Context, url string) (delay, meanDelay uint1
 	}
 	resp.Body.Close()
 	meanDelay = uint16(time.Since(start) / time.Millisecond / 2)
+	if meanDelay == 0 {
+		meanDelay = 1
+	}
 
 	return
 }
