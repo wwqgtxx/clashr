@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"net/netip"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 const (
 	// dotMimeType is the DoH mimetype that should be used.
 	dotMimeType = "application/dns-message"
+	dialTimeout = 10 * time.Second
 )
 
 type dohClient struct {
@@ -112,11 +114,18 @@ func (doh *dohClient) doRequest(req *http.Request) (msg *D.Msg, err error) {
 }
 
 func newDoHClient(url string, r resolver.Resolver, proxyAdapter C.ProxyAdapter, proxyName string, params map[string]string) *dohClient {
+	dialer := newDNSDialer(r, proxyAdapter, proxyName)
 	doh := &dohClient{
 		url: url,
 		transport: &http.Transport{
 			ForceAttemptHTTP2: true,
-			DialContext:       newDNSDialer(r, proxyAdapter, proxyName).DialContext,
+			// Transport dials outlive their request, so each dial needs its own timeout.
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				ctx, cancel := context.WithTimeout(ctx, dialTimeout)
+				defer cancel()
+				return dialer.DialContext(ctx, network, addr)
+			},
+			TLSHandshakeTimeout: dialTimeout,
 		},
 	}
 
